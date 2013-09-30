@@ -11,4 +11,6 @@ Sprawl is a collection of C++ libraries, many of which are implemented as header
 
 *sprawl::network* - A connection-based network library that supports both TCP connections and UDP pseudo-connections. UDP currently supports sending both reliably and unreliably on a per-packet basis, but support for maintaining order is currently unimplemented. Future plans include support for ordered UDP, as well as adding connectionless UDP support.
 
+*sprawl::serialization* - A data serialization library to send data over the network in binary, JSON, YAML, or MongoDB (BSON) formats. Also includes a "replicable" serialization method that detects changes to data and sends only the data that has changed, minimizing both bandwidth usage and edit conflicts if data is sent from multiple sources.
+
 This collection is in its infancy, so any user should be aware that there are missing features and likely bugs with the library, and that the library is in a state of metamorphosis and the API may change dramatically in the future.
