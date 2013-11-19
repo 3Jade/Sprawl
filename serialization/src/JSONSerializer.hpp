@@ -50,6 +50,7 @@ namespace sprawl
 				}
 			}
 			virtual void Reset() override { }
+			using SerializerBase::Data;
 			virtual const char *Data() override { return Str().c_str(); }
 			virtual std::string Str() override
 			{

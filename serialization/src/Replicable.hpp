@@ -388,8 +388,8 @@ namespace sprawl
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-		protected:
-			void PushKey(const std::string& name)
+			
+			virtual void PushKey(const std::string& name)
 			{
 				if(!m_serializer->IsBinary() || (!m_current_map_key.empty() && m_current_key == m_current_map_key.back()))
 				{
@@ -426,7 +426,7 @@ namespace sprawl
 			std::set<std::vector<int16_t>, container_comp<int16_t>> m_removed;
 			std::unordered_map<std::vector<int16_t>, int16_t, container_hash<int16_t>> m_depth_tracker;
 			std::vector<int16_t> m_current_key;
-			SerializerBase* m_serializer;
+			T* m_serializer;
 			std::unordered_map<std::string, int> m_name_index;
 			int highest_name;
 			std::vector<std::vector<int16_t>> m_current_map_key;
@@ -434,7 +434,7 @@ namespace sprawl
 		};
 
 		template<typename T>
-		class ReplicableSerializer : public ReplicableBase<T>, public Serializer
+		class ReplicableSerializer : virtual public ReplicableBase<T>, public Serializer
 		{
 		public:
 			ReplicableSerializer()
@@ -528,7 +528,7 @@ namespace sprawl
 
 				return serializer.Str();
 			}
-		private:
+		protected:
 			std::map<std::vector<int16_t>, std::string, container_comp<int16_t>> m_marked_data;
 		};
 
