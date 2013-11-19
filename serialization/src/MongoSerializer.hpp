@@ -76,6 +76,7 @@ namespace sprawl
 			{
 				if(IsSaving())
 				{
+					this->m_bIsValid = true;
 					for(auto arraybuilder : arraybuilders)
 					{
 						delete arraybuilder.second;
@@ -95,6 +96,7 @@ namespace sprawl
 					objects.clear();
 				}
 			}
+			using SerializerBase::Data;
 			virtual const char *Data() override { return builder->asTempObj().objdata(); }
 			virtual std::string Str() override
 			{
@@ -132,11 +134,23 @@ namespace sprawl
 				}
 			}
 			bool More() { return true; }
-			mongo::BSONObj Obj()
+			mongo::BSONObj tempObj()
 			{
 				if(IsSaving())
 				{
 					return builder->asTempObj();
+				}
+				else
+				{
+					return obj;
+				}
+			}
+			mongo::BSONObj Obj()
+			{
+				if(IsSaving())
+				{
+					m_bIsValid = false;
+					return builder->obj();
 				}
 				else
 				{
@@ -1482,9 +1496,6 @@ namespace sprawl
 		public:
 			using Serializer::operator%;
 
-			virtual void Reset() override
-			{
-			}
 			virtual SerializerBase &operator%(SerializationData<Serializer> &&var) override
 			{
 				std::string str = var.val.Str();
@@ -1527,7 +1538,7 @@ namespace sprawl
 		{
 		public:
 			//Reset everything to original state.
-			virtual void Reset() override { Data(datastr); }
+			virtual void Reset() override { MongoSerializerBase::Reset(); Data(datastr); }
 			using Deserializer::operator%;
 			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
 			{

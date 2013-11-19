@@ -33,6 +33,8 @@
 #include <map>
 #include <unordered_map>
 #include <type_traits>
+#include <memory>
+#include <sstream>
 
 namespace sprawl
 {

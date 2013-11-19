@@ -92,6 +92,7 @@ namespace sprawl
 						m_pos = 0;
 				}
 			}
+			using SerializerBase::Data;
 			virtual const char *Data() override
 			{
 				if(m_checksum_stale && m_bWithMetadata)
