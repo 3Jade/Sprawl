@@ -68,16 +68,16 @@ namespace sprawl
 		class SerializationData
 		{
 		public:
-			SerializationData(T &a, const std::string &b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
+			explicit SerializationData(T &a, const std::string &b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
 			{}
-			SerializationData(T &&a, const std::string &b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
+			explicit SerializationData(T &&a, const std::string &b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
 			{}
 			T& operator*(){ return val; }
 			T& val;
 			std::string name;
 			bool PersistToDB;
 		};
-
+		
 		template<typename T>
 		SerializationData<T> prepare_data(T &val, const std::string &name = "noname", bool persist=true)
 		{
@@ -85,7 +85,7 @@ namespace sprawl
 		}
 
 		template<typename T>
-		SerializationData<T> prepare_data(T &&val, const std::string &name = "noname", bool persist=true)
+		SerializationData<T> prepare_data(T &&val, const std::string &name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0)
 		{
 			return SerializationData<T>(val, name, persist);
 		}
@@ -381,7 +381,26 @@ namespace sprawl
 			//Except that bool has its own weird behaviors... so it has to be treated like the other kind.
 			void VectorSerialize(SerializationData<std::vector<bool>> &var, std::true_type)
 			{
-				VectorSerialize( var, std::false_type());
+				size_t size = var.val.size();
+				if(IsBinary())
+				{
+					*this % prepare_data(size, var.name, false);
+				}
+				StartArray(var.name, size, var.PersistToDB);
+				if(IsLoading())
+				{
+					var.val.resize(size);
+				}
+				for(size_t i=0; i<size; i++)
+				{
+					bool b = var.val[i];
+					*this % prepare_data(b, var.name, var.PersistToDB);
+					if(IsLoading())
+					{
+						var.val[i] = b;
+					}
+				}
+				EndArray();
 			}
 
 		public:
@@ -697,7 +716,7 @@ namespace sprawl
 				EndArray();
 				return *this;
 			}
-		
+
 			template<typename T, typename comp, typename alloc>
 			SerializerBase &operator%(SerializationData<std::unordered_set<T, comp, alloc>> &&var)
 			{
@@ -888,21 +907,6 @@ namespace sprawl
 			{
 				T cVar = var.val;
 				return *this % prepare_data(cVar, var.name, var.PersistToDB);
-			}
-
-			template<typename T>
-			SerializerBase &operator%(T &&var)
-			{
-				return *this % prepare_data(var, "noname", true);
-			}
-
-			template<typename T>
-			SerializerBase &operator%(SerializationData<T> &&var)
-			{
-				StartObject(var.name, var.PersistToDB);
-				var.val.Serialize(*this);
-				EndObject();
-				return *this;
 			}
 
 			virtual ~Serializer(){}
