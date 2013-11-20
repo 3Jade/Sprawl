@@ -26,18 +26,23 @@
  
 #include "Serializer.hpp"
 #include <map>
-#include <boost/functional/hash.hpp>
 
 namespace sprawl
 {
 	namespace serialization
 	{
-		template <typename Container> // we can make this generic for any container [1]
+		template <typename T> // we can make this generic for any container [1]
 		struct container_hash
 		{
-			std::size_t operator()(const std::vector<Container> & c) const
+			std::size_t operator()(const std::vector<T> & c) const
 			{
-				return boost::hash_range(c.begin(), c.end());
+				std::size_t ret = 0;
+				for(auto& item : c)
+				{
+					//Pulled from boost::hash_combine, placed here directly to avoid dependency on boost.
+					ret ^= std::hash<T>()(item) + 0x9e3779b9 + (ret << 6) + (ret >> 2);
+				}
+				return ret;
 			}
 		};
 

@@ -258,9 +258,10 @@ namespace sprawl
 			{
 				if(IsLoading())
 				{
-					char data[bytes];
+					char* data = new char[bytes];
 					serialize_impl(data, bytes, PersistToDB);
 					*var = std::string(data, bytes);
+					delete[] data;
 				}
 				else
 				{
