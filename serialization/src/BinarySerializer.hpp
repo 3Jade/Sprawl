@@ -35,6 +35,9 @@ namespace sprawl
 		public:
 			static const int headerSize = sizeof(int32_t)*3;
 
+			virtual bool IsBinary() override { return true; }
+			virtual int Size() override { return m_size; }
+
 			typedef class BinarySerializer serializer_type;
 			typedef class BinaryDeserializer deserializer_type;
 			uint32_t ComputeChecksum()
@@ -45,6 +48,8 @@ namespace sprawl
 					return compute_checksum( m_data, m_size );
 			}
 			uint32_t GetChecksum() { return m_checksum; }
+			virtual uint32_t GetVersion() override { return m_version; }
+			virtual bool IsValid() override { return m_bIsValid; }
 			virtual void SetVersion(uint32_t i) override
 			{
 				m_version = i;
@@ -114,11 +119,20 @@ namespace sprawl
 				return std::string(m_data, m_size); }
 			bool More(){ return m_pos < m_size; }
 		protected:
+			template<typename T>
+			friend class ReplicableBase;
 			char *m_data;
 			uint32_t m_pos;
 			uint32_t m_capacity;
 			uint32_t m_checksum;
 			bool m_checksum_stale;
+			bool m_bInitialized;
+
+			//Copied and pasted to avoid indirection with virtual inheritance
+			uint32_t m_size;
+			uint32_t m_version;
+			bool m_bIsValid;
+			bool m_bWithMetadata;
 
 			uint32_t compute_checksum(const char *data, int len)
 			{
@@ -254,7 +268,19 @@ namespace sprawl
 				}
 			}
 
-			BinarySerializerBase() : SerializerBase(), m_data(NULL), m_pos(0), m_capacity(0), m_checksum(0), m_checksum_stale(false) {}
+			BinarySerializerBase()
+				: SerializerBase()
+				, m_data(NULL)
+				, m_pos(0)
+				, m_capacity(0)
+				, m_checksum(0)
+				, m_checksum_stale(false)
+				, m_bInitialized(false)
+				, m_size(0)
+				, m_version(0)
+				, m_bIsValid(true)
+				, m_bWithMetadata(true)
+			{}
 			virtual ~BinarySerializerBase()
 			{
 				if(m_data != NULL)
@@ -290,8 +316,6 @@ namespace sprawl
 			//Reserve the first sizeof(int32_t)*3 bytes of space to hold metadata (size, version, and checksum).
 			BinarySerializer()
 			{
-				m_bIsLoading = false;
-				m_bIsBinary = true;
 				m_capacity = 256;
 				m_data = new char[m_capacity];
 				if(m_bWithMetadata)
@@ -314,8 +338,6 @@ namespace sprawl
 
 			BinarySerializer(bool)
 			{
-				m_bIsLoading = false;
-				m_bIsBinary = true;
 				m_capacity = 256;
 				m_bWithMetadata = false;
 				m_data = new char[m_capacity];
@@ -385,24 +407,18 @@ namespace sprawl
 			BinaryDeserializer(const std::string &data)
 			{
 				m_bIsValid = true;
-				m_bIsLoading = true;
-				m_bIsBinary = true;
 				Data(data);
 			}
 
 			BinaryDeserializer(const std::string& data, bool)
 			{
 				m_bIsValid = true;
-				m_bIsLoading = true;
-				m_bIsBinary = true;
 				m_bWithMetadata = false;
 				Data(data);
 			}
 
 			BinaryDeserializer()
 			{
-				m_bIsLoading = true;
-				m_bIsBinary = true;
 				m_bIsValid = false;
 			}
 			virtual ~BinaryDeserializer(){}

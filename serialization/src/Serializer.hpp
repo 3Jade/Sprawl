@@ -96,20 +96,17 @@ namespace sprawl
 		class SerializerBase
 		{
 		public:
-			bool IsLoading() { return m_bIsLoading; }
-			bool IsSaving() { return !m_bIsLoading; }
-			bool IsBinary() { return m_bIsBinary; }
-			bool IsReplicable() { return m_bIsReplicable; }
+			virtual bool IsLoading() = 0;
+			bool IsSaving() { return !IsLoading(); }
+			virtual bool IsBinary() { return false; }
+			virtual bool IsReplicable() { return false; }
 
-			uint32_t GetVersion() { return m_version; }
-			virtual void SetVersion(uint32_t i)
-			{
-				m_version = i;
-			}
+			virtual uint32_t GetVersion() = 0;
+			virtual void SetVersion(uint32_t i) = 0;
 			virtual void Reset() { }
 
-			bool IsValid() { return m_bIsValid; }
-			virtual int Size() { return m_size; }
+			virtual bool IsValid() = 0;
+			virtual int Size() = 0;
 			SerializerBase &operator%(SerializationData<unsigned int> &&var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
@@ -853,14 +850,6 @@ namespace sprawl
 			virtual std::string Str() = 0;
 			virtual ~SerializerBase(){}
 		protected:
-			bool m_bIsLoading;
-			uint32_t m_size;
-			uint32_t m_version;
-			bool m_bIsValid;
-			bool m_bInitialized;
-			bool m_bIsBinary;
-			bool m_bIsReplicable;
-			bool m_bWithMetadata;
 
 			template<typename T>
 			void serialize(T &var, const size_t bytes, const std::string &name, bool PersistToDB)
@@ -884,7 +873,7 @@ namespace sprawl
 			virtual void serialize(unsigned char *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
 			virtual void serialize(std::string *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
 
-			SerializerBase() : m_bIsLoading(false), m_size(0), m_version(0), m_bIsValid(true), m_bInitialized(false), m_bIsBinary(false), m_bIsReplicable(false), m_bWithMetadata(true) {}
+			SerializerBase() {}
 		private:
 			SerializerBase(const SerializerBase&);
 			SerializerBase &operator=(const SerializerBase&);
@@ -917,10 +906,10 @@ namespace sprawl
 			}
 
 			virtual ~Serializer(){}
+			virtual bool IsLoading() override { return false; }
 		protected:
 			Serializer()
 			{
-				m_bIsLoading = false;
 			}
 		};
 
@@ -931,11 +920,10 @@ namespace sprawl
 			using SerializerBase::Data;
 			virtual void Data(const std::string &str) = 0;
 			virtual ~Deserializer(){}
+			virtual bool IsLoading() override { return true; }
 		protected:
 			Deserializer()
 			{
-				m_bIsLoading = true;
-				m_bIsValid = false;
 			}
 		};
 	}

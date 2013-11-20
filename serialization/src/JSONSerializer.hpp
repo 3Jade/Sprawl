@@ -38,6 +38,8 @@ namespace sprawl
 		public:
 			typedef class JSONSerializer serializer_type;
 			typedef class JSONDeserializer deserializer_type;
+			virtual uint32_t GetVersion() override { return m_version; }
+			virtual bool IsValid() override { return m_bIsValid; }
 			virtual void SetVersion(uint32_t i) override
 			{
 				m_version = i;
@@ -74,6 +76,8 @@ namespace sprawl
 			}
 			bool More(){ return !SerialVect.empty() || !this_array.empty() || !this_object.empty(); }
 		protected:
+			template<typename T>
+			friend class ReplicableBase;
 			using SerializerBase::serialize;
 			template<typename T>
 			void serialize_impl(T *var, const size_t bytes, const std::string &name, bool)
@@ -656,7 +660,12 @@ namespace sprawl
 				}
 			}
 
-			JSONSerializerBase() : SerializerBase() {}
+			JSONSerializerBase()
+				: SerializerBase()
+				, m_version(0)
+				, m_bIsValid(true)
+				, m_bWithMetadata(true)
+			{}
 			virtual ~JSONSerializerBase() {}
 		protected:
 			static void ParseJSON(const std::string &str, std::deque<std::pair<std::string, std::string>> &ret)
@@ -765,6 +774,11 @@ namespace sprawl
 			std::deque<std::pair<std::string, std::deque<std::string>>> this_array;
 			std::deque<std::pair<std::string, std::deque<std::pair<std::string, std::string>>>> this_object;
 			std::deque<std::pair<std::string, std::string>> SerialVect;
+
+			//Copied and pasted to avoid indirection with virtual inheritance
+			uint32_t m_version;
+			bool m_bIsValid;
+			bool m_bWithMetadata;
 		private:
 			JSONSerializerBase(const SerializerBase&);
 			JSONSerializerBase &operator=(const SerializerBase&);
@@ -798,19 +812,15 @@ namespace sprawl
 
 			JSONSerializer() : JSONSerializerBase(), Serializer()
 			{
-				m_bIsLoading = false;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
-				m_bInitialized = true;
 			}
 			JSONSerializer(bool) : JSONSerializerBase(), Serializer()
 			{
-				m_bIsLoading = false;
 				m_bWithMetadata = false;
-				m_bInitialized = true;
 			}
 
-			virtual ~JSONSerializer() {};
+			virtual ~JSONSerializer() {}
 		protected:
 			virtual SerializerBase* GetAnother(const std::string& /*data*/) override { throw std::exception(); }
 			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
@@ -841,29 +851,24 @@ namespace sprawl
 			virtual void Data(const std::string &str) override
 			{
 				datastr = str;
-				m_size = str.length();
 				SerialVect.clear();
 				ParseJSON(str, SerialVect);
-				m_bInitialized = true;
 				m_bIsValid = true;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
 			}
 			JSONDeserializer(const std::string &data) : JSONSerializerBase(), Deserializer()
 			{
-				m_bIsLoading = true;
 				Data(data);
 			}
 			JSONDeserializer(const std::string &data, bool) : JSONSerializerBase(), Deserializer()
 			{
-				m_bIsLoading = true;
 				m_bWithMetadata = false;
 				Data(data);
 			}
 
 			JSONDeserializer() : JSONSerializerBase(), Deserializer()
 			{
-				m_bIsLoading = true;
 				m_bIsValid = false;
 			}
 			virtual ~JSONDeserializer(){}

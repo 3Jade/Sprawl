@@ -93,25 +93,30 @@ namespace sprawl
 				, m_diffs()
 				, m_depth_tracker()
 				, m_current_key()
-				, m_serializer(nullptr)
 				, m_name_index()
 				, highest_name(0)
 				, m_current_map_key()
 				, m_keyindex()
+				, m_serializer(nullptr)
+				, baseline(nullptr)
+				, marked(false)
 			{
-				this->m_bIsReplicable = true;
 			}
 
 			virtual ~ReplicableBase()
 			{
 				if(m_serializer)
 					delete m_serializer;
+				if(baseline)
+					delete baseline;
 			}
 
 		public:
+			virtual uint32_t GetVersion() override { return m_serializer->GetVersion(); }
+			virtual bool IsValid() override { return true; }
+			virtual int Size() override { return 0; }
 			virtual void SetVersion(uint32_t i) override
 			{
-				m_version = i;
 				m_serializer->SetVersion(i);
 			}
 
@@ -128,9 +133,11 @@ namespace sprawl
 				this->m_keyindex.clear();
 			}
 
-			void StartArray( const std::string& name, size_t& size, bool ) override
+			virtual bool IsReplicable() override { return true; }
+
+			void StartArray( const std::string& name, size_t& size, bool b ) override
 			{
-				PushKey(name);
+				PushKey("__array__");
 				if(IsLoading())
 				{
 					//A little less pleasant than would be ideal...
@@ -201,20 +208,32 @@ namespace sprawl
 						m_current_key.pop_back();
 					}
 				} // if(IsLoading())
+				else if(!marked)
+				{
+					baseline->StartArray(name, size, b);
+				}
 			}
 
 			void EndArray() override
 			{
 				PopKey();
+				if(!marked)
+				{
+					baseline->EndArray();
+				}
 			}
 
-			int StartObject( const std::string& name, bool ) override
+			int StartObject( const std::string& name, bool b) override
 			{
 				PushKey(name);
+				if(!marked)
+				{
+					baseline->StartObject(name, b);
+				}
 				return 0;
 			}
 
-			int StartMap( const std::string& name, bool ) override
+			int StartMap( const std::string& name, bool b) override
 			{
 				PushKey(name);
 				m_current_map_key.push_back(m_current_key);
@@ -232,21 +251,30 @@ namespace sprawl
 					}
 					return unique_subkeys.size();
 				}
-				else
+				else if(!marked)
 				{
-					return 0;
+					baseline->StartMap(name, b);
 				}
+				return 0;
 			}
 
 			void EndMap()
 			{
 				m_current_map_key.pop_back();
-				EndObject();
+				PopKey();
+				if(!marked)
+				{
+					baseline->EndMap();
+				}
 			}
 
 			void EndObject() override
 			{
 				PopKey();
+				if(!marked)
+				{
+					baseline->EndObject();
+				}
 			}
 
 			std::string GetNextKey() override
@@ -311,6 +339,10 @@ namespace sprawl
 				{
 					(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
 					m_data[m_current_key] = m_serializer->Str();
+					if(!marked)
+					{
+						(*baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+					}
 				}
 				PopKey();
 			}
@@ -426,15 +458,17 @@ namespace sprawl
 			std::set<std::vector<int16_t>, container_comp<int16_t>> m_removed;
 			std::unordered_map<std::vector<int16_t>, int16_t, container_hash<int16_t>> m_depth_tracker;
 			std::vector<int16_t> m_current_key;
-			T* m_serializer;
 			std::unordered_map<std::string, int> m_name_index;
 			int highest_name;
 			std::vector<std::vector<int16_t>> m_current_map_key;
 			std::unordered_map<int16_t, std::string> m_keyindex;
+			T* m_serializer;
+			T* baseline;
+			bool marked;
 		};
 
 		template<typename T>
-		class ReplicableSerializer : virtual public ReplicableBase<T>, public Serializer
+		class ReplicableSerializer : public ReplicableBase<T>, public Serializer
 		{
 		public:
 			ReplicableSerializer()
@@ -443,12 +477,14 @@ namespace sprawl
 				, m_marked_data()
 			{
 				this->m_serializer = new T(false);
+				this->baseline = new T();
 			}
 
 			virtual void Reset() override
 			{
 				ReplicableBase<T>::Reset();
 				m_marked_data.clear();
+				this->marked = false;
 			}
 
 			void Mark()
@@ -459,6 +495,7 @@ namespace sprawl
 				this->m_diffs.clear();
 				this->m_removed.clear();
 				this->m_keyindex.clear();
+				this->marked = true;
 			}
 			const char* Data() override
 			{
@@ -528,6 +565,12 @@ namespace sprawl
 
 				return serializer.Str();
 			}
+
+			std::string getBaselineStr()
+			{
+				return this->baseline->Str();
+			}
+
 		protected:
 			std::map<std::vector<int16_t>, std::string, container_comp<int16_t>> m_marked_data;
 		};
