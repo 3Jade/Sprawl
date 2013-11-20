@@ -59,6 +59,8 @@ namespace sprawl
 		public:
 			typedef class MongoSerializer serializer_type;
 			typedef class MongoDeserializer deserializer_type;
+			virtual uint32_t GetVersion() override { return m_version; }
+			virtual bool IsValid() override { return m_bIsValid; }
 			virtual void SetVersion(uint32_t i) override
 			{
 				m_version = i;
@@ -158,6 +160,8 @@ namespace sprawl
 				}
 			}
 		protected:
+			template<typename T>
+			friend class ReplicableBase;
 			using SerializerBase::serialize;
 
 			virtual void serialize(int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
@@ -1461,7 +1465,20 @@ namespace sprawl
 				}
 			}
 
-			MongoSerializerBase() : SerializerBase(), DisablePersistence(0), obj(), builder(new mongo::BSONObjBuilder()), arraybuilders(), objectbuilders(), arrays(), objects(), StateTracker() {}
+			MongoSerializerBase()
+				: SerializerBase()
+				, DisablePersistence(0)
+				, obj()
+				, builder(new mongo::BSONObjBuilder())
+				, arraybuilders()
+				, objectbuilders()
+				, arrays()
+				, objects()
+				, StateTracker()
+				, m_version(0)
+				, m_bIsValid(true)
+				, m_bWithMetadata(true)
+			{}
 			virtual ~MongoSerializerBase()
 			{
 				for(auto arraybuilder : arraybuilders)
@@ -1486,6 +1503,11 @@ namespace sprawl
 			std::deque<std::pair<std::string, std::deque<mongo::BSONElement>>> arrays;
 			std::deque<mongo::BSONObj> objects;
 			std::deque<State> StateTracker;
+
+			//Copied and pasted to avoid indirection with virtual inheritance
+			uint32_t m_version;
+			bool m_bIsValid;
+			bool m_bWithMetadata;
 		private:
 			MongoSerializerBase(const SerializerBase&);
 			MongoSerializerBase &operator=(const SerializerBase&);
@@ -1513,17 +1535,13 @@ namespace sprawl
 			//Reserve the first sizeof(int32_t)*3 bytes of space to hold metadata (size, version, and checksum).
 			MongoSerializer()
 			{
-				m_bIsLoading = false;
 				m_bIsValid = true;
 				SetVersion(0);
-				m_bInitialized = true;
 			}
 			MongoSerializer(bool)
 			{
-				m_bIsLoading = false;
 				m_bIsValid = true;
 				SetVersion(0);
-				m_bInitialized = true;
 				m_bWithMetadata = false;
 			}
 
@@ -1559,7 +1577,6 @@ namespace sprawl
 			void Data(const mongo::BSONObj &o)
 			{
 				obj = o;
-				m_bInitialized = true;
 				m_bIsValid = true;
 			}
 
@@ -1573,27 +1590,23 @@ namespace sprawl
 				{
 					obj = mongo::BSONObj(str.c_str());
 				}
-				m_bInitialized = true;
 				m_bIsValid = true;
 			}
 
 			MongoDeserializer(const std::string &data)
 			{
-				m_bIsLoading = true;
 				Data(data);
 				m_version = obj["__version__"].Int();
 			}
 
 			MongoDeserializer(const std::string& data, bool)
 			{
-				m_bIsLoading = true;
 				Data(data);
 				m_bWithMetadata = false;
 			}
 
 			MongoDeserializer(const mongo::BSONObj &o)
 			{
-				m_bIsLoading = true;
 				Data(o);
 				m_version = obj["__version__"].Int();
 			}

@@ -31,35 +31,133 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		template<typename T>
-		class MongoReplicableBase : virtual public ReplicableBase<T>
+		class MongoReplicableSerializer : public ReplicableSerializer<MongoSerializer>
 		{
+		public:
+			std::pair<mongo::BSONObj, mongo::BSONObj> generateUpdateQuery()
+			{
+				mongo::BSONObjBuilder b;
+				
+				mongo::BSONObjBuilder changed;
+				bool changed_something = false;
+
+				std::unordered_set<std::string> arraysWithRemovedItems;
+				auto get_string_key = [this, &arraysWithRemovedItems](const std::vector<int16_t>& v, bool removal = false)
+				{
+					std::stringstream str;
+					bool array = false;
+					bool printed = false;
+					for(int i = 0; i < v.size(); ++i)
+					{
+						bool isCounter = ((i % 2) != 0);
+						if(isCounter && !array)
+						{
+							continue;
+						}
+						
+						if(isCounter)
+						{
+							array = false;
+							if(removal && i == (v.size() - 1))
+							{
+								arraysWithRemovedItems.insert(str.str());
+							}
+
+							if(printed)
+							{
+								str << ".";
+							}
+							str << (v[i] - 1);
+						}
+						else
+						{
+							if(printed)
+							{
+								str << ".";
+							}
+							std::string& s = this->m_reverse_name_index[v[i]];
+							if(s == "__array__")
+							{
+								array = true;
+								++i;
+								continue;
+							}
+							str << s;
+							printed = true;
+						}
+					}
+					return std::move(str.str());
+				};
+				
+				//Adds and changes
+				for( auto& kvp : this->m_data )
+				{
+					auto it = this->m_marked_data.find(kvp.first);
+					if( it == this->m_marked_data.end() || kvp.second != it->second )
+					{
+						changed_something = true;
+						changed.appendAs(this->m_objs[kvp.first][this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]], get_string_key(kvp.first));
+					}
+				}
+				if(changed_something)
+				{
+					b.append("$set", changed.obj());
+				}
+
+				//Removes get their own special treatment
+				mongo::BSONObjBuilder removed;
+				bool removed_something = false;
+				for( auto& kvp : this->m_marked_data )
+				{
+					auto it = this->m_data.find(kvp.first);
+					if( it == this->m_data.end() )
+					{
+						removed.append(get_string_key(kvp.first, true), "");
+						removed_something = true;
+					}
+				}
+				if(removed_something)
+				{
+					b.append("$unset", removed.obj());
+				}
+				mongo::BSONObjBuilder b2;
+				if(!arraysWithRemovedItems.empty())
+				{
+					mongo::BSONObjBuilder pulled;
+					for(auto& key : arraysWithRemovedItems)
+					{
+						pulled << key << mongo::BSONNULL;
+					}
+					b2.append("$pull", pulled.obj());
+				}
+				
+				return std::make_pair(b.obj(), b2.obj());
+			}
+
+			mongo::BSONObj getBaselineObj()
+			{
+				return baseline->Obj();
+			}
+
+			mongo::BSONObj getBaselineTempObj()
+			{
+				return baseline->tempObj();
+			}
 		protected:
 			template<typename T2>
 			void serialize_impl( T2 *var, const std::string &name, bool PersistToDB)
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
-				if(this->IsLoading())
-				{
-					typename T::serializer_type serializer;
-					serializer % this->m_current_key;
 
-					//Do nothing if this element hasn't changed.
-					auto it = this->m_diffs.find(this->m_current_key);
-					if(it != this->m_diffs.end())
-					{
-						this->m_serializer->Data(it->second);
-						(*this->m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
-						this->m_diffs.erase(it);
-					}
-				}
-				else
+				(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+				m_data[m_current_key] = m_serializer->Str();
+				m_objs[m_current_key] = m_serializer->Obj();
+				if(!marked)
 				{
-					(*this->m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
-					this->m_data[this->m_current_key] = this->m_serializer->Str();
-					this->m_objs[this->m_current_key] = this->m_serializer->Obj();
+					(*baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
 				}
+
 				this->PopKey();
 			}
 
@@ -136,7 +234,7 @@ namespace sprawl
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			
+
 			virtual void PushKey(const std::string& name) override
 			{
 				if(!this->m_serializer->IsBinary() || (!this->m_current_map_key.empty() && this->m_current_key == this->m_current_map_key.back()))
@@ -156,61 +254,9 @@ namespace sprawl
 				depth++;
 				this->m_current_key.push_back( depth );
 			}
-			
+
 			std::unordered_map<std::vector<int16_t>, mongo::BSONObj, container_hash<int16_t>> m_objs;
 			std::unordered_map<int16_t, std::string> m_reverse_name_index;
-		};
-		
-		class MongoReplicableSerializer : public ReplicableSerializer<MongoSerializer>, public MongoReplicableBase<MongoSerializer>
-		{
-		public:
-			mongo::BSONObj generateUpdateQuery()
-			{
-				mongo::BSONObjBuilder b;
-				
-				auto get_string_key = [this](const std::vector<int16_t>& v)
-				{
-					std::string str;
-					for(int i = 2; i < v.size(); i += 2)
-					{
-						if(i != 2)
-						{
-							str += ".";
-						}
-						str += this->m_reverse_name_index[v[i]];
-					}
-					return std::move(str);
-				};
-				
-				//Adds and changes
-				for( auto& kvp : this->m_data )
-				{
-					auto it = this->m_marked_data.find(kvp.first);
-					if( it == this->m_marked_data.end() || kvp.second != it->second )
-					{
-						b.appendAs(this->m_objs[kvp.first][this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]], get_string_key(kvp.first));
-					}
-				}
-
-				//Removes get their own special treatment
-				mongo::BSONObjBuilder removed;
-				bool removed_something = false;
-				for( auto& kvp : this->m_marked_data )
-				{
-					auto it = this->m_data.find(kvp.first);
-					if( it == this->m_data.end() )
-					{
-						removed.append(get_string_key(kvp.first), "");
-						removed_something = true;
-					}
-				}
-				if(removed_something)
-				{
-					b.append("$unset", removed.obj());
-				}
-				
-				return b.obj();
-			}
 		};
 		
 		typedef ReplicableDeserializer<MongoDeserializer> MongoReplicableDeserializer;

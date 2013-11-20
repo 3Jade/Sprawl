@@ -38,6 +38,8 @@ namespace sprawl
 		public:
 			typedef class YAMLSerializer serializer_type;
 			typedef class YAMLDeserializer deserializer_type;
+			virtual uint32_t GetVersion() override { return m_version; }
+			virtual bool IsValid() override { return m_bIsValid; }
 			virtual void SetVersion(uint32_t i) override
 			{
 				m_version = i;
@@ -70,6 +72,8 @@ namespace sprawl
 			}
 			bool More(){ return !SerialVect.empty() || !this_array.empty() || !this_object.empty(); }
 		protected:
+			template<typename T>
+			friend class ReplicableBase;
 			using SerializerBase::serialize;
 			template<typename T>
 			void serialize_impl(T *var, const size_t bytes, const std::string &name, bool)
@@ -672,7 +676,13 @@ namespace sprawl
 				}
 			}
 
-			YAMLSerializerBase() : SerializerBase(), indent(0) {}
+			YAMLSerializerBase()
+				: SerializerBase()
+				, indent(0)
+				, m_version(0)
+				, m_bIsValid(true)
+				, m_bWithMetadata(true)
+			{}
 			virtual ~YAMLSerializerBase() {}
 		protected:
 			static void ParseYAML(const std::string &str, std::deque<std::pair<std::string, std::string>> &ret)
@@ -811,6 +821,11 @@ namespace sprawl
 			std::deque<std::pair<std::string, std::deque<std::pair<std::string, std::string>>>> this_object;
 			std::deque<std::pair<std::string, std::string>> SerialVect;
 			int indent;
+
+			//Copied and pasted to avoid indirection with virtual inheritance
+			uint32_t m_version;
+			bool m_bIsValid;
+			bool m_bWithMetadata;
 		private:
 			YAMLSerializerBase(const SerializerBase&);
 			YAMLSerializerBase &operator=(const SerializerBase&);
@@ -844,17 +859,13 @@ namespace sprawl
 
 			YAMLSerializer() : YAMLSerializerBase(), Serializer()
 			{
-				m_bIsLoading = false;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
-				m_bInitialized = true;
 			}
 
 			YAMLSerializer(bool) : YAMLSerializerBase(), Serializer()
 			{
-				m_bIsLoading = false;
 				m_bWithMetadata = false;
-				m_bInitialized = true;
 			}
 			virtual ~YAMLSerializer() {};
 		protected:
@@ -887,28 +898,23 @@ namespace sprawl
 			virtual void Data(const std::string &str) override
 			{
 				datastr = str;
-				m_size = str.length();
 				SerialVect.clear();
 				ParseYAML(str, SerialVect);
-				m_bInitialized = true;
 				m_bIsValid = true;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
 			}
 			YAMLDeserializer(const std::string &data) : YAMLSerializerBase(), Deserializer()
 			{
-				m_bIsLoading = true;
 				Data(data);
 			}
 			YAMLDeserializer(const std::string &data, bool) : YAMLSerializerBase(), Deserializer()
 			{
-				m_bIsLoading = true;
 				m_bWithMetadata = false;
 				Data(data);
 			}
 			YAMLDeserializer() : YAMLSerializerBase(), Deserializer()
 			{
-				m_bIsLoading = true;
 				m_bIsValid = false;
 			}
 			virtual ~YAMLDeserializer(){}
