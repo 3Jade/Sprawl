@@ -36,6 +36,10 @@
 #include <memory>
 #include <sstream>
 
+namespace mongo {
+	class OID;
+}
+
 namespace sprawl
 {
 	namespace serialization
@@ -100,6 +104,7 @@ namespace sprawl
 			bool IsSaving() { return !IsLoading(); }
 			virtual bool IsBinary() { return false; }
 			virtual bool IsReplicable() { return false; }
+			virtual bool IsMongoStream() { return false; }
 
 			virtual uint32_t GetVersion() = 0;
 			virtual void SetVersion(uint32_t i) = 0;
@@ -892,6 +897,10 @@ namespace sprawl
 			virtual void serialize(unsigned char *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
 			virtual void serialize(std::string *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
 
+			//Usually does nothing, but has to be here for mongo serializer to work properly with OIDs.
+			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);
+			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) {}
+
 			SerializerBase() {}
 		private:
 			SerializerBase(const SerializerBase&);
@@ -907,6 +916,21 @@ namespace sprawl
 			{
 				T cVar = var.val;
 				return *this % prepare_data(cVar, var.name, var.PersistToDB);
+			}
+
+			template<typename T>
+			SerializerBase &operator%(T &&var)
+			{
+			  return *this % prepare_data(var, "noname", true);
+			}
+
+			template<typename T>
+			SerializerBase &operator%(SerializationData<T> &&var)
+			{
+			  StartObject(var.name, var.PersistToDB);
+			  var.val.Serialize(*this);
+			  EndObject();
+			  return *this;
 			}
 
 			virtual ~Serializer(){}

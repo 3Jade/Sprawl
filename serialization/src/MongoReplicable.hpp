@@ -42,7 +42,7 @@ namespace sprawl
 				bool changed_something = false;
 
 				std::unordered_set<std::string> arraysWithRemovedItems;
-				auto get_string_key = [this, &arraysWithRemovedItems](const std::vector<int16_t>& v, bool removal = false)
+				auto get_string_key = [this, &arraysWithRemovedItems](const std::vector<int16_t>& v, bool removal)
 				{
 					std::stringstream str;
 					bool array = false;
@@ -96,7 +96,7 @@ namespace sprawl
 					if( it == this->m_marked_data.end() || kvp.second != it->second )
 					{
 						changed_something = true;
-						changed.appendAs(this->m_objs[kvp.first][this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]], get_string_key(kvp.first));
+						changed.appendAs(this->m_objs[kvp.first][this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]], get_string_key(kvp.first, false));
 					}
 				}
 				if(changed_something)
@@ -156,6 +156,22 @@ namespace sprawl
 				if(!marked)
 				{
 					(*baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+				}
+
+				this->PopKey();
+			}
+
+			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
+			{
+				this->m_serializer->Reset();
+				this->PushKey(name);
+
+				m_serializer->serialize(var, name, PersistToDB);
+				m_data[m_current_key] = m_serializer->Str();
+				m_objs[m_current_key] = m_serializer->Obj();
+				if(!marked)
+				{
+					baseline->serialize(var, name, PersistToDB);
 				}
 
 				this->PopKey();
@@ -258,8 +274,28 @@ namespace sprawl
 			std::unordered_map<std::vector<int16_t>, mongo::BSONObj, container_hash<int16_t>> m_objs;
 			std::unordered_map<int16_t, std::string> m_reverse_name_index;
 		};
-		
-		typedef ReplicableDeserializer<MongoDeserializer> MongoReplicableDeserializer;
+
+		class MongoReplicableDeserializer : public ReplicableDeserializer<MongoDeserializer>
+		{
+			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
+			{
+				m_serializer->Reset();
+				PushKey(name);
+
+				MongoSerializer serializer;
+				serializer % m_current_key;
+
+				//Do nothing if this element hasn't changed.
+				auto it = m_diffs.find(m_current_key);
+				if(it != m_diffs.end())
+				{
+					m_serializer->Data(it->second);
+					m_serializer->serialize(var, name, PersistToDB);
+					m_diffs.erase(it);
+				}
+				PopKey();
+			}
+		};
 			
 	}
 }

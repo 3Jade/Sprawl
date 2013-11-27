@@ -125,6 +125,7 @@ namespace sprawl
 				m_serializer->SetVersion(i);
 			}
 
+			virtual bool IsMongoStream() override { return m_serializer->IsMongoStream(); }
 			virtual void Reset() override
 			{
 				this->m_data.clear();
