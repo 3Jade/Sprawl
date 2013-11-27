@@ -24,9 +24,9 @@
  * SOFTWARE.
  */
 
+#include <mongo/client/dbclient.h>
 #include "Serializer.hpp"
 #include "JSONSerializer.hpp"
-#include <mongo/client/dbclient.h>
 #include <deque>
 
 namespace sprawl
@@ -61,18 +61,10 @@ namespace sprawl
 			typedef class MongoDeserializer deserializer_type;
 			virtual uint32_t GetVersion() override { return m_version; }
 			virtual bool IsValid() override { return m_bIsValid; }
+			virtual bool IsMongoStream() override { return true; }
 			virtual void SetVersion(uint32_t i) override
 			{
 				m_version = i;
-				if(IsSaving() && m_bWithMetadata)
-				{
-					//Update version metadata
-					mongo::BSONObj obj = builder->obj();
-					delete builder;
-					builder = new mongo::BSONObjBuilder();
-					builder->append("__version__", m_version);
-					builder->appendElementsUnique(obj);
-				}
 			}
 			virtual void Reset() override
 			{
@@ -99,11 +91,16 @@ namespace sprawl
 				}
 			}
 			using SerializerBase::Data;
-			virtual const char *Data() override { return builder->asTempObj().objdata(); }
+			virtual const char *Data() override
+			{
+				EnsureVersion();
+				return builder->asTempObj().objdata();
+			}
 			virtual std::string Str() override
 			{
 				if(IsSaving())
 				{
+					EnsureVersion();
 					return std::string(builder->asTempObj().objdata(), builder->asTempObj().objsize());
 				}
 				else
@@ -115,6 +112,7 @@ namespace sprawl
 			{
 				if(IsSaving())
 				{
+					EnsureVersion();
 					return builder->asTempObj().jsonString();
 				}
 				else
@@ -140,6 +138,7 @@ namespace sprawl
 			{
 				if(IsSaving())
 				{
+					EnsureVersion();
 					return builder->asTempObj();
 				}
 				else
@@ -151,6 +150,7 @@ namespace sprawl
 			{
 				if(IsSaving())
 				{
+					EnsureVersion();
 					m_bIsValid = false;
 					return builder->obj();
 				}
@@ -159,10 +159,81 @@ namespace sprawl
 					return obj;
 				}
 			}
+			void EnsureVersion()
+			{
+				if(m_bWithMetadata)
+				{
+					//This shouldn't happen unless someone's being dumb.
+					//And even if they're being dumb, it shouldn't matter unless they're being extra dumb.
+					//...but some people are extra dumb.
+					if(builder->hasField("__version__"))
+					{
+						mongo::BSONObj obj = builder->obj();
+						obj = obj.removeField("__version__");
+						delete builder;
+						builder = new mongo::BSONObjBuilder();
+						builder->appendElements(obj);
+					}
+					builder->append("__version__", m_version);
+				}
+			}
 		protected:
 			template<typename T>
 			friend class ReplicableBase;
 			using SerializerBase::serialize;
+
+			friend class MongoReplicableDeserializer;
+			friend class MongoReplicableSerializer;
+			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
+			{
+				if(!PersistToDB || DisablePersistence)
+				{
+					return;
+				}
+				if(!m_bIsValid)
+				{
+					throw ex_invalid_data();
+				}
+				if(IsSaving())
+				{
+					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					{
+						arraybuilders.back().second->append(*var);
+					}
+					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					{
+						if(objectbuilders.back().second->hasField(name))
+						{
+							throw ex_duplicate_key_error(name);
+						}
+						objectbuilders.back().second->append(name, *var);
+					}
+					else
+					{
+						if(builder->hasField(name))
+						{
+							throw ex_duplicate_key_error(name);
+						}
+						builder->append(name, *var);
+					}
+				}
+				else
+				{
+					if(!arrays.empty() && StateTracker.back() == State::Array)
+					{
+						*var = arrays.back().second.front().OID();
+						arrays.back().second.pop_front();
+					}
+					else if(!objects.empty() && StateTracker.back() == State::Object)
+					{
+						*var = objects.back()[name].OID();
+					}
+					else
+					{
+						*var = obj[name].OID();
+					}
+				}
+			}
 
 			virtual void serialize(int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
 			{
@@ -1536,12 +1607,10 @@ namespace sprawl
 			MongoSerializer()
 			{
 				m_bIsValid = true;
-				SetVersion(0);
 			}
 			MongoSerializer(bool)
 			{
 				m_bIsValid = true;
-				SetVersion(0);
 				m_bWithMetadata = false;
 			}
 
@@ -1618,5 +1687,28 @@ namespace sprawl
 			virtual SerializerBase* GetAnother(const std::string& data) override { return new JSONDeserializer(data, false); }
 			virtual SerializerBase* GetAnother() override { throw std::exception(); }
 		};
+
+		inline SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var)
+		{
+			if(s.IsMongoStream())
+			{
+				s.serialize(&var.val, var.name, var.PersistToDB);
+			}
+			else
+			{
+				if(s.IsLoading())
+				{
+					std::string str;
+					s % prepare_data(str, var.name, var.PersistToDB);
+					var.val.init(str);
+				}
+				else
+				{
+					s % prepare_data(var.val.str(), var.name, var.PersistToDB);
+				}
+			}
+			return s;
+		}
+
 	}
 }
