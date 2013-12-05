@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-import jmake
+import csbuild
 
-jmake.call("multiaccess/make.py")
-jmake.call("multitype/make.py")
-jmake.call("format/make.py")
-jmake.call("network/make.py")
-jmake.call("serialization/make.py")
+csbuild.call("multiaccess/make.py")
+csbuild.call("multitype/make.py")
+csbuild.call("format/make.py")
+csbuild.call("network/make.py")
+csbuild.call("serialization/make.py")

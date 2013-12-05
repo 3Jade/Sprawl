@@ -1,16 +1,16 @@
 #!/usr/bin/python
 
-import jmake
+import csbuild
 
-jmake.Output("libsprawl_serialization.so")
+csbuild.Output("libsprawl_serialization.so")
 
-jmake.Standard("gnu++11")
+csbuild.Standard("c++11")
 
-jmake.Compiler("clang++")
+csbuild.Compiler("clang++")
 
-jmake.Shared()
+csbuild.Shared()
 
-jmake.WarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "switch-enum", "undef")
+csbuild.WarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "switch-enum", "undef")
 
-jmake.InstallHeaders()
-jmake.InstallSubdir("sprawl/serialization")
+csbuild.InstallHeaders()
+csbuild.InstallSubdir("sprawl/serialization")

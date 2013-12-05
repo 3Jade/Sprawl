@@ -1,17 +1,17 @@
 #!/usr/bin/python
 
-import jmake
+import csbuild
 
-jmake.Output("libsprawl_format.so")
+csbuild.Output("libsprawl_format.so")
 
-jmake.Standard("c++11")
+csbuild.Standard("c++11")
 
-jmake.Compiler("clang++")
+csbuild.Compiler("clang++")
 
-jmake.Shared()
+csbuild.Shared()
 
-jmake.WarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "switch-enum", "undef")
+csbuild.WarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "switch-enum", "undef")
 
-jmake.InstallHeaders()
-jmake.InstallSubdir("sprawl/format")
-jmake.InstallOutput()
+csbuild.InstallHeaders()
+csbuild.InstallSubdir("sprawl/format")
+csbuild.InstallOutput()

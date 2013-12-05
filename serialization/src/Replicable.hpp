@@ -24,6 +24,11 @@
  * SOFTWARE.
  */
  
+#ifdef _WIN32
+	#pragma warning( push )
+	#pragma warning( disable: 4250 )
+#endif
+
 #include "Serializer.hpp"
 #include <map>
 
@@ -51,9 +56,9 @@ namespace sprawl
 		{
 			bool operator()(const std::vector<Container> & x, const std::vector<Container> & y) const
 			{
-				int xsize = x.size();
-				int ysize = y.size();
-				for(int i = 0; i < std::min(xsize, ysize); i++)
+				size_t xsize = x.size();
+				size_t ysize = y.size();
+				for(size_t i = 0; i < std::min(xsize, ysize); i++)
 				{
 					if(x[i] < y[i])
 					{
@@ -77,11 +82,11 @@ namespace sprawl
 		template <typename Container>
 		bool StartsWith(const std::vector<Container> & x, const std::vector<Container> & y)
 		{
-			int xsize = x.size();
-			int ysize = y.size();
+			size_t xsize = x.size();
+			size_t ysize = y.size();
 			if(xsize < ysize)
 				return false;
-			for(int i = 0; i < ysize; i++)
+			for(size_t i = 0; i < ysize; i++)
 			{
 				if(x[i] != y[i])
 					return false;
@@ -119,7 +124,7 @@ namespace sprawl
 		public:
 			virtual uint32_t GetVersion() override { return m_serializer->GetVersion(); }
 			virtual bool IsValid() override { return true; }
-			virtual int Size() override { return 0; }
+			virtual size_t Size() override { return 0; }
 			virtual void SetVersion(uint32_t i) override
 			{
 				m_serializer->SetVersion(i);
@@ -160,7 +165,7 @@ namespace sprawl
 						{
 							m_current_key.push_back(-1);
 						}
-						m_current_key.push_back(i+1);
+						m_current_key.push_back((short)(i+1));
 
 						it = m_removed.find(m_current_key);
 						if(it != m_removed.end())
@@ -190,7 +195,7 @@ namespace sprawl
 						{
 							m_current_key.push_back(-1);
 						}
-						m_current_key.push_back(size+1);
+						m_current_key.push_back((short)(size+1));
 
 						it2 = m_diffs.find(m_current_key);
 						if(it2 == m_diffs.end())
@@ -229,7 +234,7 @@ namespace sprawl
 				}
 			}
 
-			int StartObject( const std::string& name, bool b) override
+			virtual size_t StartObject( const std::string& name, bool b) override
 			{
 				PushKey(name);
 				if(!marked)
@@ -239,7 +244,7 @@ namespace sprawl
 				return 0;
 			}
 
-			int StartMap( const std::string& name, bool b) override
+			virtual size_t StartMap( const std::string& name, bool b) override
 			{
 				PushKey(name);
 				m_current_map_key.push_back(m_current_key);
@@ -248,7 +253,7 @@ namespace sprawl
 					std::set<std::string> unique_subkeys;
 					for(auto &kvp : m_diffs)
 					{
-						int size = m_current_key.size();
+						size_t size = m_current_key.size();
 						if(kvp.first.size() != size + 2) continue;
 						if(!StartsWith(kvp.first, m_current_key)) continue;
 						if(kvp.first[size] == -1) continue;
@@ -289,7 +294,7 @@ namespace sprawl
 				//TODO: Have GetMap() just return a list of keys to grab that the calling function can iterate so we can avoid these string compares.
 				for(auto &kvp : m_diffs)
 				{
-					int size = m_current_key.size();
+					size_t size = m_current_key.size();
 					if(kvp.first.size() != size + 2) continue;
 					if(!StartsWith(kvp.first, m_current_key)) continue;
 					if(kvp.first[size] == -1) continue;
@@ -308,7 +313,7 @@ namespace sprawl
 				{
 					auto delete_it = it++;
 
-					int size = m_current_key.size();
+					size_t size = m_current_key.size();
 					if(delete_it->size() != size + 2) continue;
 					if(!StartsWith(*delete_it, m_current_key)) continue;
 					if((*delete_it)[size] == -1) continue;
@@ -486,6 +491,27 @@ namespace sprawl
 				this->baseline = new T();
 			}
 
+			using Serializer::operator%;
+			using Serializer::IsLoading;
+
+			using ReplicableBase<T>::serialize;
+			using ReplicableBase<T>::IsBinary;
+			using ReplicableBase<T>::IsMongoStream;
+			using ReplicableBase<T>::IsReplicable;
+			using ReplicableBase<T>::IsValid;
+			using ReplicableBase<T>::GetVersion;
+			using ReplicableBase<T>::SetVersion;
+			using ReplicableBase<T>::Size;
+
+			using ReplicableBase<T>::StartObject;
+			using ReplicableBase<T>::EndObject;
+			using ReplicableBase<T>::StartArray;
+			using ReplicableBase<T>::EndArray;
+			using ReplicableBase<T>::StartMap;
+			using ReplicableBase<T>::EndMap;
+			using ReplicableBase<T>::GetNextKey;
+			using ReplicableBase<T>::GetDeletedKeys;
+
 			virtual void Reset() override
 			{
 				ReplicableBase<T>::Reset();
@@ -531,7 +557,7 @@ namespace sprawl
 					if( it == this->m_marked_data.end() || kvp.second != it->second )
 					{
 						this->m_diffs.insert(kvp);
-						for(int idx = 0; idx < kvp.first.size(); idx += 2)
+						for(size_t idx = 0; idx < kvp.first.size(); idx += 2)
 						{
 							if(kvp.first[idx] != -1)
 							{
@@ -548,7 +574,7 @@ namespace sprawl
 					if( it == this->m_data.end() )
 					{
 						this->m_removed.insert(kvp.first);
-						for(int idx = 0; idx < kvp.first.size(); idx += 2)
+						for(size_t idx = 0; idx < kvp.first.size(); idx += 2)
 						{
 							if(kvp.first[idx] != -1)
 							{
@@ -601,6 +627,29 @@ namespace sprawl
 					this->m_name_index[kvp.second] = kvp.first;
 				}
 			}
+
+			using Deserializer::operator%;
+			using Deserializer::IsLoading;
+
+			using ReplicableBase<T>::serialize;
+			using ReplicableBase<T>::IsBinary;
+			using ReplicableBase<T>::IsMongoStream;
+			using ReplicableBase<T>::IsReplicable;
+			using ReplicableBase<T>::IsValid;
+			using ReplicableBase<T>::GetVersion;
+			using ReplicableBase<T>::SetVersion;
+			using ReplicableBase<T>::Size;
+			using ReplicableBase<T>::Reset;
+
+			using ReplicableBase<T>::StartObject;
+			using ReplicableBase<T>::EndObject;
+			using ReplicableBase<T>::StartArray;
+			using ReplicableBase<T>::EndArray;
+			using ReplicableBase<T>::StartMap;
+			using ReplicableBase<T>::EndMap;
+			using ReplicableBase<T>::GetNextKey;
+			using ReplicableBase<T>::GetDeletedKeys;
+
 			const char* Data() override
 			{
 				return Str().c_str();
@@ -625,3 +674,7 @@ namespace sprawl
 		};
 	}
 }
+
+#ifdef _WIN32
+	#pragma warning( pop )
+#endif

@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-import jmake
+import csbuild
 
-jmake.Output("libsprawl_multitype.so")
+csbuild.Output("libsprawl_multitype.so")
 
-jmake.InstallSubdir("sprawl/multitype")
-jmake.InstallHeaders()
+csbuild.InstallSubdir("sprawl/multitype")
+csbuild.InstallHeaders()

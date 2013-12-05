@@ -111,7 +111,7 @@ namespace sprawl
 			virtual void Reset() { }
 
 			virtual bool IsValid() = 0;
-			virtual int Size() = 0;
+			virtual size_t Size() = 0;
 			SerializerBase &operator%(SerializationData<unsigned int> &&var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
@@ -130,7 +130,7 @@ namespace sprawl
 			}
 			SerializerBase &operator%(SerializationData<unsigned char *> &&var)
 			{
-				int len = strlen(reinterpret_cast<char*>(var.val));
+				size_t len = strlen(reinterpret_cast<char*>(var.val));
 				if(IsBinary())
 				{
 					*this % prepare_data(len, var.name+"_length", false);
@@ -202,7 +202,7 @@ namespace sprawl
 			}
 			SerializerBase &operator%(SerializationData<char *> &&var)
 			{
-				int len = strlen(var.val);
+				size_t len = strlen(var.val);
 				if(IsBinary())
 				{
 					*this % prepare_data(len, var.name+"_length", false);
@@ -325,7 +325,7 @@ namespace sprawl
 
 			SerializerBase &operator%(SerializationData<std::string> &&var)
 			{
-				unsigned int len = var.val.length();
+				size_t len = var.val.length();
 				if(IsBinary())
 				{
 					*this % prepare_data(len, var.name+"_length", false);
@@ -436,19 +436,19 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				int size = var.val.size();
+				size_t size = var.val.size();
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				int calcedSize = StartMap(var.name, var.PersistToDB);
+				size_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
 				{
 					if(!IsBinary())
 					{
 						size = calcedSize;
 					}
-					for(int i=0; i<size; i++)
+					for(size_t i=0; i<size; i++)
 					{
 						key_type k;
 						val_type v;
@@ -508,19 +508,19 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				int size = var.val.size();
+				size_t size = var.val.size();
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				int calcedSize = StartMap(var.name, var.PersistToDB);
+				size_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
 				{
 					if(!IsBinary())
 					{
 						size = calcedSize;
 					}
-					for(int i=0; i<size; i++)
+					for(size_t i=0; i<size; i++)
 					{
 						key_type k;
 						val_type v;
@@ -578,12 +578,12 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				int size = var.val.size();
+				size_t size = var.val.size();
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				int calcedSize = StartMap(var.name, var.PersistToDB);
+				size_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
 				{
 					if(!IsBinary())
@@ -645,12 +645,12 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				int size = var.val.size();
+				size_t size = var.val.size();
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				int calcedSize = StartMap(var.name, var.PersistToDB);
+				size_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
 				{
 					if(!IsBinary())
@@ -763,9 +763,9 @@ namespace sprawl
 			virtual SerializerBase &operator%(SerializationData<class MongoDeserializer> &&){ throw std::exception(); return *this; }
 			virtual void StartArray(const std::string &, size_t&, bool = true){}
 			virtual void EndArray(){}
-			virtual int StartObject(const std::string &, bool = true){ return 0; }
+			virtual size_t StartObject(const std::string &, bool = true){ return 0; }
 			virtual void EndObject(){}
-			virtual int StartMap(const std::string &s, bool b = true){ return StartObject(s, b); }
+			virtual size_t StartMap(const std::string &s, bool b = true){ return StartObject(s, b); }
 			virtual void EndMap(){ EndObject(); }
 			virtual std::string GetNextKey(){ return ""; }
 			virtual std::unordered_set<std::string> GetDeletedKeys(const std::string&){ return std::unordered_set<std::string>(); }
@@ -918,6 +918,7 @@ namespace sprawl
 				return *this % prepare_data(cVar, var.name, var.PersistToDB);
 			}
 
+#ifndef _WIN32
 			template<typename T>
 			SerializerBase &operator%(T &&var)
 			{
@@ -932,6 +933,7 @@ namespace sprawl
 			  EndObject();
 			  return *this;
 			}
+#endif
 
 			virtual ~Serializer(){}
 			virtual bool IsLoading() override { return false; }
