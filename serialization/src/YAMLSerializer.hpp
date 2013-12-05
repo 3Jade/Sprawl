@@ -24,6 +24,11 @@
  * SOFTWARE.
  */
  
+#ifdef _WIN32
+	#pragma warning( push )
+	#pragma warning( disable: 4250 )
+#endif
+
 #include "Serializer.hpp"
 #include <deque>
 #include <sstream>
@@ -66,7 +71,7 @@ namespace sprawl
 				datastream << "...\n";
 				return datastream.str();
 			}
-			virtual int Size() override
+			virtual size_t Size() override
 			{
 				return Str().length();
 			}
@@ -430,7 +435,7 @@ namespace sprawl
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual int StartObject(const std::string &str, bool = true) override
+			virtual size_t StartObject(const std::string &str, bool = true) override
 			{
 				State LastState = StateTracker.empty() ? State::None : StateTracker.back();
 				StateTracker.push_back(State::Object);
@@ -835,6 +840,27 @@ namespace sprawl
 		{
 		public:
 			using Serializer::operator%;
+			using Serializer::IsLoading;
+
+			using YAMLSerializerBase::serialize;
+			using YAMLSerializerBase::IsBinary;
+			using YAMLSerializerBase::IsMongoStream;
+			using YAMLSerializerBase::IsReplicable;
+			using YAMLSerializerBase::IsValid;
+			using YAMLSerializerBase::Str;
+			using YAMLSerializerBase::Data;
+			using YAMLSerializerBase::GetVersion;
+			using YAMLSerializerBase::SetVersion;
+			using YAMLSerializerBase::Size;
+
+			using YAMLSerializerBase::StartObject;
+			using YAMLSerializerBase::EndObject;
+			using YAMLSerializerBase::StartArray;
+			using YAMLSerializerBase::EndArray;
+			using YAMLSerializerBase::StartMap;
+			using YAMLSerializerBase::EndMap;
+			using YAMLSerializerBase::GetNextKey;
+			using YAMLSerializerBase::GetDeletedKeys;
 
 			virtual void Reset() override
 			{
@@ -879,6 +905,28 @@ namespace sprawl
 			//Reset everything to original state.
 			virtual void Reset() override { Data(datastr); }
 			using Deserializer::operator%;
+			using Deserializer::IsLoading;
+
+			using YAMLSerializerBase::serialize;
+			using YAMLSerializerBase::IsBinary;
+			using YAMLSerializerBase::IsMongoStream;
+			using YAMLSerializerBase::IsReplicable;
+			using YAMLSerializerBase::IsValid;
+			using YAMLSerializerBase::Str;
+			using YAMLSerializerBase::Data;
+			using YAMLSerializerBase::GetVersion;
+			using YAMLSerializerBase::SetVersion;
+			using YAMLSerializerBase::Size;
+
+			using YAMLSerializerBase::StartObject;
+			using YAMLSerializerBase::EndObject;
+			using YAMLSerializerBase::StartArray;
+			using YAMLSerializerBase::EndArray;
+			using YAMLSerializerBase::StartMap;
+			using YAMLSerializerBase::EndMap;
+			using YAMLSerializerBase::GetNextKey;
+			using YAMLSerializerBase::GetDeletedKeys;
+
 			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
 			{
 				std::string str;
@@ -894,7 +942,6 @@ namespace sprawl
 				return *this;
 			}
 
-			using YAMLSerializerBase::Data;
 			virtual void Data(const std::string &str) override
 			{
 				datastr = str;
@@ -926,3 +973,7 @@ namespace sprawl
 		};
 	}
 }
+
+#ifdef _WIN32
+	#pragma warning( pop )
+#endif

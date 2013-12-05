@@ -24,6 +24,11 @@
  * SOFTWARE.
  */
 
+#ifdef _WIN32
+	#pragma warning( push )
+	#pragma warning( disable: 4250 )
+#endif
+
 #include "Serializer.hpp"
 
 namespace sprawl
@@ -36,7 +41,7 @@ namespace sprawl
 			static const int headerSize = sizeof(int32_t)*3;
 
 			virtual bool IsBinary() override { return true; }
-			virtual int Size() override { return m_size; }
+			virtual size_t Size() override { return m_size; }
 
 			typedef class BinarySerializer serializer_type;
 			typedef class BinaryDeserializer deserializer_type;
@@ -166,7 +171,7 @@ namespace sprawl
 					}
 					memcpy( m_data + m_pos, var, bytes );
 
-					m_size += bytes;
+					m_size += (uint32_t)bytes;
 					if(m_bWithMetadata)
 					{
 						memcpy( m_data, &m_size, sizeof(int32_t) );
@@ -182,7 +187,7 @@ namespace sprawl
 					memcpy( var, m_data + m_pos, bytes );
 				}
 
-				m_pos += bytes;
+				m_pos += (uint32_t)bytes;
 			}
 			virtual void serialize(int *var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
@@ -299,6 +304,28 @@ namespace sprawl
 		{
 		public:
 			using Serializer::operator%;
+			using Serializer::IsLoading;
+
+			using BinarySerializerBase::serialize;
+			using BinarySerializerBase::IsBinary;
+			using BinarySerializerBase::IsMongoStream;
+			using BinarySerializerBase::IsReplicable;
+			using BinarySerializerBase::IsValid;
+			using BinarySerializerBase::Str;
+			using BinarySerializerBase::Data;
+			using BinarySerializerBase::GetVersion;
+			using BinarySerializerBase::SetVersion;
+			using BinarySerializerBase::Reset;
+			using BinarySerializerBase::Size;
+
+			using BinarySerializerBase::StartObject;
+			using BinarySerializerBase::EndObject;
+			using BinarySerializerBase::StartArray;
+			using BinarySerializerBase::EndArray;
+			using BinarySerializerBase::StartMap;
+			using BinarySerializerBase::EndMap;
+			using BinarySerializerBase::GetNextKey;
+			using BinarySerializerBase::GetDeletedKeys;
 
 			virtual SerializerBase &operator%(SerializationData<Serializer> &&var) override
 			{
@@ -355,6 +382,29 @@ namespace sprawl
 		{
 		public:
 			using Deserializer::operator%;
+			using Deserializer::IsLoading;
+
+			using BinarySerializerBase::serialize;
+			using BinarySerializerBase::IsBinary;
+			using BinarySerializerBase::IsMongoStream;
+			using BinarySerializerBase::IsReplicable;
+			using BinarySerializerBase::IsValid;
+			using BinarySerializerBase::Str;
+			using BinarySerializerBase::Data;
+			using BinarySerializerBase::GetVersion;
+			using BinarySerializerBase::SetVersion;
+			using BinarySerializerBase::Reset;
+			using BinarySerializerBase::Size;
+
+			using BinarySerializerBase::StartObject;
+			using BinarySerializerBase::EndObject;
+			using BinarySerializerBase::StartArray;
+			using BinarySerializerBase::EndArray;
+			using BinarySerializerBase::StartMap;
+			using BinarySerializerBase::EndMap;
+			using BinarySerializerBase::GetNextKey;
+			using BinarySerializerBase::GetDeletedKeys;
+
 			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
 			{
 				std::string str;
@@ -370,7 +420,6 @@ namespace sprawl
 				return *this;
 			}
 
-			using BinarySerializerBase::Data;
 			virtual void Data(const std::string &str) override
 			{
 				if(m_data != NULL)
@@ -398,7 +447,7 @@ namespace sprawl
 				}
 				else
 				{
-					m_size = str.size();
+					m_size = (uint32_t)str.size();
 					m_pos = 0;
 					m_data = new char[m_size];
 					memcpy(m_data, str.c_str(), m_size);
@@ -429,3 +478,7 @@ namespace sprawl
 		};
 	}
 }
+
+#ifdef _WIN32
+	#pragma warning( pop )
+#endif

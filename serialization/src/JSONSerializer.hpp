@@ -24,6 +24,11 @@
  * SOFTWARE.
  */
 
+#ifdef _WIN32
+	#pragma warning( push )
+	#pragma warning( disable: 4250; disable: 4996 )
+#endif
+
 #include "Serializer.hpp"
 #include <deque>
 #include <sstream>
@@ -70,7 +75,7 @@ namespace sprawl
 				datastream << " }";
 				return datastream.str();
 			}
-			virtual int Size() override
+			virtual size_t Size() override
 			{
 				return Str().length();
 			}
@@ -434,7 +439,7 @@ namespace sprawl
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual int StartObject(const std::string &str, bool = true) override
+			virtual size_t StartObject(const std::string &str, bool = true) override
 			{
 				State LastState = StateTracker.empty() ? State::None : StateTracker.back();
 				StateTracker.push_back(State::Object);
@@ -788,6 +793,27 @@ namespace sprawl
 		{
 		public:
 			using Serializer::operator%;
+			using Serializer::IsLoading;
+
+			using JSONSerializerBase::serialize;
+			using JSONSerializerBase::IsBinary;
+			using JSONSerializerBase::IsMongoStream;
+			using JSONSerializerBase::IsReplicable;
+			using JSONSerializerBase::IsValid;
+			using JSONSerializerBase::Str;
+			using JSONSerializerBase::Data;
+			using JSONSerializerBase::GetVersion;
+			using JSONSerializerBase::SetVersion;
+			using JSONSerializerBase::Size;
+
+			using JSONSerializerBase::StartObject;
+			using JSONSerializerBase::EndObject;
+			using JSONSerializerBase::StartArray;
+			using JSONSerializerBase::EndArray;
+			using JSONSerializerBase::StartMap;
+			using JSONSerializerBase::EndMap;
+			using JSONSerializerBase::GetNextKey;
+			using JSONSerializerBase::GetDeletedKeys;
 
 			virtual void Reset() override
 			{
@@ -832,6 +858,28 @@ namespace sprawl
 			//Reset everything to original state.
 			virtual void Reset() override { Data(datastr); }
 			using Deserializer::operator%;
+			using Deserializer::IsLoading;
+
+			using JSONSerializerBase::serialize;
+			using JSONSerializerBase::IsBinary;
+			using JSONSerializerBase::IsMongoStream;
+			using JSONSerializerBase::IsReplicable;
+			using JSONSerializerBase::IsValid;
+			using JSONSerializerBase::Str;
+			using JSONSerializerBase::Data;
+			using JSONSerializerBase::GetVersion;
+			using JSONSerializerBase::SetVersion;
+			using JSONSerializerBase::Size;
+
+			using JSONSerializerBase::StartObject;
+			using JSONSerializerBase::EndObject;
+			using JSONSerializerBase::StartArray;
+			using JSONSerializerBase::EndArray;
+			using JSONSerializerBase::StartMap;
+			using JSONSerializerBase::EndMap;
+			using JSONSerializerBase::GetNextKey;
+			using JSONSerializerBase::GetDeletedKeys;
+
 			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
 			{
 				std::string str;
@@ -847,7 +895,6 @@ namespace sprawl
 				return *this;
 			}
 
-			using JSONSerializerBase::Data;
 			virtual void Data(const std::string &str) override
 			{
 				datastr = str;
@@ -880,3 +927,7 @@ namespace sprawl
 		};
 	}
 }
+
+#ifdef _WIN32
+	#pragma warning( pop )
+#endif

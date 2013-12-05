@@ -24,6 +24,11 @@
  * SOFTWARE.
  */
  
+#ifdef _WIN32
+	#pragma warning( push )
+	#pragma warning( disable: 4250 )
+#endif
+
 #include "MongoSerializer.hpp"
 #include "Replicable.hpp"
 
@@ -47,7 +52,7 @@ namespace sprawl
 					std::stringstream str;
 					bool array = false;
 					bool printed = false;
-					for(int i = 0; i < v.size(); ++i)
+					for(size_t i = 0; i < v.size(); ++i)
 					{
 						bool isCounter = ((i % 2) != 0);
 						if(isCounter && !array)
@@ -299,3 +304,7 @@ namespace sprawl
 			
 	}
 }
+
+#ifdef _WIN32
+	#pragma warning( pop )
+#endif

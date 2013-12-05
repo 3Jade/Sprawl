@@ -24,6 +24,11 @@
  * SOFTWARE.
  */
 
+#ifdef _WIN32
+	#pragma warning( push )
+	#pragma warning( disable: 4250; disable: 4996 )
+#endif
+
 #include <mongo/client/dbclient.h>
 #include "Serializer.hpp"
 #include "JSONSerializer.hpp"
@@ -122,7 +127,7 @@ namespace sprawl
 
 			}
 
-			virtual int Size() override
+			virtual size_t Size() override
 			{
 				if(IsSaving())
 				{
@@ -378,23 +383,23 @@ namespace sprawl
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Long();
+								var[i] = (long)arrays.back().second.front().Long();
 								arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Long();
+							*var = (long)arrays.back().second.front().Long();
 							arrays.back().second.pop_front();
 						}
 					}
 					else if(!objects.empty() && StateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Long();
+						*var = (long)objects.back()[name].Long();
 					}
 					else
 					{
-						*var = obj[name].Long();
+						*var = (long)obj[name].Long();
 					}
 				}
 				if(bIsArray)
@@ -683,23 +688,23 @@ namespace sprawl
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Double();
+								var[i] = (float)arrays.back().second.front().Double();
 								arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Double();
+							*var = (float)arrays.back().second.front().Double();
 							arrays.back().second.pop_front();
 						}
 					}
 					else if(!objects.empty() && StateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Double();
+						*var = (float)objects.back()[name].Double();
 					}
 					else
 					{
-						*var = obj[name].Double();
+						*var = (float)obj[name].Double();
 					}
 				}
 				if(bIsArray)
@@ -792,7 +797,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long double */*var*/, const size_t /*bytes*/, const std::string &/*name*/, bool /*PersistToDB*/) override
+			virtual void serialize(long double* /*var*/, const size_t /*bytes*/, const std::string &/*name*/, bool /*PersistToDB*/) override
 			{
 				throw std::exception();
 			}
@@ -1024,23 +1029,23 @@ namespace sprawl
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Long();
+								var[i] = (unsigned long)arrays.back().second.front().Long();
 								arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Long();
+							*var = (unsigned long)arrays.back().second.front().Long();
 							arrays.back().second.pop_front();
 						}
 					}
 					else if(!objects.empty() && StateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Long();
+						*var = (unsigned long)objects.back()[name].Long();
 					}
 					else
 					{
-						*var = obj[name].Long();
+						*var = (unsigned long)obj[name].Long();
 					}
 				}
 				if(bIsArray)
@@ -1320,7 +1325,7 @@ namespace sprawl
 				}
 			}
 
-			virtual int StartObject(const std::string &str, bool PersistToDB = true) override
+			virtual size_t StartObject(const std::string &str, bool PersistToDB = true) override
 			{
 				if(DisablePersistence || !PersistToDB)
 				{
@@ -1588,6 +1593,28 @@ namespace sprawl
 		{
 		public:
 			using Serializer::operator%;
+			using Serializer::IsLoading;
+
+			using MongoSerializerBase::serialize;
+			using MongoSerializerBase::IsBinary;
+			using MongoSerializerBase::IsMongoStream;
+			using MongoSerializerBase::IsReplicable;
+			using MongoSerializerBase::IsValid;
+			using MongoSerializerBase::Str;
+			using MongoSerializerBase::Data;
+			using MongoSerializerBase::GetVersion;
+			using MongoSerializerBase::SetVersion;
+			using MongoSerializerBase::Reset;
+			using MongoSerializerBase::Size;
+
+			using MongoSerializerBase::StartObject;
+			using MongoSerializerBase::EndObject;
+			using MongoSerializerBase::StartArray;
+			using MongoSerializerBase::EndArray;
+			using MongoSerializerBase::StartMap;
+			using MongoSerializerBase::EndMap;
+			using MongoSerializerBase::GetNextKey;
+			using MongoSerializerBase::GetDeletedKeys;
 
 			virtual SerializerBase &operator%(SerializationData<Serializer> &&var) override
 			{
@@ -1627,6 +1654,28 @@ namespace sprawl
 			//Reset everything to original state.
 			virtual void Reset() override { MongoSerializerBase::Reset(); Data(datastr); }
 			using Deserializer::operator%;
+			using Deserializer::IsLoading;
+
+			using MongoSerializerBase::serialize;
+			using MongoSerializerBase::IsBinary;
+			using MongoSerializerBase::IsMongoStream;
+			using MongoSerializerBase::IsReplicable;
+			using MongoSerializerBase::IsValid;
+			using MongoSerializerBase::Str;
+			using MongoSerializerBase::Data;
+			using MongoSerializerBase::GetVersion;
+			using MongoSerializerBase::SetVersion;
+			using MongoSerializerBase::Size;
+
+			using MongoSerializerBase::StartObject;
+			using MongoSerializerBase::EndObject;
+			using MongoSerializerBase::StartArray;
+			using MongoSerializerBase::EndArray;
+			using MongoSerializerBase::StartMap;
+			using MongoSerializerBase::EndMap;
+			using MongoSerializerBase::GetNextKey;
+			using MongoSerializerBase::GetDeletedKeys;
+
 			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
 			{
 				std::string str;
@@ -1642,7 +1691,6 @@ namespace sprawl
 				return *this;
 			}
 
-			using MongoSerializerBase::Data;
 			void Data(const mongo::BSONObj &o)
 			{
 				obj = o;
@@ -1712,3 +1760,7 @@ namespace sprawl
 
 	}
 }
+
+#ifdef _WIN32
+	#pragma warning( pop )
+#endif
