@@ -40,7 +40,7 @@ namespace sprawl
 		{
 		public:
 			duplicate_entry() throw(){ }
-			const char *what() const throw(){ return "An entry with the given key already exists."; }
+			const char* what() const throw(){ return "An entry with the given key already exists."; }
 			~duplicate_entry() throw() {}
 		};
 
@@ -48,7 +48,7 @@ namespace sprawl
 		{
 		public:
 			no_such_element() throw(){}
-			const char *what() const throw(){ return "No such entry in the table."; }
+			const char* what() const throw(){ return "No such entry in the table."; }
 			~no_such_element() throw() {}
 		};
 
@@ -56,7 +56,7 @@ namespace sprawl
 		{
 		public:
 			access_not_supported() throw(){}
-			const char *what() const throw(){ return "The access method you tried to use is not supported on this table."; }
+			const char* what() const throw(){ return "The access method you tried to use is not supported on this table."; }
 			~access_not_supported() throw() {}
 		};
 
@@ -65,73 +65,73 @@ namespace sprawl
 		{
 			typedef int(IntFunc)();
 			typedef std::string(StrFunc)();
-			dlist_t(const T &val_, IntFuncPtr IntGetter_, StrFuncPtr StrGetter_) : val(val_), next(nullptr), prev(nullptr), IntGetter(IntGetter_), StrGetter(StrGetter_)  {}
-			T val;
-			dlist_t<T, IntFuncPtr, StrFuncPtr> *next;
-			dlist_t<T, IntFuncPtr, StrFuncPtr> *prev;
-			IntFuncPtr IntGetter;
-			StrFuncPtr StrGetter;
-			auto GetInt() -> decltype(std::bind(IntGetter, &val))
+			dlist_t(const T& val_, IntFuncPtr IntGetter_, StrFuncPtr StrGetter_) : m_val(val_), m_next(nullptr), m_prev(nullptr), m_intGetter(IntGetter_), m_strGetter(StrGetter_)  {}
+			T m_val;
+			dlist_t<T, IntFuncPtr, StrFuncPtr>* m_next;
+			dlist_t<T, IntFuncPtr, StrFuncPtr>* m_prev;
+			IntFuncPtr m_intGetter;
+			StrFuncPtr m_strGetter;
+			auto GetInt() -> decltype(std::bind(m_intGetter, &m_val))
 			{
-				return std::bind(IntGetter, &val);
+				return std::bind(m_intGetter, &m_val);
 			}
-			auto GetStr() -> decltype(std::bind(StrGetter, &val))
+			auto GetStr() -> decltype(std::bind(m_strGetter, &m_val))
 			{
-				return std::bind(StrGetter, &val);
+				return std::bind(m_strGetter, &m_val);
 			}
 		};
 	
 		template<typename T, typename IntFuncPtr, typename StrFuncPtr>
 		struct list_t
 		{
-			list_t() : p(nullptr), next(nullptr){}
-			dlist_t<T, IntFuncPtr, StrFuncPtr> *p;
-			list_t *next;
+			list_t() : m_ptr(nullptr), m_next(nullptr){}
+			dlist_t<T, IntFuncPtr, StrFuncPtr>* m_ptr;
+			list_t* m_next;
 		};
 
 		template<typename T>
 		class ptrType
 		{
 		public:
-			ptrType(const T &value) : val(value) {}
-			T &operator->(){return val;}
-			T &operator*(){return val;}
-			T &operator&(){return val;}
+			ptrType(const T& value) : m_val(value) {}
+			T& operator->(){return m_val;}
+			T& operator*(){return m_val;}
+			T& operator&(){return m_val;}
 			typedef int(T::*IntFuncType)();
 			typedef std::string(T::*StrFuncType)();
 			typedef T& returntype;
 		private:
-			T val;
+			T m_val;
 		};
 
 		template<typename T>
 		class ptrType<T*>
 		{
 		public:
-			ptrType(T *value) : val(value) {}
-			T *operator->(){return val;}
-			T *&operator*(){return val;}
-			T *operator&(){return val;}
+			ptrType(T* value) : m_val(value) {}
+			T* operator->(){return m_val;}
+			T*& operator*(){return m_val;}
+			T* operator&(){return m_val;}
 			typedef int(T::*IntFuncType)();
 			typedef std::string(T::*StrFuncType)();
 			typedef T* returntype;
 		private:
-			T *val;
+			T* m_val;
 		};
 
 		template<typename T>
 		class valType
 		{
 		public:
-			valType(const T &value) : val(value) {}
-			T *operator->(){return &val;}
-			T &operator*(){return val;}
-			T *operator&(){return &val;}
+			valType(const T& value) : m_val(value) {}
+			T* operator->(){return& m_val;}
+			T& operator*(){return m_val;}
+			T* operator&(){return& m_val;}
 			typedef int(T::*IntFuncType)();
 			typedef std::string(T::*StrFuncType)();
 			typedef T* returntype;
 		private:
-			T val;
+			T m_val;
 		};
 
 		template<typename T, bool b = boost::has_dereference<T>::value>
@@ -153,14 +153,14 @@ namespace sprawl
 			typedef typename Type<T>::value ValueType;
 			typedef int(*IntFunc)();
 			typedef std::string(*StrFunc)();
-			multiaccess_iterator(dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *item) : current_item(item), next_item(current_item ? current_item->next : nullptr){}
+			multiaccess_iterator(dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* item) : m_currentItem(item), m_nextItem(m_currentItem ? m_currentItem->m_next : nullptr){}
 
-			T& operator*() const { return *current_item->val; }
-			typename ValueType::returntype operator->() const { return &current_item->val; }
+			T& operator*() const { return *m_currentItem->m_val; }
+			typename ValueType::returntype operator->() const { return& m_currentItem->m_val; }
 			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> & operator++()
 			{
-				current_item = next_item;
-				next_item = current_item ? current_item->next : nullptr;
+				m_currentItem = m_nextItem;
+				m_nextItem = m_currentItem ? m_currentItem->m_next : nullptr;
 				return *this;
 			}
 			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> operator++(int)
@@ -169,22 +169,22 @@ namespace sprawl
 				++(*this);
 				return tmp;
 			}
-			bool operator==(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> &rhs) const
+			bool operator==(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>& rhs) const
 			{
-				return current_item == rhs.current_item;
+				return m_currentItem == rhs.m_currentItem;
 			}
 
-			bool operator!=(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> &rhs) const
+			bool operator!=(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>& rhs) const
 			{
 				return !this->operator==(rhs);
 			}
 
-			operator bool() const { return current_item != nullptr; }
-			bool operator!() const { return current_item != nullptr; }
+			operator bool() const { return m_currentItem != nullptr; }
+			bool operator!() const { return m_currentItem != nullptr; }
 
 		protected:
-			dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *current_item;
-			dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *next_item;
+			dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* m_currentItem;
+			dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* m_nextItem;
 		};	
 
 		template<typename T, typename IntFuncPtr, typename StrFuncPtr>
@@ -194,14 +194,14 @@ namespace sprawl
 			typedef typename Type<T>::value ValueType;
 			typedef int(*IntFunc)();
 			typedef std::string(*StrFunc)();
-			multiaccess_const_iterator(dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *item) : current_item(item), next_item(current_item ? current_item->next : nullptr){}
+			multiaccess_const_iterator(dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* item) : m_currentItem(item), m_nextItem(m_currentItem ? m_currentItem->m_next : nullptr){}
 
-			const T& operator*() const { return *current_item->val; }
-			const typename ValueType::returntype operator->() const { return &current_item->val; }
+			const T& operator*() const { return *m_currentItem->m_val; }
+			const typename ValueType::returntype operator->() const { return& m_currentItem->m_val; }
 			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> & operator++()
 			{
-				current_item = next_item;
-				next_item = current_item ? current_item->next : nullptr;
+				m_currentItem = m_nextItem;
+				m_nextItem = m_currentItem ? m_currentItem->m_next : nullptr;
 				return *this;
 			}
 			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> operator++(int)
@@ -210,22 +210,22 @@ namespace sprawl
 				++(*this);
 				return tmp;
 			}
-			bool operator==(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> &rhs) const
+			bool operator==(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>& rhs) const
 			{
-				return current_item == rhs.current_item;
+				return m_currentItem == rhs.m_currentItem;
 			}
 
-			bool operator!=(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> &rhs) const
+			bool operator!=(const multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>& rhs) const
 			{
 				return !this->operator==(rhs);
 			}
 
-			operator bool() const { return current_item != nullptr; }
-			bool operator!() const { return current_item != nullptr; }
+			operator bool() const { return m_currentItem != nullptr; }
+			bool operator!() const { return m_currentItem != nullptr; }
 
 		protected:
-			dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *current_item;
-			dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *next_item;
+			dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* m_currentItem;
+			dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* m_nextItem;
 		};	
 
 		template<typename T, typename IntFuncPtr = typename Type<T>::value::IntFuncType, typename StrFuncPtr = typename Type<T>::value::StrFuncType>
@@ -235,130 +235,130 @@ namespace sprawl
 			typedef int(IntFunc)();
 			typedef std::string(StrFunc)();
 			typedef typename Type<T>::value ValueType;
-			multiaccess_map(IntFuncPtr func, bool b=true) : first(nullptr), last(nullptr), size(0), total_size(89), ignore_case(b)
+			multiaccess_map(IntFuncPtr func, bool b=true) : m_first(nullptr), m_last(nullptr), m_size(0), m_totalSize(89), m_ignoreCase(b)
 			{
-				GetInt = func;
-				GetStr = nullptr;
-				idtable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-				nametable = nullptr;
-				for(int i=0; i<total_size; i++)
+				m_getIntFunc = func;
+				m_getStrFunc = nullptr;
+				m_idTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+				m_nameTable = nullptr;
+				for(int i=0; i<m_totalSize; i++)
 				{
-					idtable[i] = nullptr;
+					m_idTable[i] = nullptr;
 				}
 			}
 
-			multiaccess_map(StrFuncPtr func, bool b=true) : first(nullptr), last(nullptr), size(0), total_size(89), ignore_case(b)
+			multiaccess_map(StrFuncPtr func, bool b=true) : m_first(nullptr), m_last(nullptr), m_size(0), m_totalSize(89), m_ignoreCase(b)
 			{
-				GetInt = nullptr;
-				GetStr = func;
-				nametable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-				idtable = nullptr;
-				for(int i=0; i<total_size; i++)
+				m_getIntFunc = nullptr;
+				m_getStrFunc = func;
+				m_nameTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+				m_idTable = nullptr;
+				for(int i=0; i<m_totalSize; i++)
 				{
-					nametable[i] = nullptr;
+					m_nameTable[i] = nullptr;
 				}
 			}
 
-			multiaccess_map(IntFuncPtr func1, StrFuncPtr func2, bool b=true) : first(nullptr), last(nullptr), size(0), total_size(89), ignore_case(b)
+			multiaccess_map(IntFuncPtr func1, StrFuncPtr func2, bool b=true) : m_first(nullptr), m_last(nullptr), m_size(0), m_totalSize(89), m_ignoreCase(b)
 			{
-				GetInt = func1;
-				GetStr = func2;
-				idtable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-				nametable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-				for(int i=0; i<total_size; i++)
+				m_getIntFunc = func1;
+				m_getStrFunc = func2;
+				m_idTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+				m_nameTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+				for(int i=0; i<m_totalSize; i++)
 				{
-					idtable[i] = nullptr;
-					nametable[i] = nullptr;
+					m_idTable[i] = nullptr;
+					m_nameTable[i] = nullptr;
 				}
 			}
 
 			virtual ~multiaccess_map()
 			{
 				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l_del, *l_next;
-				for(int i=0;i<total_size;i++)
+				for(int i=0;i<m_totalSize;i++)
 				{
-					if(idtable != nullptr)
+					if(m_idTable != nullptr)
 					{
-						for(l_del = idtable[i]; l_del; l_del = l_next)
+						for(l_del = m_idTable[i]; l_del; l_del = l_next)
 						{
-							l_next = l_del->next;
+							l_next = l_del->m_next;
 							delete l_del;
 						}
 					}
-					if(nametable != nullptr)
+					if(m_nameTable != nullptr)
 					{
-						for(l_del = nametable[i]; l_del; l_del = l_next)
+						for(l_del = m_nameTable[i]; l_del; l_del = l_next)
 						{
-							l_next = l_del->next;
+							l_next = l_del->m_next;
 							delete l_del;
 						}
 					}
 				}
-				if(idtable != nullptr)
-					delete[] idtable;
-				if(nametable != nullptr)
-					delete[] nametable;
+				if(m_idTable != nullptr)
+					delete[] m_idTable;
+				if(m_nameTable != nullptr)
+					delete[] m_nameTable;
 			
 			
-				for( auto ptr = first; ptr; ptr = ptr->next )
+				for( auto ptr = m_first; ptr; ptr = ptr->m_next )
 				{
 					delete ptr;
 				}
 			}
 
-			void push(const T &val)
+			void push(const T& val)
 			{
 				ValueType value(val);
-				std::function<IntFunc> IntGetter = std::bind(GetInt, &value);
-				std::function<StrFunc> StrGetter = std::bind(GetStr, &value);
-				if((GetInt && find(IntGetter()) != end())
-					|| (GetStr && find(StrGetter()) != end()))
+				std::function<IntFunc> IntGetter = std::bind(m_getIntFunc, &value);
+				std::function<StrFunc> StrGetter = std::bind(m_getStrFunc, &value);
+				if((m_getIntFunc && find(IntGetter()) != end())
+					|| (m_getStrFunc && find(StrGetter()) != end()))
 				{
 					throw duplicate_entry();
 				}
 
-				dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *list = new dlist_t<ValueType, IntFuncPtr, StrFuncPtr>(value, GetInt, GetStr);
-				if(first == nullptr)
+				dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* list = new dlist_t<ValueType, IntFuncPtr, StrFuncPtr>(value, m_getIntFunc, m_getStrFunc);
+				if(m_first == nullptr)
 				{
 					//assert(last == nullptr);
-					first = list;
-					last = list;
+					m_first = list;
+					m_last = list;
 				}
 				else
 				{
 					//assert(last != nullptr);
-					last->next = list;
-					list->prev = last;
-					last = list;
+					m_last->m_next = list;
+					list->m_prev = m_last;
+					m_last = list;
 				}
 			
 				push_int(list);
 				push_str(list);
-				size++;
+				m_size++;
 
-				if(size > total_size*0.75)
+				if(m_size > m_totalSize*0.75)
 				{
-					total_size = (total_size * 2)+1;
-					if(GetInt != nullptr)
+					m_totalSize = (m_totalSize * 2)+1;
+					if(m_getIntFunc != nullptr)
 					{
-						delete [] idtable;
-						idtable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-						for(int i=0; i<total_size; i++)
+						delete [] m_idTable;
+						m_idTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+						for(int i=0; i<m_totalSize; i++)
 						{
-							idtable[i] = nullptr;
+							m_idTable[i] = nullptr;
 						}
 					}
-					if(GetStr != nullptr)
+					if(m_getStrFunc != nullptr)
 					{
-						delete [] nametable;
-						nametable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-						for(int i=0; i<total_size; i++)
+						delete [] m_nameTable;
+						m_nameTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+						for(int i=0; i<m_totalSize; i++)
 						{
-							nametable[i] = nullptr;
+							m_nameTable[i] = nullptr;
 						}
 					}
 				
-					for( auto ptr = first; ptr; ptr = ptr->next )
+					for( auto ptr = m_first; ptr; ptr = ptr->m_next )
 					{
 						push_int(ptr);
 						push_str(ptr);
@@ -366,7 +366,7 @@ namespace sprawl
 				}
 			}
 		
-			void pop(const std::string &str)
+			void pop(const std::string& str)
 			{
 				pop(this->operator[](str));
 			}
@@ -379,94 +379,94 @@ namespace sprawl
 			void resort()
 			{
 				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l_del, *l_next;
-				for(int i=0;i<total_size;i++)
+				for(int i=0;i<m_totalSize;i++)
 				{
-					if(idtable != nullptr)
+					if(m_idTable != nullptr)
 					{
-						for(l_del = idtable[i]; l_del; l_del = l_next)
+						for(l_del = m_idTable[i]; l_del; l_del = l_next)
 						{
-							l_next = l_del->next;
+							l_next = l_del->m_next;
 							delete l_del;
 						}
 					}
-					if(nametable != nullptr)
+					if(m_nameTable != nullptr)
 					{
-						for(l_del = nametable[i]; l_del; l_del = l_next)
+						for(l_del = m_nameTable[i]; l_del; l_del = l_next)
 						{
-							l_next = l_del->next;
+							l_next = l_del->m_next;
 							delete l_del;
 						}
 					}
-					idtable[i] = nullptr;
-					nametable[i] = nullptr;
+					m_idTable[i] = nullptr;
+					m_nameTable[i] = nullptr;
 				}
-				for( auto ptr = first; ptr; ptr = ptr->next )
+				for( auto ptr = m_first; ptr; ptr = ptr->m_next )
 				{
 					push_int(ptr);
 					push_str(ptr);
 				}
 			}
 
-			const T &operator[](int searchKey) const
+			const T& operator[](int searchKey) const
 			{
-				if(GetInt == nullptr)
+				if(m_getIntFunc == nullptr)
 					throw access_not_supported();
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = idtable[index]; l; l = l->next )
-					if(l->p->GetInt()() == searchKey)
-						return *l->p->val;
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_idTable[index]; l; l = l->m_next )
+					if(l->m_ptr->GetInt()() == searchKey)
+						return *l->m_ptr->m_val;
 				throw no_such_element();
 			}
 
-			const T &operator[](const std::string &searchKey) const
+			const T& operator[](const std::string& searchKey) const
 			{
-				if(GetStr == nullptr)
+				if(m_getStrFunc == nullptr)
 					throw access_not_supported();
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = nametable[index]; l; l = l->next )
-					if(strToLower(l->p->GetStr()(), ignore_case) == strToLower(searchKey, ignore_case))
-						return *l->p->val;
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_nameTable[index]; l; l = l->m_next )
+					if(strToLower(l->m_ptr->GetStr()(), m_ignoreCase) == strToLower(searchKey, m_ignoreCase))
+						return *l->m_ptr->m_val;
 				throw no_such_element();
 			}
 		
-			T &operator[](int searchKey)
+			T& operator[](int searchKey)
 			{
-				if(GetInt == nullptr)
+				if(m_getIntFunc == nullptr)
 					throw access_not_supported();
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = idtable[index]; l; l = l->next )
-					if(l->p->GetInt()() == searchKey)
-						return *l->p->val;
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_idTable[index]; l; l = l->m_next )
+					if(l->m_ptr->GetInt()() == searchKey)
+						return *l->m_ptr->m_val;
 				throw no_such_element();
 			}
 
-			T &operator[](const std::string &searchKey)
+			T& operator[](const std::string& searchKey)
 			{
-				if(GetStr == nullptr)
+				if(m_getStrFunc == nullptr)
 					throw access_not_supported();
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = nametable[index]; l; l = l->next )
-					if(strToLower(l->p->GetStr()(), ignore_case) == strToLower(searchKey, ignore_case))
-						return *l->p->val;
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_nameTable[index]; l; l = l->m_next )
+					if(strToLower(l->m_ptr->GetStr()(), m_ignoreCase) == strToLower(searchKey, m_ignoreCase))
+						return *l->m_ptr->m_val;
 				throw no_such_element();
 			}
 
 			int getSize() const
-			{ return size; }
+			{ return m_size; }
 
 			friend class multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>;
 			typedef multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> iterator;
 			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> begin()
 			{
-				return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(first);
+				return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(m_first);
 			}
 
 			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> end()
@@ -476,27 +476,27 @@ namespace sprawl
 		
 			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> find(int searchKey)
 			{
-				if(GetInt == nullptr)
+				if(m_getIntFunc == nullptr)
 					return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = idtable[index]; l; l = l->next )
-					if(l->p->GetInt()() == searchKey)
-						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->p);
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_idTable[index]; l; l = l->m_next )
+					if(l->m_ptr->GetInt()() == searchKey)
+						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
 				return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 			}
 		
-			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> find(const std::string &searchKey)
+			multiaccess_iterator<T, IntFuncPtr, StrFuncPtr> find(const std::string& searchKey)
 			{
-				if(GetStr == nullptr)
+				if(m_getStrFunc == nullptr)
 					return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = nametable[index]; l; l = l->next )
-					if(strToLower(l->p->GetStr()(), ignore_case) == strToLower(searchKey, ignore_case))
-						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->p);
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_nameTable[index]; l; l = l->m_next )
+					if(strToLower(l->m_ptr->GetStr()(), m_ignoreCase) == strToLower(searchKey, m_ignoreCase))
+						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
 				return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 			}
 
@@ -504,7 +504,7 @@ namespace sprawl
 			typedef multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> const_iterator;
 			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> begin() const
 			{
-				return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(first);
+				return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(m_first);
 			}
 
 			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> end() const
@@ -514,37 +514,37 @@ namespace sprawl
 		
 			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> find(int searchKey) const
 			{
-				if(GetInt == nullptr)
+				if(m_getIntFunc == nullptr)
 					return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = idtable[index]; l; l = l->next )
-					if(l->p->GetInt()() == searchKey)
-						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->p);
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_idTable[index]; l; l = l->m_next )
+					if(l->m_ptr->GetInt()() == searchKey)
+						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
 				return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 			}
 		
-			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> find(const std::string &searchKey) const
+			multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr> find(const std::string& searchKey) const
 			{
-				if(GetStr == nullptr)
+				if(m_getStrFunc == nullptr)
 					return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 				int index = getIndex(searchKey);
 
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-				for( l = nametable[index]; l; l = l->next )
-					if(strToLower(l->p->GetStr()(), ignore_case) == strToLower(searchKey, ignore_case))
-						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->p);
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+				for( l = m_nameTable[index]; l; l = l->m_next )
+					if(strToLower(l->m_ptr->GetStr()(), m_ignoreCase) == strToLower(searchKey, m_ignoreCase))
+						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
 				return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 			}
 
 		private:
 			unsigned long _hash(int i)
 			{
-				return abs(i)%total_size;
+				return abs(i)%m_totalSize;
 			}
 
-			unsigned long _hash(const char *str)
+			unsigned long _hash(const char* str)
 			{
 				unsigned int hash = 0;
 				int c;
@@ -555,7 +555,7 @@ namespace sprawl
 					hash = ((hash << 5) + hash) ^ c;
 				}
 
-			   return hash%total_size;
+			   return hash%m_totalSize;
 			}
 			unsigned long getIndex(int searchKey)
 			{
@@ -564,54 +564,54 @@ namespace sprawl
 
 			unsigned long getIndex(std::string searchKey)
 			{
-				return _hash(strToLower(searchKey, ignore_case).c_str());
+				return _hash(strToLower(searchKey, m_ignoreCase).c_str());
 			}
 
-			void push_int(dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *p)
+			void push_int(dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* p)
 			{
-				if(GetInt == nullptr)
+				if(m_getIntFunc == nullptr)
 					return;
 				int index = getIndex(p->GetInt()());
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = new list_t<ValueType, IntFuncPtr, StrFuncPtr>();
-				l->p = p;
-				l->next = idtable[index];
-				idtable[index] = l;
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = new list_t<ValueType, IntFuncPtr, StrFuncPtr>();
+				l->m_ptr = p;
+				l->m_next = m_idTable[index];
+				m_idTable[index] = l;
 			}
 
-			void push_str(dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *p)
+			void push_str(dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* p)
 			{
-				if(GetStr == nullptr)
+				if(m_getStrFunc == nullptr)
 					return;
 				int index = getIndex(p->GetStr()().c_str());
-				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = new list_t<ValueType, IntFuncPtr, StrFuncPtr>();
-				l->p = p;
-				l->next = nametable[index];
-				nametable[index] = l;
+				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = new list_t<ValueType, IntFuncPtr, StrFuncPtr>();
+				l->m_ptr = p;
+				l->m_next = m_nameTable[index];
+				m_nameTable[index] = l;
 			}
 		
-			void pop(T &p)
+			void pop(T& p)
 			{
 				ValueType value(p);
-				std::function<IntFunc> IntGetter = std::bind(GetInt, &value);
-				std::function<StrFunc> StrGetter = std::bind(GetStr, &value);
-				if((GetInt && find(IntGetter()) == end())
-					|| (GetStr && find(StrGetter()) == end()))
+				std::function<IntFunc> IntGetter = std::bind(m_getIntFunc, &value);
+				std::function<StrFunc> StrGetter = std::bind(m_getStrFunc, &value);
+				if((m_getIntFunc && find(IntGetter()) == end())
+					|| (m_getStrFunc && find(StrGetter()) == end()))
 				{
 					throw no_such_element();
 				}
 			
-				dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *ptr = nullptr;
-				if(GetInt != nullptr)
+				dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* ptr = nullptr;
+				if(m_getIntFunc != nullptr)
 				{
 					int searchKey = IntGetter();
 					int index = getIndex(searchKey);
 
-					list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-					for( l = idtable[index]; l; l = l->next )
+					list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+					for( l = m_idTable[index]; l; l = l->m_next )
 					{
-						if(l->p->GetInt()() == searchKey)
+						if(l->m_ptr->GetInt()() == searchKey)
 						{
-							ptr = l->p;
+							ptr = l->m_ptr;
 							break;
 						}
 					}
@@ -621,72 +621,72 @@ namespace sprawl
 					std::string searchKey = StrGetter();
 					int index = getIndex(searchKey);
 
-					list_t<ValueType, IntFuncPtr, StrFuncPtr> *l = nullptr;
-					for( l = nametable[index]; l; l = l->next )
+					list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
+					for( l = m_nameTable[index]; l; l = l->m_next )
 					{
-						if(strToLower(l->p->GetStr()(), ignore_case) == strToLower(searchKey, ignore_case))
+						if(strToLower(l->m_ptr->GetStr()(), m_ignoreCase) == strToLower(searchKey, m_ignoreCase))
 						{
-							ptr = l->p;
+							ptr = l->m_ptr;
 							break;
 						}
 					}
 				}
 			
-				if(GetInt != nullptr)
+				if(m_getIntFunc != nullptr)
 				{
 					pop_int(IntGetter());
 				}
-				if(GetStr != nullptr)
+				if(m_getStrFunc != nullptr)
 				{
 					pop_str(StrGetter());
 				}
-				size--;
+				m_size--;
 			
 				if(ptr != nullptr)
 				{
-					auto tmp = ptr->prev;
+					auto tmp = ptr->m_prev;
 					if(tmp)
 					{
-						tmp->next = ptr->next;
+						tmp->m_next = ptr->m_next;
 					}
-					if(ptr->next)
+					if(ptr->m_next)
 					{
-						ptr->next->prev = tmp;
+						ptr->m_next->m_prev = tmp;
 					}
-					if(ptr == first)
+					if(ptr == m_first)
 					{
-						first = ptr->next;
+						m_first = ptr->m_next;
 					}
-					if(ptr == last)
+					if(ptr == m_last)
 					{
-						last = ptr->prev;
+						m_last = ptr->m_prev;
 					}
 					delete ptr;
 				}
 			
-				if(size < total_size*0.25 && total_size > 89)
+				if(m_size < m_totalSize*0.25 && m_totalSize > 89)
 				{
-					total_size = (total_size - 1)/2;
-					if(GetInt != nullptr)
+					m_totalSize = (m_totalSize - 1)/2;
+					if(m_getIntFunc != nullptr)
 					{
-						delete [] idtable;
-						idtable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-						for(int i=0; i<total_size; i++)
+						delete [] m_idTable;
+						m_idTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+						for(int i=0; i<m_totalSize; i++)
 						{
-							idtable[i] = nullptr;
+							m_idTable[i] = nullptr;
 						}
 					}
-					if(GetStr != nullptr)
+					if(m_getStrFunc != nullptr)
 					{
-						delete [] nametable;
-						nametable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[total_size];
-						for(int i=0; i<total_size; i++)
+						delete [] m_nameTable;
+						m_nameTable = new list_t<ValueType, IntFuncPtr, StrFuncPtr>*[m_totalSize];
+						for(int i=0; i<m_totalSize; i++)
 						{
-							nametable[i] = nullptr;
+							m_nameTable[i] = nullptr;
 						}
 					}
 				
-					for( auto ptr = first; ptr; ptr = ptr->next )
+					for( auto ptr = m_first; ptr; ptr = ptr->m_next )
 					{
 						push_int(ptr);
 						push_str(ptr);
@@ -698,56 +698,56 @@ namespace sprawl
 			{
 				int index = getIndex(searchKey);
 				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l, *l_next = nullptr;
-				for( l = idtable[index]; l; l = l_next )
+				for( l = m_idTable[index]; l; l = l_next )
 				{
-					l_next = l->next;
-					if(l->p->GetInt()() == searchKey)
+					l_next = l->m_next;
+					if(l->m_ptr->GetInt()() == searchKey)
 					{
-						idtable[index] = l->next;
+						m_idTable[index] = l->m_next;
 						delete l;
 						l = nullptr;
 					}
-					else if(l_next && l_next->p->GetInt()() == searchKey)
+					else if(l_next && l_next->m_ptr->GetInt()() == searchKey)
 					{
-						l->next = l_next->next;
+						l->m_next = l_next->m_next;
 						delete l_next;
 						l_next = nullptr;
 					}
 				}
 			}
 
-			void pop_str(const std::string &searchKey)
+			void pop_str(const std::string& searchKey)
 			{
 				int index = getIndex(searchKey.c_str());
 				list_t<ValueType, IntFuncPtr, StrFuncPtr> *l, *l_next = nullptr;
-				for( l = nametable[index]; l; l = l_next )
+				for( l = m_nameTable[index]; l; l = l_next )
 				{
-					l_next = l->next;
-					if(l->p->GetStr()() == searchKey)
+					l_next = l->m_next;
+					if(l->m_ptr->GetStr()() == searchKey)
 					{
-						nametable[index] = l->next;
+						m_nameTable[index] = l->m_next;
 						delete l;
 						l = nullptr;
 					}
-					else if(l_next && l_next->p->GetStr()() == searchKey)
+					else if(l_next && l_next->m_ptr->GetStr()() == searchKey)
 					{
-						l->next = l_next->next;
+						l->m_next = l_next->m_next;
 						delete l_next;
 						l_next = nullptr;
 					}
 				}
 			}
 
-			list_t<ValueType, IntFuncPtr, StrFuncPtr> **idtable;
-			list_t<ValueType, IntFuncPtr, StrFuncPtr> **nametable;
-			dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *first;
-			dlist_t<ValueType, IntFuncPtr, StrFuncPtr> *last;
-			int size;
-			int total_size;
-			IntFuncPtr GetInt;
-			StrFuncPtr GetStr;
+			list_t<ValueType, IntFuncPtr, StrFuncPtr>** m_idTable;
+			list_t<ValueType, IntFuncPtr, StrFuncPtr>** m_nameTable;
+			dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* m_first;
+			dlist_t<ValueType, IntFuncPtr, StrFuncPtr>* m_last;
+			int m_size;
+			int m_totalSize;
+			IntFuncPtr m_getIntFunc;
+			StrFuncPtr m_getStrFunc;
 			//RetFunc GetRet;
-			bool ignore_case;
+			bool m_ignoreCase;
 		};
 
 		template<typename PtrType, typename UnderlyingType>

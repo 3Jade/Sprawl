@@ -43,6 +43,8 @@
 #include <arpa/inet.h>
 #include <unordered_set>
 
+#pragma message("sprawl::network is deprecated. sprawl::async_network provides a better interface and implementation.")
+
 namespace sprawl
 {
 	namespace network
@@ -50,7 +52,7 @@ namespace sprawl
 		class SockExcept: public std::exception
 		{
 		public:
-			SockExcept(const std::string &arg) :
+			SockExcept(const std::string& arg) :
 				str(arg)
 			{
 			}
@@ -94,7 +96,7 @@ namespace sprawl
 				return false;
 			}
 
-			virtual void Send(const std::string &str)
+			virtual void Send(const std::string& str)
 			{
 				send(desc, str.c_str(), str.length(), 0);
 			}
@@ -190,7 +192,7 @@ namespace sprawl
 				return ret;
 			}
 
-			virtual void Send(const std::string &str, FailType behavior)
+			virtual void Send(const std::string& /*str*/, FailType /*behavior*/)
 			{
 				throw SockExcept("TCP connections cannot specify failure type.");
 			}
@@ -209,7 +211,7 @@ namespace sprawl
 
 			virtual ~StatedConnection(){}
 		protected:
-			StatedConnection(int d, bool b, struct sockaddr *addr) :
+			StatedConnection(int d, bool b, struct sockaddr* addr) :
 				desc(d), m_data_ready(false), m_telnet(b), state((T) 0)
 			{
 				if(addr != nullptr)
@@ -247,14 +249,14 @@ namespace sprawl
 		class StatedUDPConnection : public StatedConnection<T>
 		{
 		public:
-			virtual void Send(const std::string &str) override final
+			virtual void Send(const std::string& str) override final
 			{
 				Send(str, FailType::ignore);
 			}
 
 			struct packet
 			{
-				packet(uint32_t _id, FailType _behavior, const std::string &_content) : ID(_id), behavior(_behavior), content(_content)
+				packet(uint32_t _id, FailType _behavior, const std::string& _content) : ID(_id), behavior(_behavior), content(_content)
 				{
 					gettimeofday(&sent_time, nullptr);
 				}
@@ -264,14 +266,14 @@ namespace sprawl
 				const std::string content;
 			};
 
-			virtual void Send(const std::string &str, FailType behavior) override final
+			virtual void Send(const std::string& str, FailType behavior) override final
 			{
 				SendPacketWithID(str, behavior, current_id);
 				current_id++;
 			}
 			virtual ~StatedUDPConnection(){}
 		protected:
-			virtual void SendPacketWithID(const std::string &str, FailType behavior, int32_t sendid)
+			virtual void SendPacketWithID(const std::string& str, FailType behavior, int32_t sendid)
 			{
 			
 				boost::interprocess::scoped_lock<boost::mutex> locker;
@@ -281,7 +283,7 @@ namespace sprawl
 				}
 
 				char header[3*sizeof(uint32_t)];
-				char *ptr = header;
+				char* ptr = header;
 
 				//Construct header: ID, ACK, Ack bits
 				memcpy(ptr, &sendid, sizeof(uint32_t));
@@ -325,14 +327,14 @@ namespace sprawl
 				}
 				gettimeofday(&lastsent, nullptr);
 			}
-			StatedUDPConnection(int d, struct sockaddr *addr)
+			StatedUDPConnection(int d, struct sockaddr* addr)
 			: StatedConnection<T>(d, false, addr), packets(), high_id(-1), current_id(0), slen(sizeof(sockaddr_in)), parent(nullptr)
 			 {
 				gettimeofday(&lastrcvd, nullptr);
 				lastsent.tv_sec = 0;
 				lastsent.tv_usec = 0;
 			 }
-			StatedUDPConnection(int d, StatedServerSocket<T, ConnectionType::UDP> *pServ)
+			StatedUDPConnection(int d, StatedServerSocket<T, ConnectionType::UDP>* pServ)
 			: StatedConnection<T>(d, false, nullptr), packets(), high_id(-1), current_id(0), slen(sizeof(sockaddr_in)), parent(pServ)
 			{
 				lastrcvd.tv_sec = 0;
@@ -340,7 +342,7 @@ namespace sprawl
 				lastsent.tv_sec = 0;
 				lastsent.tv_usec = 0;
 			}
-			StatedUDPConnection(int d, StatedServerSocket<T, ConnectionType::TCP> *pServ)
+			StatedUDPConnection(int d, StatedServerSocket<T, ConnectionType::TCP>* /*pServ*/)
 			: StatedConnection<T>(d, false, nullptr), packets(), high_id(-1), current_id(0), slen(sizeof(sockaddr_in)), parent(nullptr)
 			 {
 				throw SockExcept("UDP connection opened on TCP server!");
@@ -353,7 +355,7 @@ namespace sprawl
 			{
 				int ret;
 				char abuf[32768];
-				char *buf = abuf;
+				char* buf = abuf;
 				boost::interprocess::scoped_lock<boost::mutex> locker;
 				if(parent)
 				{
@@ -496,7 +498,7 @@ namespace sprawl
 			struct timeval lastrcvd;
 			struct timeval lastsent;
 			socklen_t slen;
-			StatedServerSocket<T, ConnectionType::UDP> *parent;
+			StatedServerSocket<T, ConnectionType::UDP>* parent;
 		};
 
 		typedef StatedConnection<int> Connection;
@@ -525,9 +527,9 @@ namespace sprawl
 			{
 				freeaddrinfo(servinfo);
 			}
-			void Connect(const std::string &addr, int port)
+			void Connect(const std::string& addr, int port)
 			{
-				struct addrinfo *p;
+				struct addrinfo* p;
 				if(port < 1 || port > 65535)
 					throw SockExcept("Port out of range.");
 				std::stringstream s;
@@ -561,7 +563,7 @@ namespace sprawl
 
 			void Reconnect()
 			{
-				struct addrinfo *p;
+				struct addrinfo* p;
 
 				if(con != nullptr)
 				{
@@ -636,11 +638,11 @@ namespace sprawl
 			{
 				return con->GetPacket();
 			}
-			void Send(const std::string &str)
+			void Send(const std::string& str)
 			{
 				con->Send(str);
 			}
-			void Send(const std::string &str, FailType behavior)
+			void Send(const std::string& str, FailType behavior)
 			{
 				if(C == ConnectionType::TCP)
 				{
@@ -670,7 +672,7 @@ namespace sprawl
 			int Sock;
 			fd_set InSet, OutSet, ExcSet;
 			struct addrinfo hints;
-			struct addrinfo *servinfo;
+			struct addrinfo* servinfo;
 			struct timeval tv;
 		};
 
@@ -793,7 +795,7 @@ namespace sprawl
 				{
 					if (C == ConnectionType::TCP)
 					{
-						if((newcon = accept(InSock, (struct sockaddr *) &addr, &addr_size)) != -1)
+						if((newcon = accept(InSock, (struct sockaddr *)& addr, &addr_size)) != -1)
 						{
 							CloseMutex.lock();
 							c.reset(new StatedConnection<T> (newcon, m_telnet, ((sockaddr*)&addr)));
@@ -992,7 +994,7 @@ namespace sprawl
 
 			fd_set InSet, ExcSet;
 			struct addrinfo hints;
-			struct addrinfo *servinfo;
+			struct addrinfo* servinfo;
 			struct timeval tv;
 			struct timeval telnet_tv;
 			bool m_no_timeout;

@@ -32,12 +32,12 @@ namespace sprawl
 {
 	namespace format
 	{
-		std::string format2(const char *str, std::vector<std::string> &args);
+		std::string format2(const char* str, std::vector<std::string>& args);
 
-		std::string format2(const char *str, std::vector<std::string> &args, std::string &arg1);
+		std::string format2(const char* str, std::vector<std::string>& args, std::string& arg1);
 
 		template<typename T>
-		inline std::string format2(const char *str, std::vector<std::string> &args, T &arg1)
+		inline std::string format2(const char* str, std::vector<std::string>& args, T& arg1)
 		{
 			std::stringstream s;
 			s.str("");
@@ -47,7 +47,7 @@ namespace sprawl
 		}
 
 		template<typename T, typename... Params>
-		inline std::string format2(const char *str, std::vector<std::string> &args, T &arg1, Params&... params)
+		inline std::string format2(const char* str, std::vector<std::string>& args, T& arg1, Params&... params)
 		{
 			std::stringstream s;
 			s.str("");
@@ -57,7 +57,7 @@ namespace sprawl
 		}
 
 		template<typename... Params>
-		inline std::string format2(const char *str, std::vector<std::string> &args, std::string &arg1, Params&... params)
+		inline std::string format2(const char* str, std::vector<std::string>& args, std::string& arg1, Params&... params)
 		{
 			args.push_back(arg1);
 			return format2(str, args, params...);
@@ -67,7 +67,7 @@ namespace sprawl
 
 		std::string format(const char* str);
 
-		std::string format(const char* str, std::string &arg1);
+		std::string format(const char* str, std::string& arg1);
 
 		template<typename T>
 		inline std::string format(const char* str, T arg1)
@@ -81,7 +81,7 @@ namespace sprawl
 		}
 
 		template<typename... Params>
-		inline std::string format(const char *str, std::string &arg1, Params... params)
+		inline std::string format(const char* str, std::string& arg1, Params... params)
 		{
 			std::vector<std::string> args;
 			args.push_back(arg1);
@@ -89,7 +89,7 @@ namespace sprawl
 		}
 
 		template<typename T, typename... Params>
-		inline std::string format(const char *str, T arg1, Params... params)
+		inline std::string format(const char* str, T arg1, Params... params)
 		{
 			std::vector<std::string> args;
 			std::stringstream s;
@@ -100,13 +100,13 @@ namespace sprawl
 		}
 
 		template<typename T>
-		inline std::string format(std::string &str, T arg1)
+		inline std::string format(std::string& str, T arg1)
 		{
 			return format(str.c_str(), arg1);
 		}
 
 		template<typename T, typename... Params>
-		inline std::string format(std::string &str, Params... params)
+		inline std::string format(std::string& str, Params... params)
 		{
 			return format(str.c_str(), params...);
 		}

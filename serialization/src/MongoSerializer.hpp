@@ -76,41 +76,41 @@ namespace sprawl
 				if(IsSaving())
 				{
 					this->m_bIsValid = true;
-					for(auto arraybuilder : arraybuilders)
+					for(auto arraybuilder : m_arrayBuilders)
 					{
 						delete arraybuilder.second;
 					}
-					arraybuilders.clear();
-					for(auto objbuilder : objectbuilders)
+					m_arrayBuilders.clear();
+					for(auto objbuilder : m_objectBuilders)
 					{
 						delete objbuilder.second;
 					}
-					objectbuilders.clear();
-					delete builder;
-					builder = new mongo::BSONObjBuilder();
+					m_objectBuilders.clear();
+					delete m_builder;
+					m_builder = new mongo::BSONObjBuilder();
 				}
 				else
 				{
-					arrays.clear();
-					objects.clear();
+					m_arrays.clear();
+					m_objects.clear();
 				}
 			}
 			using SerializerBase::Data;
-			virtual const char *Data() override
+			virtual const char* Data() override
 			{
 				EnsureVersion();
-				return builder->asTempObj().objdata();
+				return m_builder->asTempObj().objdata();
 			}
 			virtual std::string Str() override
 			{
 				if(IsSaving())
 				{
 					EnsureVersion();
-					return std::string(builder->asTempObj().objdata(), builder->asTempObj().objsize());
+					return std::string(m_builder->asTempObj().objdata(), m_builder->asTempObj().objsize());
 				}
 				else
 				{
-					return obj.toString();
+					return m_obj.toString();
 				}
 			}
 			std::string JSONStr()
@@ -118,11 +118,11 @@ namespace sprawl
 				if(IsSaving())
 				{
 					EnsureVersion();
-					return builder->asTempObj().jsonString();
+					return m_builder->asTempObj().jsonString();
 				}
 				else
 				{
-					return obj.jsonString();
+					return m_obj.jsonString();
 				}
 
 			}
@@ -131,11 +131,11 @@ namespace sprawl
 			{
 				if(IsSaving())
 				{
-					return builder->asTempObj().objsize();
+					return m_builder->asTempObj().objsize();
 				}
 				else
 				{
-					return obj.objsize();
+					return m_obj.objsize();
 				}
 			}
 			bool More() { return true; }
@@ -144,11 +144,11 @@ namespace sprawl
 				if(IsSaving())
 				{
 					EnsureVersion();
-					return builder->asTempObj();
+					return m_builder->asTempObj();
 				}
 				else
 				{
-					return obj;
+					return m_obj;
 				}
 			}
 			mongo::BSONObj Obj()
@@ -157,11 +157,11 @@ namespace sprawl
 				{
 					EnsureVersion();
 					m_bIsValid = false;
-					return builder->obj();
+					return m_builder->obj();
 				}
 				else
 				{
-					return obj;
+					return m_obj;
 				}
 			}
 			void EnsureVersion()
@@ -171,15 +171,15 @@ namespace sprawl
 					//This shouldn't happen unless someone's being dumb.
 					//And even if they're being dumb, it shouldn't matter unless they're being extra dumb.
 					//...but some people are extra dumb.
-					if(builder->hasField("__version__"))
+					if(m_builder->hasField("__version__"))
 					{
-						mongo::BSONObj obj = builder->obj();
+						mongo::BSONObj obj = m_builder->obj();
 						obj = obj.removeField("__version__");
-						delete builder;
-						builder = new mongo::BSONObjBuilder();
-						builder->appendElements(obj);
+						delete m_builder;
+						m_builder = new mongo::BSONObjBuilder();
+						m_builder->appendElements(obj);
 					}
-					builder->append("__version__", m_version);
+					m_builder->append("__version__", m_version);
 				}
 			}
 		protected:
@@ -191,7 +191,7 @@ namespace sprawl
 			friend class MongoReplicableSerializer;
 			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -201,48 +201,48 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
-						arraybuilders.back().second->append(*var);
+						m_arrayBuilders.back().second->append(*var);
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
-						*var = arrays.back().second.front().OID();
-						arrays.back().second.pop_front();
+						*var = m_arrays.back().second.front().OID();
+						m_arrays.back().second.pop_front();
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].OID();
+						*var = m_objects.back()[name].OID();
 					}
 					else
 					{
-						*var = obj[name].OID();
+						*var = m_obj[name].OID();
 					}
 				}
 			}
 
-			virtual void serialize(int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -260,62 +260,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Int();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Int();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Int();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Int();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Int();
+						*var = m_objects.back()[name].Int();
 					}
 					else
 					{
-						*var = obj[name].Int();
+						*var = m_obj[name].Int();
 					}
 				}
 				if(bIsArray)
@@ -324,9 +324,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(long int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -344,62 +344,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append((long long int)var[i]);
+								m_arrayBuilders.back().second->append((long long int)var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append((long long int)*var);
+							m_arrayBuilders.back().second->append((long long int)*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, (long long int)*var);
+						m_objectBuilders.back().second->append(name, (long long int)*var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, (long long int)*var);
+						m_builder->append(name, (long long int)*var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = (long)arrays.back().second.front().Long();
-								arrays.back().second.pop_front();
+								var[i] = (long)m_arrays.back().second.front().Long();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = (long)arrays.back().second.front().Long();
-							arrays.back().second.pop_front();
+							*var = (long)m_arrays.back().second.front().Long();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = (long)objects.back()[name].Long();
+						*var = (long)m_objects.back()[name].Long();
 					}
 					else
 					{
-						*var = (long)obj[name].Long();
+						*var = (long)m_obj[name].Long();
 					}
 				}
 				if(bIsArray)
@@ -408,9 +408,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long long int *var, const size_t bytes, const std::string &name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const size_t bytes, const std::string& name, bool PersistToDB)  override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -428,62 +428,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Long();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Long();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Long();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Long();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Long();
+						*var = m_objects.back()[name].Long();
 					}
 					else
 					{
-						*var = obj[name].Long();
+						*var = m_obj[name].Long();
 					}
 				}
 				if(bIsArray)
@@ -492,9 +492,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(short int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(short int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -512,62 +512,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Int();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Int();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Int();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Int();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Int();
+						*var = m_objects.back()[name].Int();
 					}
 					else
 					{
-						*var = obj[name].Int();
+						*var = m_obj[name].Int();
 					}
 				}
 				if(bIsArray)
@@ -576,9 +576,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(char *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -588,50 +588,50 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
-						arraybuilders.back().second->append(*var);
+						m_arrayBuilders.back().second->append(*var);
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
 					std::string str;
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
-						str = arrays.back().second.front().String();
-						arrays.back().second.pop_front();
+						str = m_arrays.back().second.front().String();
+						m_arrays.back().second.pop_front();
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						str = objects.back()[name].String();
+						str = m_objects.back()[name].String();
 					}
 					else
 					{
-						str = obj[name].String();
+						str = m_obj[name].String();
 					}
 					strcpy(var, str.c_str());
 				}
 			}
 
-			virtual void serialize(float *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(float* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -649,62 +649,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = (float)arrays.back().second.front().Double();
-								arrays.back().second.pop_front();
+								var[i] = (float)m_arrays.back().second.front().Double();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = (float)arrays.back().second.front().Double();
-							arrays.back().second.pop_front();
+							*var = (float)m_arrays.back().second.front().Double();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = (float)objects.back()[name].Double();
+						*var = (float)m_objects.back()[name].Double();
 					}
 					else
 					{
-						*var = (float)obj[name].Double();
+						*var = (float)m_obj[name].Double();
 					}
 				}
 				if(bIsArray)
@@ -713,9 +713,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(double *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(double* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -733,62 +733,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Double();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Double();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Double();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Double();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Double();
+						*var = m_objects.back()[name].Double();
 					}
 					else
 					{
-						*var = obj[name].Double();
+						*var = m_obj[name].Double();
 					}
 				}
 				if(bIsArray)
@@ -797,14 +797,14 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long double* /*var*/, const size_t /*bytes*/, const std::string &/*name*/, bool /*PersistToDB*/) override
+			virtual void serialize(long double* /*var*/, const size_t /*bytes*/, const std::string& /*name*/, bool /*PersistToDB*/) override
 			{
 				throw std::exception();
 			}
 
-			virtual void serialize(bool *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(bool* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -822,62 +822,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Bool();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Bool();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Bool();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Bool();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Bool();
+						*var = m_objects.back()[name].Bool();
 					}
 					else
 					{
-						*var = obj[name].Bool();
+						*var = m_obj[name].Bool();
 					}
 				}
 				if(bIsArray)
@@ -886,9 +886,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -906,62 +906,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Int();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Int();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Int();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Int();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Int();
+						*var = m_objects.back()[name].Int();
 					}
 					else
 					{
-						*var = obj[name].Int();
+						*var = m_obj[name].Int();
 					}
 				}
 				if(bIsArray)
@@ -970,9 +970,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned long int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -990,62 +990,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append((long long int)var[i]);
+								m_arrayBuilders.back().second->append((long long int)var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append((long long int)*var);
+							m_arrayBuilders.back().second->append((long long int)*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, (long long int)*var);
+						m_objectBuilders.back().second->append(name, (long long int)*var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, (long long int)*var);
+						m_builder->append(name, (long long int)*var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = (unsigned long)arrays.back().second.front().Long();
-								arrays.back().second.pop_front();
+								var[i] = (unsigned long)m_arrays.back().second.front().Long();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = (unsigned long)arrays.back().second.front().Long();
-							arrays.back().second.pop_front();
+							*var = (unsigned long)m_arrays.back().second.front().Long();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = (unsigned long)objects.back()[name].Long();
+						*var = (unsigned long)m_objects.back()[name].Long();
 					}
 					else
 					{
-						*var = (unsigned long)obj[name].Long();
+						*var = (unsigned long)m_obj[name].Long();
 					}
 				}
 				if(bIsArray)
@@ -1054,9 +1054,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned long long int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -1074,62 +1074,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append((long long int)var[i]);
+								m_arrayBuilders.back().second->append((long long int)var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append((long long int)*var);
+							m_arrayBuilders.back().second->append((long long int)*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, (long long int)*var);
+						m_objectBuilders.back().second->append(name, (long long int)*var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, (long long int)*var);
+						m_builder->append(name, (long long int)*var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Long();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Long();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Long();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Long();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Long();
+						*var = m_objects.back()[name].Long();
 					}
 					else
 					{
-						*var = obj[name].Long();
+						*var = m_obj[name].Long();
 					}
 				}
 				if(bIsArray)
@@ -1138,9 +1138,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned short int *var, const size_t bytes, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -1158,62 +1158,62 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								arraybuilders.back().second->append(var[i]);
+								m_arrayBuilders.back().second->append(var[i]);
 							}
 						}
 						else
 						{
-							arraybuilders.back().second->append(*var);
+							m_arrayBuilders.back().second->append(*var);
 						}
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						if(bIsArray)
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = arrays.back().second.front().Int();
-								arrays.back().second.pop_front();
+								var[i] = m_arrays.back().second.front().Int();
+								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = arrays.back().second.front().Int();
-							arrays.back().second.pop_front();
+							*var = m_arrays.back().second.front().Int();
+							m_arrays.back().second.pop_front();
 						}
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].Int();
+						*var = m_objects.back()[name].Int();
 					}
 					else
 					{
-						*var = obj[name].Int();
+						*var = m_obj[name].Int();
 					}
 				}
 				if(bIsArray)
@@ -1222,9 +1222,9 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned char *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -1234,49 +1234,49 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
-						arraybuilders.back().second->append(*var);
+						m_arrayBuilders.back().second->append(*var);
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
 					std::string str;
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
-						str = arrays.back().second.front().String();
-						arrays.back().second.pop_front();
+						str = m_arrays.back().second.front().String();
+						m_arrays.back().second.pop_front();
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						str = objects.back()[name].String();
+						str = m_objects.back()[name].String();
 					}
 					else
 					{
-						str = obj[name].String();
+						str = m_obj[name].String();
 					}
 					strcpy((char*)var, str.c_str());
 				}
 			}
-			virtual void serialize(std::string *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
-				if(!PersistToDB || DisablePersistence)
+				if(!PersistToDB || m_disableDepth)
 				{
 					return;
 				}
@@ -1286,50 +1286,50 @@ namespace sprawl
 				}
 				if(IsSaving())
 				{
-					if(!arraybuilders.empty() && StateTracker.back() == State::Array)
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
 					{
-						arraybuilders.back().second->append(*var);
+						m_arrayBuilders.back().second->append(*var);
 					}
-					else if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(name))
+						if(m_objectBuilders.back().second->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						objectbuilders.back().second->append(name, *var);
+						m_objectBuilders.back().second->append(name, *var);
 					}
 					else
 					{
-						if(builder->hasField(name))
+						if(m_builder->hasField(name))
 						{
 							throw ex_duplicate_key_error(name);
 						}
-						builder->append(name, *var);
+						m_builder->append(name, *var);
 					}
 				}
 				else
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
-						*var = arrays.back().second.front().String();
-						arrays.back().second.pop_front();
+						*var = m_arrays.back().second.front().String();
+						m_arrays.back().second.pop_front();
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = objects.back()[name].String();
+						*var = m_objects.back()[name].String();
 					}
 					else
 					{
-						*var = obj[name].String();
+						*var = m_obj[name].String();
 					}
 				}
 			}
 
-			virtual size_t StartObject(const std::string &str, bool PersistToDB = true) override
+			virtual size_t StartObject(const std::string& str, bool PersistToDB = true) override
 			{
-				if(DisablePersistence || !PersistToDB)
+				if(m_disableDepth || !PersistToDB)
 				{
-					DisablePersistence++;
+					m_disableDepth++;
 					return 0;
 				}
 				if(!m_bIsValid)
@@ -1339,88 +1339,88 @@ namespace sprawl
 				if(IsSaving())
 				{
 					//Array fields don't care about name.
-					if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(str))
+						if(m_objectBuilders.back().second->hasField(str))
 						{
 							throw ex_duplicate_key_error(str);
 						}
 					}
-					else if(arraybuilders.empty() || StateTracker.empty() || StateTracker.back() != State::Array)
+					else if(m_arrayBuilders.empty() || m_stateTracker.empty() || m_stateTracker.back() != State::Array)
 					{
-						if(builder->hasField(str))
+						if(m_builder->hasField(str))
 						{
 							throw ex_duplicate_key_error(str);
 						}
 					}
-					objectbuilders.push_back(std::make_pair(str, new mongo::BSONObjBuilder()));
-					StateTracker.push_back(State::Object);
+					m_objectBuilders.push_back(std::make_pair(str, new mongo::BSONObjBuilder()));
+					m_stateTracker.push_back(State::Object);
 					return 0; //doesn't matter.
 				}
 				else
 				{
-					if(!arrays.empty() && !StateTracker.empty() && StateTracker.back() == State::Array && arrays.back().first == str)
+					if(!m_arrays.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array && m_arrays.back().first == str)
 					{
-						mongo::BSONObj o = arrays.back().second.front().Obj();
-						arrays.back().second.pop_front();
-						objects.push_back(o);
+						mongo::BSONObj o = m_arrays.back().second.front().Obj();
+						m_arrays.back().second.pop_front();
+						m_objects.push_back(o);
 					}
-					else if(!objects.empty() && !StateTracker.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Object)
 					{
-						mongo::BSONObj o = objects.back();
-						objects.push_back(o[str].Obj());
+						mongo::BSONObj o = m_objects.back();
+						m_objects.push_back(o[str].Obj());
 					}
 					else
 					{
-						objects.push_back(obj[str].Obj());
+						m_objects.push_back(m_obj[str].Obj());
 					}
-					StateTracker.push_back(State::Object);
-					return objects.back().nFields();
+					m_stateTracker.push_back(State::Object);
+					return m_objects.back().nFields();
 				}
 			}
 
 			virtual void EndObject() override
 			{
-				if(DisablePersistence)
+				if(m_disableDepth)
 				{
-					DisablePersistence--;
+					m_disableDepth--;
 					return;
 				}
-				StateTracker.pop_back();
+				m_stateTracker.pop_back();
 				if(!m_bIsValid)
 				{
 					throw ex_invalid_data();
 				}
 				if(IsSaving())
 				{
-					std::string key = objectbuilders.back().first;
-					mongo::BSONObj o = objectbuilders.back().second->obj();
-					delete objectbuilders.back().second;
-					objectbuilders.pop_back();
-					if(!arraybuilders.empty() && !StateTracker.empty() && StateTracker.back() == State::Array)
+					std::string key = m_objectBuilders.back().first;
+					mongo::BSONObj o = m_objectBuilders.back().second->obj();
+					delete m_objectBuilders.back().second;
+					m_objectBuilders.pop_back();
+					if(!m_arrayBuilders.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array)
 					{
-						arraybuilders.back().second->append(o);
+						m_arrayBuilders.back().second->append(o);
 					}
-					else if(!objectbuilders.empty() && !StateTracker.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Object)
 					{
-						objectbuilders.back().second->append(key, o);
+						m_objectBuilders.back().second->append(key, o);
 					}
 					else
 					{
-						builder->append(key, o);
+						m_builder->append(key, o);
 					}
 				}
 				else
 				{
-					objects.pop_back();
+					m_objects.pop_back();
 				}
 			}
 
-			virtual void StartArray(const std::string &str, size_t &size, bool PersistToDB = true) override
+			virtual void StartArray(const std::string& str, size_t& size, bool PersistToDB = true) override
 			{
-				if(DisablePersistence || !PersistToDB)
+				if(m_disableDepth || !PersistToDB)
 				{
-					DisablePersistence++;
+					m_disableDepth++;
 					return;
 				}
 				if(!m_bIsValid)
@@ -1430,82 +1430,82 @@ namespace sprawl
 				if(IsSaving())
 				{
 					//Array fields don't care about name.
-					if(!objectbuilders.empty() && StateTracker.back() == State::Object)
+					if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
 					{
-						if(objectbuilders.back().second->hasField(str))
+						if(m_objectBuilders.back().second->hasField(str))
 						{
 							throw ex_duplicate_key_error(str);
 						}
 					}
-					else if(arraybuilders.empty() || StateTracker.empty() || StateTracker.back() != State::Array)
+					else if(m_arrayBuilders.empty() || m_stateTracker.empty() || m_stateTracker.back() != State::Array)
 					{
-						if(builder->hasField(str))
+						if(m_builder->hasField(str))
 						{
 							throw ex_duplicate_key_error(str);
 						}
 					}
-					arraybuilders.push_back(std::make_pair(str, new mongo::BSONArrayBuilder()));
+					m_arrayBuilders.push_back(std::make_pair(str, new mongo::BSONArrayBuilder()));
 				}
 				else
 				{
-					if(!arrays.empty() && !StateTracker.empty() && StateTracker.back() == State::Array && arrays.back().first == str)
+					if(!m_arrays.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array && m_arrays.back().first == str)
 					{
-						std::vector<mongo::BSONElement> elements = arrays.back().second.front().Array();
-						arrays.back().second.pop_front();
-						arrays.push_back(std::make_pair(str, std::deque<mongo::BSONElement>(elements.begin(), elements.end())));
+						std::vector<mongo::BSONElement> elements = m_arrays.back().second.front().Array();
+						m_arrays.back().second.pop_front();
+						m_arrays.push_back(std::make_pair(str, std::deque<mongo::BSONElement>(elements.begin(), elements.end())));
 						size = elements.size();
 					}
-					else if(!objects.empty() && !StateTracker.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Object)
 					{
-						mongo::BSONObj o = objects.back();
+						mongo::BSONObj o = m_objects.back();
 						std::vector<mongo::BSONElement> elements = o[str].Array();
-						arrays.push_back(std::make_pair(str, std::deque<mongo::BSONElement>(elements.begin(), elements.end())));
+						m_arrays.push_back(std::make_pair(str, std::deque<mongo::BSONElement>(elements.begin(), elements.end())));
 						size = elements.size();
 					}
 					else
 					{
-						std::vector<mongo::BSONElement> elements = obj[str].Array();
-						arrays.push_back(std::make_pair(str, std::deque<mongo::BSONElement>(elements.begin(), elements.end())));
+						std::vector<mongo::BSONElement> elements = m_obj[str].Array();
+						m_arrays.push_back(std::make_pair(str, std::deque<mongo::BSONElement>(elements.begin(), elements.end())));
 						size = elements.size();
 					}
 				}
-				StateTracker.push_back(State::Array);
+				m_stateTracker.push_back(State::Array);
 			}
 
 			virtual void EndArray() override
 			{
-				if(DisablePersistence)
+				if(m_disableDepth)
 				{
-					DisablePersistence--;
+					m_disableDepth--;
 					return;
 				}
-				StateTracker.pop_back();
+				m_stateTracker.pop_back();
 				if(!m_bIsValid)
 				{
 					throw ex_invalid_data();
 				}
 				if(IsSaving())
 				{
-					std::string key = arraybuilders.back().first;
-					mongo::BSONArray arr = arraybuilders.back().second->arr();
-					delete arraybuilders.back().second;
-					arraybuilders.pop_back();
-					if(!arraybuilders.empty() && !StateTracker.empty() && StateTracker.back() == State::Array)
+					std::string key = m_arrayBuilders.back().first;
+					mongo::BSONArray arr = m_arrayBuilders.back().second->arr();
+					delete m_arrayBuilders.back().second;
+					m_arrayBuilders.pop_back();
+					if(!m_arrayBuilders.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array)
 					{
-						arraybuilders.back().second->append(arr);
+						m_arrayBuilders.back().second->append(arr);
 					}
-					else if(!objectbuilders.empty() && !StateTracker.empty() && StateTracker.back() == State::Object)
+					else if(!m_objectBuilders.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Object)
 					{
-						objectbuilders.back().second->append(key, arr);
+						m_objectBuilders.back().second->append(key, arr);
 					}
 					else
 					{
-						builder->append(key, arr);
+						m_builder->append(key, arr);
 					}
 				}
 				else
 				{
-					arrays.pop_back();
+					m_arrays.pop_back();
 				}
 			}
 
@@ -1516,15 +1516,15 @@ namespace sprawl
 				{
 					return "";
 				}
-				if(!StateTracker.empty())
+				if(!m_stateTracker.empty())
 				{
-					if(!arrays.empty() && StateTracker.back() == State::Array)
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
 						return "";
 					}
-					else if(!objects.empty() && StateTracker.back() == State::Object)
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						return objects.back().firstElement().fieldName();
+						return m_objects.back().firstElement().fieldName();
 					}
 					else
 					{
@@ -1533,52 +1533,52 @@ namespace sprawl
 				}
 				else
 				{
-					if(obj.nFields() == 0)
+					if(m_obj.nFields() == 0)
 					{
 						throw ex_serializer_overflow();
 					}
-					return obj.firstElement().fieldName();
+					return m_obj.firstElement().fieldName();
 				}
 			}
 
 			MongoSerializerBase()
 				: SerializerBase()
-				, DisablePersistence(0)
-				, obj()
-				, builder(new mongo::BSONObjBuilder())
-				, arraybuilders()
-				, objectbuilders()
-				, arrays()
-				, objects()
-				, StateTracker()
+				, m_disableDepth(0)
+				, m_obj()
+				, m_builder(new mongo::BSONObjBuilder())
+				, m_arrayBuilders()
+				, m_objectBuilders()
+				, m_arrays()
+				, m_objects()
+				, m_stateTracker()
 				, m_version(0)
 				, m_bIsValid(true)
 				, m_bWithMetadata(true)
 			{}
 			virtual ~MongoSerializerBase()
 			{
-				for(auto arraybuilder : arraybuilders)
+				for(auto arraybuilder : m_arrayBuilders)
 				{
 					delete arraybuilder.second;
 				}
-				arraybuilders.clear();
-				for(auto objbuilder : objectbuilders)
+				m_arrayBuilders.clear();
+				for(auto objbuilder : m_objectBuilders)
 				{
 					delete objbuilder.second;
 				}
-				delete builder;
+				delete m_builder;
 			}
 
 		protected:
-			int DisablePersistence;
+			int m_disableDepth;
 			enum class State { None, Array, Object };
-			mongo::BSONObj obj;
-			mongo::BSONObjBuilder *builder;
-			std::deque<std::pair<std::string, mongo::BSONArrayBuilder*>> arraybuilders;
-			std::deque<std::pair<std::string, mongo::BSONObjBuilder*>> objectbuilders;
-			std::deque<std::pair<std::string, std::deque<mongo::BSONElement>>> arrays;
-			std::deque<mongo::BSONObj> objects;
-			std::deque<State> StateTracker;
+			mongo::BSONObj m_obj;
+			mongo::BSONObjBuilder* m_builder;
+			std::deque<std::pair<std::string, mongo::BSONArrayBuilder*>> m_arrayBuilders;
+			std::deque<std::pair<std::string, mongo::BSONObjBuilder*>> m_objectBuilders;
+			std::deque<std::pair<std::string, std::deque<mongo::BSONElement>>> m_arrays;
+			std::deque<mongo::BSONObj> m_objects;
+			std::deque<State> m_stateTracker;
 
 			//Copied and pasted to avoid indirection with virtual inheritance
 			uint32_t m_version;
@@ -1586,7 +1586,7 @@ namespace sprawl
 			bool m_bWithMetadata;
 		private:
 			MongoSerializerBase(const SerializerBase&);
-			MongoSerializerBase &operator=(const SerializerBase&);
+			MongoSerializerBase& operator=(const SerializerBase&);
 		};
 
 		class MongoSerializer : public MongoSerializerBase, public Serializer
@@ -1616,14 +1616,14 @@ namespace sprawl
 			using MongoSerializerBase::GetNextKey;
 			using MongoSerializerBase::GetDeletedKeys;
 
-			virtual SerializerBase &operator%(SerializationData<Serializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<Serializer>&& var) override
 			{
 				std::string str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
 				return *this;
 			}
 
-			virtual SerializerBase &operator%(SerializationData<MongoSerializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<MongoSerializer>&& var) override
 			{
 				std::string str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
@@ -1652,7 +1652,7 @@ namespace sprawl
 		{
 		public:
 			//Reset everything to original state.
-			virtual void Reset() override { MongoSerializerBase::Reset(); Data(datastr); }
+			virtual void Reset() override { MongoSerializerBase::Reset(); Data(m_dataStr); }
 			using Deserializer::operator%;
 			using Deserializer::IsLoading;
 
@@ -1676,14 +1676,14 @@ namespace sprawl
 			using MongoSerializerBase::GetNextKey;
 			using MongoSerializerBase::GetDeletedKeys;
 
-			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<Deserializer>&& var) override
 			{
 				std::string str;
 				*this % str;
 				var.val.Data(str);
 				return *this;
 			}
-			virtual SerializerBase &operator%(SerializationData<MongoDeserializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<MongoDeserializer>&& var) override
 			{
 				std::string str;
 				*this % str;
@@ -1691,29 +1691,29 @@ namespace sprawl
 				return *this;
 			}
 
-			void Data(const mongo::BSONObj &o)
+			void Data(const mongo::BSONObj& o)
 			{
-				obj = o;
+				m_obj = o;
 				m_bIsValid = true;
 			}
 
-			virtual void Data(const std::string &str) override
+			virtual void Data(const std::string& str) override
 			{
 				if(str[0] == '{')
 				{
-					obj = mongo::fromjson( str.c_str() );
+					m_obj = mongo::fromjson( str.c_str() );
 				}
 				else
 				{
-					obj = mongo::BSONObj(str.c_str());
+					m_obj = mongo::BSONObj(str.c_str());
 				}
 				m_bIsValid = true;
 			}
 
-			MongoDeserializer(const std::string &data)
+			MongoDeserializer(const std::string& data)
 			{
 				Data(data);
-				m_version = obj["__version__"].Int();
+				m_version = m_obj["__version__"].Int();
 			}
 
 			MongoDeserializer(const std::string& data, bool)
@@ -1722,14 +1722,14 @@ namespace sprawl
 				m_bWithMetadata = false;
 			}
 
-			MongoDeserializer(const mongo::BSONObj &o)
+			MongoDeserializer(const mongo::BSONObj& o)
 			{
 				Data(o);
-				m_version = obj["__version__"].Int();
+				m_version = m_obj["__version__"].Int();
 			}
 			virtual ~MongoDeserializer(){}
 		private:
-			std::string datastr;
+			std::string m_dataStr;
 		protected:
 			//Anything binary (including BSON) doesn't work here, it makes Mongo freak out if an object is embedded as a key like this. So we'll embed JSON instead.
 			virtual SerializerBase* GetAnother(const std::string& data) override { return new JSONDeserializer(data, false); }

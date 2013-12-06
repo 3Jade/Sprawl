@@ -4,6 +4,8 @@ import csbuild
 
 csbuild.Output("libsprawl_network.so")
 
+csbuild.NoPrecompile("src/network.hpp")
+
 csbuild.Standard("c++11")
 
 csbuild.Compiler("clang++")
@@ -14,3 +16,4 @@ csbuild.WarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overlo
 
 csbuild.InstallHeaders()
 csbuild.InstallSubdir("sprawl/network")
+csbuild.InstallOutput()

@@ -141,16 +141,16 @@ namespace sprawl
 
 			mongo::BSONObj getBaselineObj()
 			{
-				return baseline->Obj();
+				return m_baseline->Obj();
 			}
 
 			mongo::BSONObj getBaselineTempObj()
 			{
-				return baseline->tempObj();
+				return m_baseline->tempObj();
 			}
 		protected:
 			template<typename T2>
-			void serialize_impl( T2 *var, const std::string &name, bool PersistToDB)
+			void serialize_impl( T2* var, const std::string& name, bool PersistToDB)
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -158,9 +158,9 @@ namespace sprawl
 				(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
 				m_data[m_current_key] = m_serializer->Str();
 				m_objs[m_current_key] = m_serializer->Obj();
-				if(!marked)
+				if(!m_marked)
 				{
-					(*baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+					(*m_baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
 				}
 
 				this->PopKey();
@@ -174,84 +174,84 @@ namespace sprawl
 				m_serializer->serialize(var, name, PersistToDB);
 				m_data[m_current_key] = m_serializer->Str();
 				m_objs[m_current_key] = m_serializer->Obj();
-				if(!marked)
+				if(!m_marked)
 				{
-					baseline->serialize(var, name, PersistToDB);
+					m_baseline->serialize(var, name, PersistToDB);
 				}
 
 				this->PopKey();
 			}
 
-			virtual void serialize(int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(float *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(float* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(long double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(bool* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
@@ -262,8 +262,8 @@ namespace sprawl
 				{
 					if( this->m_name_index.count(name) == 0 )
 					{
-						this->m_reverse_name_index[this->highest_name] = name;
-						this->m_name_index[name] = this->highest_name++;
+						this->m_reverse_name_index[this->m_highest_name] = name;
+						this->m_name_index[name] = this->m_highest_name++;
 					}
 					this->m_current_key.push_back(this->m_name_index[name]);
 				}
