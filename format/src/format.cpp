@@ -111,7 +111,7 @@ namespace sprawl
 			return s;
 		}
 
-		std::string format(std::string str)
+		std::string format(std::string& str)
 		{
 			return str;
 		}

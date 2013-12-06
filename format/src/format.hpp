@@ -63,7 +63,7 @@ namespace sprawl
 			return format2(str, args, params...);
 		}
 
-		std::string format(std::string str);
+		std::string format(std::string& str);
 
 		std::string format(const char* str);
 

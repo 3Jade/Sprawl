@@ -38,7 +38,7 @@ namespace sprawl
 		class BinarySerializerBase : virtual public SerializerBase
 		{
 		public:
-			static const int headerSize = sizeof(int32_t)*3;
+			static const int ms_headerSize = sizeof(int32_t)*3;
 
 			virtual bool IsBinary() override { return true; }
 			virtual size_t Size() override { return m_size; }
@@ -48,7 +48,7 @@ namespace sprawl
 			uint32_t ComputeChecksum()
 			{
 				if(m_bWithMetadata)
-					return compute_checksum( m_data + headerSize, m_size-headerSize);
+					return compute_checksum( m_data + ms_headerSize, m_size-ms_headerSize);
 				else
 					return compute_checksum( m_data, m_size );
 			}
@@ -72,7 +72,7 @@ namespace sprawl
 					m_data = new char[m_capacity];
 					if(m_bWithMetadata)
 					{
-						m_pos = headerSize;
+						m_pos = ms_headerSize;
 						m_size = m_pos;
 						//Zero out the entire contents
 						memset(m_data, 0, m_capacity);
@@ -97,7 +97,7 @@ namespace sprawl
 				else
 				{
 					if(m_bWithMetadata)
-						m_pos = headerSize;
+						m_pos = ms_headerSize;
 					else
 						m_pos = 0;
 				}
@@ -107,7 +107,7 @@ namespace sprawl
 			{
 				if(m_checksum_stale && m_bWithMetadata)
 				{
-					m_checksum = compute_checksum( m_data + headerSize, m_size-headerSize);
+					m_checksum = compute_checksum( m_data + ms_headerSize, m_size-ms_headerSize);
 					memcpy( m_data + sizeof(int32_t)*2, &m_checksum, sizeof(int32_t) );
 					m_checksum_stale = false;
 				}
@@ -117,7 +117,7 @@ namespace sprawl
 			{
 				if(m_checksum_stale && m_bWithMetadata)
 				{
-					m_checksum = compute_checksum( m_data + headerSize, m_size-headerSize);
+					m_checksum = compute_checksum( m_data + ms_headerSize, m_size-ms_headerSize);
 					memcpy( m_data + sizeof(int32_t)*2, &m_checksum, sizeof(int32_t) );
 					m_checksum_stale = false;
 				}
@@ -348,10 +348,10 @@ namespace sprawl
 				m_data = new char[m_capacity];
 				if(m_bWithMetadata)
 				{
-					m_pos = headerSize;
+					m_pos = ms_headerSize;
 					m_size = m_pos;
 					//Make sure metadata info is empty.
-					memset(m_data, 0, headerSize);
+					memset(m_data, 0, ms_headerSize);
 					m_checksum = 0;
 
 					//Size, first int
@@ -429,17 +429,17 @@ namespace sprawl
 				m_bIsValid = true;
 				if(m_bWithMetadata)
 				{
-					m_data = new char[headerSize];
+					m_data = new char[ms_headerSize];
 					m_pos = 0;
-					memcpy(m_data, str.c_str(), headerSize);
+					memcpy(m_data, str.c_str(), ms_headerSize);
 					serialize(m_size, sizeof(int32_t), "", false);
 					serialize(m_version, sizeof(int32_t), "", false);
 					serialize(m_checksum, sizeof(int32_t), "", false);
 					delete[] m_data;
-					m_pos = headerSize;
+					m_pos = ms_headerSize;
 					m_data = new char[m_size];
 					memcpy(m_data, str.c_str(), m_size);
-					unsigned int computed_checksum = compute_checksum(m_data + headerSize, m_size-headerSize);
+					unsigned int computed_checksum = compute_checksum(m_data + ms_headerSize, m_size-ms_headerSize);
 					if(computed_checksum != m_checksum)
 					{
 						m_bIsValid = false;
