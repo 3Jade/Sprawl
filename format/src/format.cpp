@@ -32,7 +32,7 @@ namespace sprawl
 {
 	namespace format
 	{
-		inline int toInt(char *s)
+		inline int toInt(char* s)
 		{
 			if(*(s+1) == '\0')
 				return *s-48;
@@ -40,11 +40,11 @@ namespace sprawl
 				return ((*s-48)*10)+toInt(s+1);
 		}
 
-		std::string format2(const char *str, std::vector<std::string> &args)
+		std::string format2(const char* str, std::vector<std::string>& args)
 		{
 			char s[32768] = "";
 			char argnum[32768] = "";
-			char *c;
+			char* c;
 			unsigned int arg = 0;
 			unsigned int pos = 0;
 			unsigned int argpos = 0;
@@ -96,7 +96,7 @@ namespace sprawl
 							}
 							else
 							{
-								const char *cc = args[arg].c_str();
+								const char* cc = args[arg].c_str();
 								for( ; *cc != '\0'; cc++)
 									s[pos++] = *cc;
 							}
@@ -121,13 +121,13 @@ namespace sprawl
 			return str;
 		}
 
-		std::string format2(const char *str, std::vector<std::string> &args, std::string &arg1)
+		std::string format2(const char* str, std::vector<std::string>& args, std::string& arg1)
 		{
 			args.push_back(arg1);
 			return format2(str, args);
 		}
 
-		std::string format(const char* str, std::string &arg1)
+		std::string format(const char* str, std::string& arg1)
 		{
 			std::vector<std::string> args;
 			args.clear();

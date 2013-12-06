@@ -112,7 +112,7 @@ namespace sprawl
 			template<typename T>
 			BaseVariable(T value, std::string name)
 			{
-				T *ptr = new T(value);
+				T* ptr = new T(value);
 				m_Value = new void*;
 				*m_Value = ptr;
 				m_Type = typeid(T).name();
@@ -135,7 +135,7 @@ namespace sprawl
 			{
 				return m_Type;
 			}
-			void **value()
+			void** value()
 			{
 				return m_Value;
 			}
@@ -156,7 +156,7 @@ namespace sprawl
 			}
 		protected:
 			std::string m_Type;
-			void **m_Value; //This can't be a void *, because an array or vector of void* isn't possible.  An array or vector of void** is, though.
+			void** m_Value; //This can't be a void *, because an array or vector of void* isn't possible.  An array or vector of void** is, though.
 			std::string m_Name;
 			bool m_bDynamicPtr;
 		};
@@ -195,19 +195,19 @@ namespace sprawl
 		public:
 			multitype_list() : m_variables() {}
 			template<typename T>
-			void m_multitype_push(const T &val, const std::string &name) //multitype_push is much more friendly to use than m_multitype_push, just so ya'know.
+			void m_multitype_push(const T& val, const std::string& name) //multitype_push is much more friendly to use than m_multitype_push, just so ya'know.
 			{
-				T *ptr = new T;
+				T* ptr = new T;
 				*ptr = val;
-				void **value = new void*;
+				void** value = new void*;
 				*value = ptr;
 				std::string type = typeid(*ptr).name();
-				Variable<T> *v = new Variable<T>(type, value, name, true);
+				Variable<T>* v = new Variable<T>(type, value, name, true);
 				m_variables.push_back(v);
 			}
 
 			template<typename T>
-			T& get(const std::string &str)
+			T& get(const std::string& str)
 			{
 				std::string type_name = typeid(T).name();
 				for (unsigned int i = 0; i < m_variables.size(); i++)
@@ -243,10 +243,10 @@ namespace sprawl
 			}
 
 			//These are not actually used. They're here for the sake of things like intellisense so that uv_push and uv_get shown in the class member list.
-			void jv_push(VARIABLE _var_)
+			void multitype_push(VARIABLE _var_)
 			{
 			}
-			void jv_get(TYPE _type_, VARIABLE _var_)
+			void multitype_get(TYPE _type_, VARIABLE _var_)
 			{
 			}
 		private:
@@ -258,19 +258,19 @@ namespace sprawl
 		public:
 			multitype_map() : m_variables() {}
 			template<typename T>
-			void m_multitype_push(T val, const std::string &name) //multitype_push is much more friendly to use than m_multitype_push, just so ya'know.
+			void m_multitype_push(T val, const std::string& name) //multitype_push is much more friendly to use than m_multitype_push, just so ya'know.
 			{
-				T *ptr = new T;
+				T* ptr = new T;
 				*ptr = val;
-				void **value = new void*;
+				void** value = new void*;
 				*value = ptr;
 				std::string type = typeid(*ptr).name();
-				Variable<T> *v = new Variable<T>(type, value, name, true);
+				Variable<T>* v = new Variable<T>(type, value, name, true);
 				m_variables[name] = v;
 			}
 
 			template<typename T>
-			T& get(const std::string &str)
+			T& get(const std::string& str)
 			{
 				std::string type_name = typeid(T).name();
 				try
@@ -280,28 +280,28 @@ namespace sprawl
 					throw ex_invalid_variable_type(str, type_name,
 							m_variables[str]->type());
 				}
-				catch (std::out_of_range &e)
+				catch (std::out_of_range& e)
 				{
 					throw ex_no_such_variable(str);
 				}
 			}
 
-			BaseVariable& operator[](const std::string &str)
+			BaseVariable& operator[](const std::string& str)
 			{
 				try
 				{
 					return *m_variables.at(str);
 				}
-				catch (std::out_of_range &e)
+				catch (std::out_of_range& e)
 				{
 					throw ex_no_such_variable(str);
 				}
 			}
 			//These are not actually used. They're here for the sake of things like intellisense so that jv_push and jv_get shown in the class member list.
-			void jv_push(VARIABLE _var_)
+			void multitype_push(VARIABLE _var_)
 			{
 			}
-			void jv_get(TYPE _type_, VARIABLE _var_)
+			void multitype_get(TYPE _type_, VARIABLE _var_)
 			{
 			}
 		private:

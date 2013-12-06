@@ -72,9 +72,9 @@ namespace sprawl
 		class SerializationData
 		{
 		public:
-			explicit SerializationData(T &a, const std::string &b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
+			explicit SerializationData(T& a, const std::string& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
 			{}
-			explicit SerializationData(T &&a, const std::string &b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
+			explicit SerializationData(T&& a, const std::string& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
 			{}
 			T& operator*(){ return val; }
 			T& val;
@@ -83,13 +83,13 @@ namespace sprawl
 		};
 		
 		template<typename T>
-		SerializationData<T> prepare_data(T &val, const std::string &name = "noname", bool persist=true)
+		SerializationData<T> prepare_data(T& val, const std::string& name = "noname", bool persist=true)
 		{
 			return SerializationData<T>(val, name, persist);
 		}
 
 		template<typename T>
-		SerializationData<T> prepare_data(T &&val, const std::string &name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0)
+		SerializationData<T> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0)
 		{
 			return SerializationData<T>(val, name, persist);
 		}
@@ -112,23 +112,23 @@ namespace sprawl
 
 			virtual bool IsValid() = 0;
 			virtual size_t Size() = 0;
-			SerializerBase &operator%(SerializationData<unsigned int> &&var)
+			SerializerBase& operator%(SerializationData<unsigned int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 
-			SerializerBase &operator%(SerializationData<unsigned long int> &&var)
+			SerializerBase& operator%(SerializationData<unsigned long int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<unsigned char> &&var)
+			SerializerBase& operator%(SerializationData<unsigned char>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<unsigned char *> &&var)
+			SerializerBase& operator%(SerializationData<unsigned char* >&& var)
 			{
 				size_t len = strlen(reinterpret_cast<char*>(var.val));
 				if(IsBinary())
@@ -138,69 +138,69 @@ namespace sprawl
 				serialize(var.val, len, var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<bool> &&var)
+			SerializerBase& operator%(SerializationData<bool>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<std::vector<bool>::reference> &&var)
+			SerializerBase& operator%(SerializationData<std::vector<bool>::reference>&& var)
 			{
 				bool val = var.val;
 				serialize(val, sizeof(bool), var.name, var.PersistToDB);
 				return *this;
 			}
 
-			SerializerBase &operator%(SerializationData<int> &&var)
+			SerializerBase& operator%(SerializationData<int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<long int> &&var)
+			SerializerBase& operator%(SerializationData<long int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<long long int> &&var)
+			SerializerBase& operator%(SerializationData<long long int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<unsigned long long int> &&var)
+			SerializerBase& operator%(SerializationData<unsigned long long int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<unsigned short int> &&var)
+			SerializerBase& operator%(SerializationData<unsigned short int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<long double> &&var)
+			SerializerBase& operator%(SerializationData<long double>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<short int> &&var)
+			SerializerBase& operator%(SerializationData<short int>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<float> &&var)
+			SerializerBase& operator%(SerializationData<float>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<double> &&var)
+			SerializerBase& operator%(SerializationData<double>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<char> &&var)
+			SerializerBase& operator%(SerializationData<char>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
-			SerializerBase &operator%(SerializationData<char *> &&var)
+			SerializerBase& operator%(SerializationData<char* >&& var)
 			{
 				size_t len = strlen(var.val);
 				if(IsBinary())
@@ -212,80 +212,80 @@ namespace sprawl
 			}
 
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<unsigned int [N]> &&var)
+			SerializerBase& operator%(SerializationData<unsigned int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<unsigned long int [N]> &&var)
+			SerializerBase& operator%(SerializationData<unsigned long int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<unsigned long long int [N]> &&var)
+			SerializerBase& operator%(SerializationData<unsigned long long int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<long long int [N]> &&var)
+			SerializerBase& operator%(SerializationData<long long int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<unsigned short int [N]> &&var)
+			SerializerBase& operator%(SerializationData<unsigned short int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<short int [N]> &&var)
+			SerializerBase& operator%(SerializationData<short int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<long double [N]> &&var)
+			SerializerBase& operator%(SerializationData<long double [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<bool [N]> &&var)
+			SerializerBase& operator%(SerializationData<bool [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<int [N]> &&var)
+			SerializerBase& operator%(SerializationData<int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<long int [N]> &&var)
+			SerializerBase& operator%(SerializationData<long int [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<float [N]> &&var)
+			SerializerBase& operator%(SerializationData<float [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase &operator%(SerializationData<double [N]> &&var)
+			SerializerBase& operator%(SerializationData<double [N]>&& var)
 			{
 				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
 				return *this;
 			}
 
 			template< typename T, std::size_t N, std::size_t M>
-			SerializerBase &operator%(SerializationData<T [N][M]> &&var)
+			SerializerBase& operator%(SerializationData<T [N][M]>&& var)
 			{
 				size_t size;
 				StartArray(var.name, size, var.PersistToDB);
@@ -298,7 +298,7 @@ namespace sprawl
 			}
 
 			template< typename T, std::size_t N, std::size_t M, std::size_t O>
-			SerializerBase &operator%(SerializationData<T [N][M][O]> &&var)
+			SerializerBase& operator%(SerializationData<T [N][M][O]>&& var)
 			{
 				size_t size;
 				StartArray(var.name, size, var.PersistToDB);
@@ -311,7 +311,7 @@ namespace sprawl
 			}
 
 			template< typename T, std::size_t N, std::size_t M, std::size_t O, std::size_t P>
-			SerializerBase &operator%(SerializationData<T [N][M][O][P]> &&var)
+			SerializerBase& operator%(SerializationData<T [N][M][O][P]>&& var)
 			{
 				size_t size;
 				StartArray(var.name, size, var.PersistToDB);
@@ -323,7 +323,7 @@ namespace sprawl
 				return *this;
 			}
 
-			SerializerBase &operator%(SerializationData<std::string> &&var)
+			SerializerBase& operator%(SerializationData<std::string>&& var)
 			{
 				size_t len = var.val.length();
 				if(IsBinary())
@@ -337,7 +337,7 @@ namespace sprawl
 		private:
 			//Optimized vector implementations for simple types
 			template<typename T>
-			void VectorSerialize(SerializationData<std::vector<T>> &var, std::true_type)
+			void VectorSerialize(SerializationData<std::vector<T>>& var, std::true_type)
 			{
 				size_t size = var.val.size();
 				if(IsBinary())
@@ -364,7 +364,7 @@ namespace sprawl
 			}
 
 			template<typename T>
-			void VectorSerialize(SerializationData<std::vector<T>> &var, std::false_type)
+			void VectorSerialize(SerializationData<std::vector<T>>& var, std::false_type)
 			{
 				size_t size = var.val.size();
 				if(IsBinary())
@@ -384,7 +384,7 @@ namespace sprawl
 			}
 
 			//Except that bool has its own weird behaviors... so it has to be treated like the other kind.
-			void VectorSerialize(SerializationData<std::vector<bool>> &var, std::true_type)
+			void VectorSerialize(SerializationData<std::vector<bool>>& var, std::true_type)
 			{
 				size_t size = var.val.size();
 				if(IsBinary())
@@ -410,14 +410,14 @@ namespace sprawl
 
 		public:
 			template<typename T>
-			SerializerBase &operator%(SerializationData<std::vector<T>> &&var)
+			SerializerBase& operator%(SerializationData<std::vector<T>>&& var)
 			{
 				VectorSerialize(var, std::is_integral<T>());
 				return *this;
 			}
 
 			template<typename key_type, typename val_type, typename comp, typename alloc>
-			SerializerBase &operator%(SerializationData<std::map<key_type, val_type, comp, alloc>> &&var)
+			SerializerBase& operator%(SerializationData<std::map<key_type, val_type, comp, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -489,7 +489,7 @@ namespace sprawl
 			}
 
 			template<typename key_type, typename val_type, typename comp, typename alloc>
-			SerializerBase &operator%(SerializationData<std::unordered_map<key_type, val_type, comp, alloc>> &&var)
+			SerializerBase& operator%(SerializationData<std::unordered_map<key_type, val_type, comp, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -561,7 +561,7 @@ namespace sprawl
 			}
 
 			template<typename val_type>
-			SerializerBase &operator%(SerializationData<std::map<std::string, val_type>> &&var)
+			SerializerBase& operator%(SerializationData<std::map<std::string, val_type>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -628,7 +628,7 @@ namespace sprawl
 
 			//Specialization for performance.
 			template<typename val_type>
-			SerializerBase &operator%(SerializationData<std::unordered_map<std::string, val_type>> &&var)
+			SerializerBase& operator%(SerializationData<std::unordered_map<std::string, val_type>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -694,7 +694,7 @@ namespace sprawl
 			}
 
 			template<typename T, typename comp, typename alloc>
-			SerializerBase &operator%(SerializationData<std::set<T, comp, alloc>> &&var)
+			SerializerBase& operator%(SerializationData<std::set<T, comp, alloc>>&& var)
 			{
 				size_t size = var.val.size();
 				if(IsBinary())
@@ -723,7 +723,7 @@ namespace sprawl
 			}
 
 			template<typename T, typename comp, typename alloc>
-			SerializerBase &operator%(SerializationData<std::unordered_set<T, comp, alloc>> &&var)
+			SerializerBase& operator%(SerializationData<std::unordered_set<T, comp, alloc>>&& var)
 			{
 				size_t size = var.val.size();
 				if(IsBinary())
@@ -751,21 +751,21 @@ namespace sprawl
 				return *this;
 			}
 
-			virtual SerializerBase &operator%(SerializationData<class Serializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class Deserializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class BinarySerializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class BinaryDeserializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class JSONSerializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class JSONDeserializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class YAMLSerializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class YAMLDeserializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class MongoSerializer> &&){ throw std::exception(); return *this; }
-			virtual SerializerBase &operator%(SerializationData<class MongoDeserializer> &&){ throw std::exception(); return *this; }
-			virtual void StartArray(const std::string &, size_t&, bool = true){}
+			virtual SerializerBase& operator%(SerializationData<class Serializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class Deserializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class BinarySerializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class BinaryDeserializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class JSONSerializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class JSONDeserializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class YAMLSerializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class YAMLDeserializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class MongoSerializer> &&){ throw std::exception(); return *this; }
+			virtual SerializerBase& operator%(SerializationData<class MongoDeserializer> &&){ throw std::exception(); return *this; }
+			virtual void StartArray(const std::string& , size_t&, bool = true){}
 			virtual void EndArray(){}
-			virtual size_t StartObject(const std::string &, bool = true){ return 0; }
+			virtual size_t StartObject(const std::string& , bool = true){ return 0; }
 			virtual void EndObject(){}
-			virtual size_t StartMap(const std::string &s, bool b = true){ return StartObject(s, b); }
+			virtual size_t StartMap(const std::string& s, bool b = true){ return StartObject(s, b); }
 			virtual void EndMap(){ EndObject(); }
 			virtual std::string GetNextKey(){ return ""; }
 			virtual std::unordered_set<std::string> GetDeletedKeys(const std::string&){ return std::unordered_set<std::string>(); }
@@ -835,13 +835,13 @@ namespace sprawl
 		public:
 
 			template<typename T>
-			SerializerBase &operator%(T &&var)
+			SerializerBase& operator%(T&& var)
 			{
 				return *this % prepare_data(var, "noname", false);
 			}
 
 			template<typename T>
-			SerializerBase &operator%(SerializationData<T> &&var)
+			SerializerBase& operator%(SerializationData<T>&& var)
 			{
 				StartObject(var.name, var.PersistToDB);
 				var.val.Serialize(*this);
@@ -850,7 +850,7 @@ namespace sprawl
 			}
 
 			template<typename T>
-			SerializerBase &operator%(SerializationData<T*> &&var)
+			SerializerBase& operator%(SerializationData<T*>&& var)
 			{
 				StartObject(var.name, var.PersistToDB);
 				var.val->Serialize(*this);
@@ -859,7 +859,7 @@ namespace sprawl
 			}
 
 			template<typename T>
-			SerializerBase &operator%(SerializationData<std::shared_ptr<T>> &&var)
+			SerializerBase& operator%(SerializationData<std::shared_ptr<T>>&& var)
 			{
 				if(IsLoading() && !var.val)
 				{
@@ -869,33 +869,33 @@ namespace sprawl
 				return *this;
 			}
 
-			virtual const char *Data() = 0;
+			virtual const char* Data() = 0;
 			virtual void Data(const std::string&){}
 			virtual std::string Str() = 0;
 			virtual ~SerializerBase(){}
 		protected:
 
 			template<typename T>
-			void serialize(T &var, const size_t bytes, const std::string &name, bool PersistToDB)
+			void serialize(T& var, const size_t bytes, const std::string& name, bool PersistToDB)
 			{
-				serialize( &var, bytes, name, PersistToDB);
+				serialize(&var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(long int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(long long int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(short int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(char *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(float *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(double *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(long double *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(bool *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long long int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned short int *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned char *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
-			virtual void serialize(std::string *var, const size_t bytes, const std::string &name, bool PersistToDB) = 0;
+			virtual void serialize(int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(long int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(long long int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(short int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(char* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(float* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(double* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(long double* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(bool* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned long int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned long long int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned short int* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned char* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(std::string* var, const size_t bytes, const std::string& name, bool PersistToDB) = 0;
 
 			//Usually does nothing, but has to be here for mongo serializer to work properly with OIDs.
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);
@@ -904,7 +904,7 @@ namespace sprawl
 			SerializerBase() {}
 		private:
 			SerializerBase(const SerializerBase&);
-			SerializerBase &operator=(const SerializerBase&);
+			SerializerBase& operator=(const SerializerBase&);
 		};
 
 		class Serializer : virtual public SerializerBase
@@ -912,7 +912,7 @@ namespace sprawl
 		public:
 			using SerializerBase::operator%;
 			template <typename T>
-			SerializerBase &operator%(SerializationData<const T> &&var)
+			SerializerBase& operator%(SerializationData<const T>&& var)
 			{
 				T cVar = var.val;
 				return *this % prepare_data(cVar, var.name, var.PersistToDB);
@@ -920,13 +920,13 @@ namespace sprawl
 
 #ifndef _WIN32
 			template<typename T>
-			SerializerBase &operator%(T &&var)
+			SerializerBase& operator%(T&& var)
 			{
 			  return *this % prepare_data(var, "noname", true);
 			}
 
 			template<typename T>
-			SerializerBase &operator%(SerializationData<T> &&var)
+			SerializerBase& operator%(SerializationData<T>&& var)
 			{
 			  StartObject(var.name, var.PersistToDB);
 			  var.val.Serialize(*this);
@@ -948,7 +948,7 @@ namespace sprawl
 		public:
 			using SerializerBase::operator%;
 			using SerializerBase::Data;
-			virtual void Data(const std::string &str) = 0;
+			virtual void Data(const std::string& str) = 0;
 			virtual ~Deserializer(){}
 			virtual bool IsLoading() override { return true; }
 		protected:

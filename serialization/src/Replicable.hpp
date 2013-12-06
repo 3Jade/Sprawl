@@ -104,12 +104,12 @@ namespace sprawl
 				, m_depth_tracker()
 				, m_current_key()
 				, m_name_index()
-				, highest_name(0)
+				, m_highest_name(0)
 				, m_current_map_key()
 				, m_keyindex()
 				, m_serializer(nullptr)
-				, baseline(nullptr)
-				, marked(false)
+				, m_baseline(nullptr)
+				, m_marked(false)
 			{
 			}
 
@@ -117,8 +117,8 @@ namespace sprawl
 			{
 				if(m_serializer)
 					delete m_serializer;
-				if(baseline)
-					delete baseline;
+				if(m_baseline)
+					delete m_baseline;
 			}
 
 		public:
@@ -139,7 +139,7 @@ namespace sprawl
 				this->m_removed.clear();
 				this->m_name_index.clear();
 				this->m_current_map_key.clear();
-				this->highest_name = 0;
+				this->m_highest_name = 0;
 				this->m_current_key.clear();
 				this->m_keyindex.clear();
 			}
@@ -219,27 +219,27 @@ namespace sprawl
 						m_current_key.pop_back();
 					}
 				} // if(IsLoading())
-				else if(!marked)
+				else if(!m_marked)
 				{
-					baseline->StartArray(name, size, b);
+					m_baseline->StartArray(name, size, b);
 				}
 			}
 
 			void EndArray() override
 			{
 				PopKey();
-				if(!marked)
+				if(!m_marked)
 				{
-					baseline->EndArray();
+					m_baseline->EndArray();
 				}
 			}
 
 			virtual size_t StartObject( const std::string& name, bool b) override
 			{
 				PushKey(name);
-				if(!marked)
+				if(!m_marked)
 				{
-					baseline->StartObject(name, b);
+					m_baseline->StartObject(name, b);
 				}
 				return 0;
 			}
@@ -251,7 +251,7 @@ namespace sprawl
 				if(IsLoading())
 				{
 					std::set<std::string> unique_subkeys;
-					for(auto &kvp : m_diffs)
+					for(auto& kvp : m_diffs)
 					{
 						size_t size = m_current_key.size();
 						if(kvp.first.size() != size + 2) continue;
@@ -262,9 +262,9 @@ namespace sprawl
 					}
 					return unique_subkeys.size();
 				}
-				else if(!marked)
+				else if(!m_marked)
 				{
-					baseline->StartMap(name, b);
+					m_baseline->StartMap(name, b);
 				}
 				return 0;
 			}
@@ -273,18 +273,18 @@ namespace sprawl
 			{
 				m_current_map_key.pop_back();
 				PopKey();
-				if(!marked)
+				if(!m_marked)
 				{
-					baseline->EndMap();
+					m_baseline->EndMap();
 				}
 			}
 
 			void EndObject() override
 			{
 				PopKey();
-				if(!marked)
+				if(!m_marked)
 				{
-					baseline->EndObject();
+					m_baseline->EndObject();
 				}
 			}
 
@@ -292,7 +292,7 @@ namespace sprawl
 			{
 				//Get the next key that belongs to our current element.
 				//TODO: Have GetMap() just return a list of keys to grab that the calling function can iterate so we can avoid these string compares.
-				for(auto &kvp : m_diffs)
+				for(auto& kvp : m_diffs)
 				{
 					size_t size = m_current_key.size();
 					if(kvp.first.size() != size + 2) continue;
@@ -328,7 +328,7 @@ namespace sprawl
 
 		protected:
 			template<typename T2>
-			void serialize_impl( T2 *var, const std::string &name, bool PersistToDB)
+			void serialize_impl( T2* var, const std::string& name, bool PersistToDB)
 			{
 				m_serializer->Reset();
 				PushKey(name);
@@ -350,84 +350,84 @@ namespace sprawl
 				{
 					(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
 					m_data[m_current_key] = m_serializer->Str();
-					if(!marked)
+					if(!m_marked)
 					{
-						(*baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+						(*m_baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
 					}
 				}
 				PopKey();
 			}
 
-			virtual void serialize(int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(float *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(float* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(long double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(bool* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string *var, const size_t /*bytes*/, const std::string &name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
@@ -438,7 +438,7 @@ namespace sprawl
 				{
 					if( m_name_index.count(name) == 0 )
 					{
-						m_name_index[name] = highest_name++;
+						m_name_index[name] = m_highest_name++;
 					}
 					m_current_key.push_back(m_name_index[name]);
 				}
@@ -470,12 +470,12 @@ namespace sprawl
 			std::unordered_map<std::vector<int16_t>, int16_t, container_hash<int16_t>> m_depth_tracker;
 			std::vector<int16_t> m_current_key;
 			std::unordered_map<std::string, int> m_name_index;
-			int highest_name;
+			int m_highest_name;
 			std::vector<std::vector<int16_t>> m_current_map_key;
 			std::unordered_map<int16_t, std::string> m_keyindex;
 			T* m_serializer;
-			T* baseline;
-			bool marked;
+			T* m_baseline;
+			bool m_marked;
 		};
 
 		template<typename T>
@@ -488,7 +488,7 @@ namespace sprawl
 				, m_marked_data()
 			{
 				this->m_serializer = new T(false);
-				this->baseline = new T();
+				this->m_baseline = new T();
 			}
 
 			using Serializer::operator%;
@@ -516,7 +516,7 @@ namespace sprawl
 			{
 				ReplicableBase<T>::Reset();
 				m_marked_data.clear();
-				this->marked = false;
+				this->m_marked = false;
 			}
 
 			void Mark()
@@ -527,7 +527,7 @@ namespace sprawl
 				this->m_diffs.clear();
 				this->m_removed.clear();
 				this->m_keyindex.clear();
-				this->marked = true;
+				this->m_marked = true;
 			}
 			const char* Data() override
 			{
@@ -600,7 +600,7 @@ namespace sprawl
 
 			std::string getBaselineStr()
 			{
-				return this->baseline->Str();
+				return this->m_baseline->Str();
 			}
 
 		protected:

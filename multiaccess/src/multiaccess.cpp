@@ -68,12 +68,12 @@ sprawl::multiaccess::multiaccess_map<boost::shared_ptr<TestClass>, int(TestClass
 
 int main()
 {
-	TestClass *tp = new TestClass("Hi", 33);
-	TestClass *tp2 = new TestClass("Yo", 1);
-	TestClass *tp3 = new TestClass("Zing", 81);
-	TestClass *tp4 = new TestClass("fourfourfour", 444);
-	TestClass *tp5 = new TestClass("eighttwelve", 812);
-	TestClass *tp6 = new TestClass("million", 1000000);
+	TestClass* tp = new TestClass("Hi", 33);
+	TestClass* tp2 = new TestClass("Yo", 1);
+	TestClass* tp3 = new TestClass("Zing", 81);
+	TestClass* tp4 = new TestClass("fourfourfour", 444);
+	TestClass* tp5 = new TestClass("eighttwelve", 812);
+	TestClass* tp6 = new TestClass("million", 1000000);
 	
 	valmap.push(*tp);
 	valmap.push(*tp2);
@@ -89,7 +89,7 @@ int main()
 	std::cout << "Valmap:" << valmap[812].GetString() << " " << valmap["eighttwelve"].GetInt() << std::endl;
 	std::cout << "Valmap:" << valmap[1000000].GetString() << " " << valmap["million"].GetInt() << std::endl;
 	std::cout << std::endl;
-	for(auto &test : valmap)
+	for(auto& test : valmap)
 	{
 		std::cout << test.GetString() << " " << test.GetInt() << std::endl;
 	}
@@ -112,7 +112,7 @@ int main()
 	std::cout << "ptrmap:" << ptrmap[812]->GetString() << " " << ptrmap["eighttwelve"]->GetInt() << std::endl;
 	std::cout << "ptrmap:" << ptrmap[1000000]->GetString() << " " << ptrmap["million"]->GetInt() << std::endl;
 	std::cout << std::endl;
-	for(auto &test : ptrmap)
+	for(auto& test : ptrmap)
 	{
 		std::cout << test->GetString() << " " << test->GetInt() << std::endl;
 	}
@@ -141,7 +141,7 @@ int main()
 	std::cout << "sharedmap:" << sharedmap[812]->GetString() << " " << sharedmap["eighttwelve"]->GetInt() << std::endl;
 	std::cout << "sharedmap:" << sharedmap[1000000]->GetString() << " " << sharedmap["million"]->GetInt() << std::endl;
 	std::cout << std::endl;
-	for(auto &test : sharedmap)
+	for(auto& test : sharedmap)
 	{
 		std::cout << test->GetString() << " " << test->GetInt() << std::endl;
 	}
@@ -150,19 +150,19 @@ int main()
 		std::cout << it->GetString() << " " << it->GetInt() << std::endl;
 	}
 
-	for(auto &test : valmap)
+	for(auto& test : valmap)
 	{
 		std::cout << "Popping " << test.GetInt() << std::endl;
 		valmap.pop(test.GetInt());
 	}
 	std::cout << std::endl;
-	for(auto &test : ptrmap)
+	for(auto& test : ptrmap)
 	{
 		std::cout << "Popping " << test->GetInt() << std::endl;
 		ptrmap.pop(test->GetInt());
 	}
 	std::cout << std::endl;
-	for(auto &test : sharedmap)
+	for(auto& test : sharedmap)
 	{
 		std::cout << "Popping " << test->GetInt() << std::endl;
 		sharedmap.pop(test->GetInt());

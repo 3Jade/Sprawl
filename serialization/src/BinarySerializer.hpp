@@ -103,7 +103,7 @@ namespace sprawl
 				}
 			}
 			using SerializerBase::Data;
-			virtual const char *Data() override
+			virtual const char* Data() override
 			{
 				if(m_checksum_stale && m_bWithMetadata)
 				{
@@ -126,7 +126,7 @@ namespace sprawl
 		protected:
 			template<typename T>
 			friend class ReplicableBase;
-			char *m_data;
+			char* m_data;
 			uint32_t m_pos;
 			uint32_t m_capacity;
 			uint32_t m_checksum;
@@ -139,7 +139,7 @@ namespace sprawl
 			bool m_bIsValid;
 			bool m_bWithMetadata;
 
-			uint32_t compute_checksum(const char *data, int len)
+			uint32_t compute_checksum(const char* data, int len)
 			{
 				uint32_t hash = 0;
 
@@ -152,7 +152,7 @@ namespace sprawl
 			}
 
 			using SerializerBase::serialize;
-			void serialize_impl(void *var, const size_t bytes, bool /*PersistToDB*/)
+			void serialize_impl(void* var, const size_t bytes, bool /*PersistToDB*/)
 			{
 				if(!m_bIsValid)
 				{
@@ -164,7 +164,7 @@ namespace sprawl
 					{
 						int oldcap = m_capacity;
 						m_capacity = m_capacity * 2 + 1;
-						char *newdata = new char[m_capacity];
+						char* newdata = new char[m_capacity];
 						memcpy(newdata, m_data, oldcap);
 						delete[] m_data;
 						m_data = newdata;
@@ -189,77 +189,77 @@ namespace sprawl
 
 				m_pos += (uint32_t)bytes;
 			}
-			virtual void serialize(int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(long int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(long int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(long long int *var, const size_t bytes, const std::string&, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const size_t bytes, const std::string&, bool PersistToDB)  override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(short int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(short int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(char *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(char* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(float *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(float* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(double *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(double* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(long double *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(long double* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(bool *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(bool* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(std::string *var, const size_t bytes, const std::string&, bool PersistToDB) override
+			virtual void serialize(std::string* var, const size_t bytes, const std::string&, bool PersistToDB) override
 			{
 				if(IsLoading())
 				{
@@ -297,7 +297,7 @@ namespace sprawl
 			}
 		private:
 			BinarySerializerBase(const SerializerBase&);
-			BinarySerializerBase &operator=(const SerializerBase&);
+			BinarySerializerBase& operator=(const SerializerBase&);
 		};
 
 		class BinarySerializer : public BinarySerializerBase, public Serializer
@@ -327,14 +327,14 @@ namespace sprawl
 			using BinarySerializerBase::GetNextKey;
 			using BinarySerializerBase::GetDeletedKeys;
 
-			virtual SerializerBase &operator%(SerializationData<Serializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<Serializer>&& var) override
 			{
 				std::string str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
 				return *this;
 			}
 
-			virtual SerializerBase &operator%(SerializationData<BinarySerializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<BinarySerializer>&& var) override
 			{
 				std::string str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
@@ -405,14 +405,14 @@ namespace sprawl
 			using BinarySerializerBase::GetNextKey;
 			using BinarySerializerBase::GetDeletedKeys;
 
-			virtual SerializerBase &operator%(SerializationData<Deserializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<Deserializer>&& var) override
 			{
 				std::string str;
 				*this % str;
 				var.val.Data(str);
 				return *this;
 			}
-			virtual SerializerBase &operator%(SerializationData<BinaryDeserializer> &&var) override
+			virtual SerializerBase& operator%(SerializationData<BinaryDeserializer>&& var) override
 			{
 				std::string str;
 				*this % str;
@@ -420,7 +420,7 @@ namespace sprawl
 				return *this;
 			}
 
-			virtual void Data(const std::string &str) override
+			virtual void Data(const std::string& str) override
 			{
 				if(m_data != NULL)
 				{
@@ -454,7 +454,7 @@ namespace sprawl
 				}
 				m_bInitialized = true;
 			}
-			BinaryDeserializer(const std::string &data)
+			BinaryDeserializer(const std::string& data)
 			{
 				m_bIsValid = true;
 				Data(data);
