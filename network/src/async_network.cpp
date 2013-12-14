@@ -1,10 +1,49 @@
+#ifdef _WIN32
+#	define _CRT_SECURE_NO_WARNINGS
+#endif
+
 #include "async_network.hpp"
+
+#ifdef _WIN32
+#	define close closesocket
+#	include <time.h>
+
+#	if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+#		define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
+#	else
+#		define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
+#	endif
+
+	namespace
+	{
+		int gettimeofday(struct timeval* tv, void* unusedArg)
+		{
+			if(tv == nullptr)
+				return 0;
+
+			FILETIME ft;
+			unsigned __int64 asInt = 0;
+
+			GetSystemTimeAsFileTime(&ft);
+
+			asInt = ft.dwHighDateTime;
+			asInt <<= 32;
+			asInt |= ft.dwLowDateTime;
+			asInt -= DELTA_EPOCH_IN_MICROSECS;
+			asInt /= 10;
+
+			tv->tv_sec = (long)(asInt / 1000000UL);
+			tv->tv_usec = (long)(asInt % 1000000UL);
+			return 0;
+		}
+	}
+#endif
 
 namespace sprawl
 {
 	namespace async_network
 	{
-		int Connection::GetDescriptor()
+		SOCKET Connection::GetDescriptor()
 		{
 			return m_desc;
 		}
@@ -29,7 +68,7 @@ namespace sprawl
 			m_outData.push_back(std::make_pair(data, onSendFunction));
 		}
 
-		Connection::Connection(int desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+		Connection::Connection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
 			: m_desc(desc_)
 			, m_closeSocket(false)
 			, m_partialPacket()
@@ -54,7 +93,7 @@ namespace sprawl
 
 			for(auto& data : outData)
 			{
-				send(m_desc, data.first.c_str(), data.first.length(), 0);
+				send(m_desc, data.first.c_str(), (int)data.first.length(), 0);
 				if(data.second)
 				{
 					data.second();
@@ -71,33 +110,40 @@ namespace sprawl
 			}
 			int ret;
 			char buf[32768];
-			ret = recv(m_desc, &buf, 32768, 0);
+			char* pbuf = buf;
+			ret = recv(m_desc, pbuf, 32768, 0);
 			if(ret <= 0)
 			{
 				return ret;
 			}
+
 			if(m_onReceive)
 			{
 				//If there's no onReceive callback, what can we do? Nothing.
 				std::string packet = m_partialPacket + std::string(buf, ret);
+				const char* cPacket = packet.c_str();
+				int packetEnd = (int)packet.length();
 
-				//If we don't have a packet validator, we assume the packet is valid.
-				bool packetValid = true;
-				std::string leftovers;
-				if(m_validatePacket)
+				while(packetEnd > 0)
 				{
-					packetValid = m_validatePacket(packet, leftovers);
+					int newEnd = packetEnd;
+					//if we don't have a validator we'll just give them the full packet.
+					if(m_validatePacket)
+					{
+						newEnd = m_validatePacket(cPacket, packetEnd);
+					}
+					if(newEnd > 0)
+					{
+						m_onReceive(shared_from_this(), cPacket, newEnd);
+						cPacket += newEnd;
+						packetEnd -= newEnd;
+					}
+					else
+					{
+						break;
+					}
 				}
-				if(packetValid)
-				{
-					m_partialPacket = leftovers;
-					m_onReceive(shared_from_this(), packet);
-				}
-				else
-				{
-					m_partialPacket = packet;
-				}
-
+				m_partialPacket = std::string(cPacket, packetEnd);
 			}
 			return ret;
 		}
@@ -108,7 +154,7 @@ namespace sprawl
 			m_currentId++;
 		}
 
-		UDPConnection::UDPConnection(int desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+		UDPConnection::UDPConnection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
 			: Connection(desc_, addr, onReceive_, validatePacket_)
 			, m_packets()
 			, m_highId(-1)
@@ -120,7 +166,7 @@ namespace sprawl
 			m_lastSent.tv_usec = 0;
 		 }
 
-		UDPConnection::UDPConnection(int desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+		UDPConnection::UDPConnection(SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
 			: Connection(desc_, nullptr, onReceive_, validatePacket_)
 			, m_packets()
 			, m_highId(-1)
@@ -145,7 +191,7 @@ namespace sprawl
 			{
 				//Send the packet...
 				std::string content = kvp.first.m_header + kvp.first.m_content;
-				sendto(m_desc, content.c_str(), content.length(), 0, &m_dest, m_slen);
+				sendto(m_desc, content.c_str(), (int)content.length(), 0, &m_dest, m_slen);
 				if(kvp.second)
 				{
 					kvp.second();
@@ -235,24 +281,29 @@ namespace sprawl
 				{
 					//If there's no onReceive callback, what can we do? Nothing.
 					std::string packet = m_partialPacket + std::string(buf, ret);
+					const char* cPacket = packet.c_str();
+					int packetEnd = (int)packet.length();
 
-					//If we don't have a packet validator, we assume the packet is valid.
-					bool packetValid = true;
-					std::string leftovers;
-					if(m_validatePacket)
+					while(packetEnd > 0)
 					{
-						packetValid = m_validatePacket(packet, leftovers);
+						int newEnd = packetEnd;
+						//if we don't have a validator we'll just give them the full packet.
+						if(m_validatePacket)
+						{
+							newEnd = m_validatePacket(cPacket, packetEnd);
+						}
+						if(newEnd > 0)
+						{
+							m_onReceive(shared_from_this(), cPacket, newEnd);
+							cPacket += newEnd;
+							packetEnd -= newEnd;
+						}
+						else
+						{
+							break;
+						}
 					}
-					if(packetValid)
-					{
-						m_partialPacket = leftovers;
-						m_onReceive(shared_from_this(), packet);
-					}
-					else
-					{
-						m_partialPacket = packet;
-					}
-
+					m_partialPacket = std::string(cPacket, packetEnd);
 				}
 				return ret;
 			}
@@ -324,6 +375,29 @@ namespace sprawl
 			, m_header(header_)
 		{
 			gettimeofday(&m_sentTime, nullptr);
+		}
+
+		UDPConnection::packet::packet(UDPConnection::packet&& other)
+			: m_ID(std::move(other.m_ID))
+			, m_behavior(std::move(other.m_behavior))
+			, m_content(std::move(other.m_content))
+			, m_header(std::move(other.m_header))
+		{}
+
+		UDPConnection::packet::packet(const UDPConnection::packet& other)
+			: m_ID(other.m_ID)
+			, m_behavior(other.m_behavior)
+			, m_content(other.m_content)
+			, m_header(other.m_header)
+		{}
+
+		UDPConnection::packet& UDPConnection::packet::operator=(UDPConnection::packet&& other)
+		{
+			m_ID = std::move(other.m_ID);
+			m_behavior = std::move(other.m_behavior);
+			m_content = std::move(other.m_content);
+			m_header = std::move(other.m_header);
+			return *this;
 		}
 
 		void UDPConnection::SendPacketWithID(const std::string& str, FailType behavior, int32_t sendid, SendCallback callback)
@@ -456,10 +530,14 @@ namespace sprawl
 			}
 
 			int yes = 1;
+#ifndef _WIN32
 			setsockopt(m_inSock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+#else
+			setsockopt(m_inSock, SOL_SOCKET, SO_REUSEADDR, (char*) &yes, sizeof(int));
+#endif
 
 			//Bind the port
-			if( ::bind(m_inSock, m_servInfo->ai_addr, m_servInfo->ai_addrlen) == -1 )
+			if( ::bind(m_inSock, m_servInfo->ai_addr, (int)m_servInfo->ai_addrlen) == -1 )
 			{
 				throw SockExcept("Port already in use.");
 			}
@@ -473,11 +551,15 @@ namespace sprawl
 
 		void ServerSocket::Close()
 		{
-			m_running = false;
-			m_thread.join();
-			close(m_inSock);
-			m_inSock = -1;
-			freeaddrinfo(m_servInfo);
+			if(m_running)
+			{
+				m_running = false;
+				m_thread.join();
+				close(m_inSock);
+				m_inSock = -1;
+				freeaddrinfo(m_servInfo);
+
+			}
 		}
 
 		ServerSocket::~ServerSocket()
@@ -534,7 +616,7 @@ namespace sprawl
 			return std::weak_ptr<Connection>();
 		}
 
-		int ServerSocket::GetNumConnections()
+		size_t ServerSocket::GetNumConnections()
 		{
 			std::lock_guard<std::mutex> lock(m_mtx);
 			return m_connections.size();
@@ -586,19 +668,19 @@ namespace sprawl
 			FD_ZERO(&m_inSet);
 			FD_ZERO(&m_excSet);
 			FD_SET(m_inSock, &m_inSet);
-			int newcon = -1;
-			int max = m_inSock;
+			SOCKET newcon = -1;
+			SOCKET max = m_inSock;
 
 			for( auto& connection : m_connections )
 			{
-				int desc = connection->GetDescriptor();
+				SOCKET desc = connection->GetDescriptor();
 				if (desc > max)
 					max = desc;
 				FD_SET( desc, &m_inSet );
 				FD_SET( desc, &m_excSet );
 			}
 
-			int ret = select(max + 1, &m_inSet, NULL, &m_excSet, &t);
+			int ret = select((int)(max + 1), &m_inSet, NULL, &m_excSet, &t);
 
 			std::lock_guard<std::mutex> lock(m_mtx);
 
@@ -620,7 +702,11 @@ namespace sprawl
 					if(newcon != -1)
 					{
 						int yes = 1;
+#ifndef _WIN32
 						setsockopt(newcon, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(int));
+#else
+						setsockopt(newcon, SOL_SOCKET, SO_KEEPALIVE, (char*) &yes, sizeof(int));
+#endif
 						c.reset(new Connection(newcon, ((sockaddr*)&addr), m_onReceive, m_packetValidator));
 						if(m_onConnect)
 						{
@@ -656,11 +742,12 @@ namespace sprawl
 				}
 			}
 
+			std::vector<size_t> indexes_to_erase;
 			if(m_connectionType == ConnectionType::TCP)
 			{
-				for( auto it = m_connections.begin(); it != m_connections.end(); )
+				for( size_t i = 0; i < m_connections.size(); i++ )
 				{
-					auto& connection = *it;
+					auto& connection = m_connections[i];
 					connection->Send();
 					if( FD_ISSET( connection->GetDescriptor(), &m_inSet ) )
 					{
@@ -670,19 +757,16 @@ namespace sprawl
 							{
 								m_onClose(connection);
 							}
-							//Don't increment it here, erasing will increment it automatically.
-							m_connections.erase(it);
-							continue;
+							indexes_to_erase.push_back(i);
 						}
 					}
-					it++;
 				}
 			}
 			else
 			{
-				for( auto it = m_connections.begin(); it != m_connections.end(); )
+				for( size_t i = 0; i < m_connections.size(); i++ )
 				{
-					auto& connection = *it;
+					auto& connection = m_connections[i];
 					connection->Send();
 					if(std::static_pointer_cast<UDPConnection>(connection)->CheckClosed())
 					{
@@ -690,15 +774,17 @@ namespace sprawl
 						{
 							m_onClose(connection);
 						}
-						//Don't increment it here, erasing will increment it automatically.
-						m_connections.erase(it);
+						indexes_to_erase.push_back(i);
 						continue;
 					}
 					std::static_pointer_cast<UDPConnection>(connection)->SendKeepAlive();
-					it++;
 				}
 			}
 
+			for( int i = (int)indexes_to_erase.size() - 1; i >= 0; --i )
+			{
+				m_connections.erase(m_connections.begin() + indexes_to_erase[i]);
+			}
 		}
 
 		void ServerSocket::CloseConnection(int i)
@@ -749,6 +835,7 @@ namespace sprawl
 
 		ClientSocket::~ClientSocket()
 		{
+			Close();
 			freeaddrinfo(m_servInfo);
 		}
 
@@ -771,7 +858,7 @@ namespace sprawl
 				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
 					throw SockExcept("Could not open socket.");
 
-				if (connect(m_sock, p->ai_addr, p->ai_addrlen) == -1) {
+				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1) {
 					close(m_sock);
 					continue;
 				}
@@ -806,7 +893,7 @@ namespace sprawl
 				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
 					throw SockExcept("Could not open socket.");
 
-				if (connect(m_sock, p->ai_addr, p->ai_addrlen) == -1) {
+				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1) {
 					close(m_sock);
 					continue;
 				}
@@ -851,16 +938,19 @@ namespace sprawl
 
 		void ClientSocket::Close()
 		{
-			m_running = false;
-			if(std::this_thread::get_id() != m_thread.get_id())
+			if(m_running)
 			{
-				m_thread.join();
+				m_running = false;
+				if(std::this_thread::get_id() != m_thread.get_id())
+				{
+					m_thread.join();
+				}
+				if(m_onClose)
+				{
+					m_onClose(m_con);
+				}
+				m_con.reset();
 			}
-			if(m_onClose)
-			{
-				m_onClose(m_con);
-			}
-			m_con.reset();
 		}
 
 		void ClientSocket::RunThread()
@@ -890,7 +980,7 @@ namespace sprawl
 			FD_SET( m_sock, &m_excSet );
 
 			struct timeval t = m_tv;
-			int ret = select(m_sock + 1, &m_inSet, NULL, &m_excSet, &t);
+			int ret = select((int)(m_sock + 1), &m_inSet, NULL, &m_excSet, &t);
 
 			if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
 			{
@@ -916,7 +1006,5 @@ namespace sprawl
 				std::static_pointer_cast<UDPConnection>(m_con)->SendKeepAlive();
 			}
 		}
-
-
 	}
 }
