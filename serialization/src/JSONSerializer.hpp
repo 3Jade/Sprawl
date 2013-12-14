@@ -904,6 +904,18 @@ namespace sprawl
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
 			}
+
+			virtual void Data(const char* data, size_t length) override
+			{
+				m_dataStr = std::string(data, length);
+				m_serialVect.clear();
+				ParseJSON(m_dataStr, m_serialVect);
+				m_bIsValid = true;
+				if(m_bWithMetadata)
+					serialize(m_version, sizeof(m_version), "__version__", true);
+			}
+
+
 			JSONDeserializer(const std::string& data) : JSONSerializerBase(), Deserializer()
 			{
 				Data(data);
@@ -914,8 +926,24 @@ namespace sprawl
 				Data(data);
 			}
 
+			JSONDeserializer(const char* data, size_t length) : JSONSerializerBase(), Deserializer()
+			{
+				Data(data, length);
+			}
+			JSONDeserializer(const char* data, size_t length, bool) : JSONSerializerBase(), Deserializer()
+			{
+				m_bWithMetadata = false;
+				Data(data, length);
+			}
+
 			JSONDeserializer() : JSONSerializerBase(), Deserializer()
 			{
+				m_bIsValid = false;
+			}
+
+			JSONDeserializer(bool) : JSONSerializerBase(), Deserializer()
+			{
+				m_bWithMetadata = false;
 				m_bIsValid = false;
 			}
 			virtual ~JSONDeserializer(){}
