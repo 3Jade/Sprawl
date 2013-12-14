@@ -628,6 +628,23 @@ namespace sprawl
 				}
 			}
 
+			ReplicableDeserializer(const char* data, size_t length)
+				: ReplicableBase<T>()
+				, Deserializer()
+			{
+				this->m_serializer = new T("", false);
+				T serializer(data, length);
+
+				serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex");
+				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
+				serializer % sprawl::serialization::prepare_data(this->m_removed, "removed");
+
+				for(auto& kvp : this->m_keyindex)
+				{
+					this->m_name_index[kvp.second] = kvp.first;
+				}
+			}
+
 			using Deserializer::operator%;
 			using Deserializer::IsLoading;
 
@@ -666,6 +683,15 @@ namespace sprawl
 				this->m_data.clear();
 				this->m_depth_tracker.clear();
 				T serializer(data);
+				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
+			}
+
+			void Data(const char* data, size_t length)
+			{
+				this->m_diffs.clear();
+				this->m_data.clear();
+				this->m_depth_tracker.clear();
+				T serializer(data, length);
 				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
 			}
 		protected:

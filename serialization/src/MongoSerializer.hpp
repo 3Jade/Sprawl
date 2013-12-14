@@ -1710,6 +1710,19 @@ namespace sprawl
 				m_bIsValid = true;
 			}
 
+			virtual void Data(const char* data, size_t length) override
+			{
+				if(data[0] == '{')
+				{
+					m_obj = mongo::fromjson(data);
+				}
+				else
+				{
+					m_obj = mongo::BSONObj(data);
+				}
+				m_bIsValid = true;
+			}
+
 			MongoDeserializer(const std::string& data)
 			{
 				Data(data);
@@ -1722,11 +1735,36 @@ namespace sprawl
 				m_bWithMetadata = false;
 			}
 
+			MongoDeserializer(const char* data, size_t length)
+			{
+				Data(data, length);
+				m_version = m_obj["__version__"].Int();
+			}
+
+			MongoDeserializer(const char* data, size_t length, bool)
+			{
+				Data(data, length);
+				m_bWithMetadata = false;
+			}
+
 			MongoDeserializer(const mongo::BSONObj& o)
 			{
 				Data(o);
 				m_version = m_obj["__version__"].Int();
 			}
+
+			MongoDeserializer()
+			{
+				m_bWithMetadata = false;
+				m_bIsValid = false;
+			}
+
+			MongoDeserializer(bool)
+			{
+				m_bWithMetadata = false;
+				m_bIsValid = false;
+			}
+
 			virtual ~MongoDeserializer(){}
 		private:
 			std::string m_dataStr;

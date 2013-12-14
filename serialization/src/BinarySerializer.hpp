@@ -343,6 +343,8 @@ namespace sprawl
 
 			//Reserve the first sizeof(int32_t)*3 bytes of space to hold metadata (size, version, and checksum).
 			BinarySerializer()
+				: BinarySerializerBase()
+				, Serializer()
 			{
 				m_capacity = 256;
 				m_data = new char[m_capacity];
@@ -365,6 +367,8 @@ namespace sprawl
 			}
 
 			BinarySerializer(bool)
+				: BinarySerializerBase()
+				, Serializer()
 			{
 				m_capacity = 256;
 				m_bWithMetadata = false;
@@ -454,27 +458,99 @@ namespace sprawl
 				}
 				m_bInitialized = true;
 			}
-			BinaryDeserializer(const std::string& data)
+
+			virtual void Data(const char* data, size_t length) override
 			{
+				if(m_data != NULL)
+				{
+					delete[] m_data;
+				}
 				m_bIsValid = true;
+				if(m_bWithMetadata)
+				{
+					m_data = new char[ms_headerSize];
+					m_pos = 0;
+					memcpy(m_data, data, ms_headerSize);
+					serialize(m_size, sizeof(int32_t), "", false);
+					if(length < m_size)
+					{
+						m_bIsValid = false;
+					}
+					else
+					{
+						serialize(m_version, sizeof(int32_t), "", false);
+						serialize(m_checksum, sizeof(int32_t), "", false);
+						delete[] m_data;
+						m_pos = ms_headerSize;
+						m_data = new char[m_size];
+						memcpy(m_data, data, m_size);
+						unsigned int computed_checksum = compute_checksum(m_data + ms_headerSize, m_size-ms_headerSize);
+						if(computed_checksum != m_checksum)
+						{
+							m_bIsValid = false;
+						}
+					}
+				}
+				else
+				{
+					m_size = length;
+					m_pos = 0;
+					m_data = new char[m_size];
+					memcpy(m_data, data, m_size);
+				}
+				m_bInitialized = true;
+			}
+
+			BinaryDeserializer(const std::string& data)
+				: BinarySerializerBase()
+				, Deserializer()
+			{
 				Data(data);
 			}
 
-			BinaryDeserializer(const std::string& data, bool)
+			BinaryDeserializer(const char* data, size_t length)
+				: BinarySerializerBase()
+				, Deserializer()
 			{
-				m_bIsValid = true;
+				Data(data, length);
+			}
+
+			BinaryDeserializer(const std::string& data, bool)
+				: BinarySerializerBase()
+				, Deserializer()
+			{
 				m_bWithMetadata = false;
 				Data(data);
 			}
 
+			BinaryDeserializer(const char* data, size_t length, bool)
+				: BinarySerializerBase()
+				, Deserializer()
+			{
+				m_bWithMetadata = false;
+				Data(data, length);
+			}
+
 			BinaryDeserializer()
+				: BinarySerializerBase()
+				, Deserializer()
 			{
 				m_bIsValid = false;
 			}
+
+			BinaryDeserializer(bool)
+				: BinarySerializerBase()
+				, Deserializer()
+			{
+				m_bWithMetadata = false;
+				m_bIsValid = false;
+			}
+
 			virtual ~BinaryDeserializer(){}
 
 			virtual SerializerBase* GetAnother(const std::string& data) override { return new BinaryDeserializer(data, false); }
 			virtual SerializerBase* GetAnother() override { throw std::exception(); }
+		private:
 		};
 	}
 }

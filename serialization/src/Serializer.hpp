@@ -81,17 +81,29 @@ namespace sprawl
 			std::string name;
 			bool PersistToDB;
 		};
-		
+
 		template<typename T>
-		SerializationData<T> prepare_data(T& val, const std::string& name = "noname", bool persist=true)
+		SerializationData<T> prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<T>(val, name, persist);
 		}
 
 		template<typename T>
-		SerializationData<T> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0)
+		SerializationData<T> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<!std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<T>(val, name, persist);
+		}
+
+		template<typename T>
+		auto prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0) -> SerializationData<typename std::underlying_type<T>::type>
+		{
+			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&)(val), name, persist);
+		}
+
+		template<typename T>
+		auto prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0) -> SerializationData<typename std::underlying_type<T>::type>
+		{
+			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&&)(val), name, persist);
 		}
 
 		#define NAME_PROPERTY(var) sprawl::serialization::prepare_data(var, #var)
@@ -949,6 +961,7 @@ namespace sprawl
 			using SerializerBase::operator%;
 			using SerializerBase::Data;
 			virtual void Data(const std::string& str) = 0;
+			virtual void Data(const char* data, size_t length) = 0;
 			virtual ~Deserializer(){}
 			virtual bool IsLoading() override { return true; }
 		protected:
