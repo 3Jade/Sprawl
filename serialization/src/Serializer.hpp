@@ -95,25 +95,25 @@ namespace sprawl
 		}
 
 		template<typename T, bool isEnum = std::is_enum<T>::value>
-		struct returnTypeGetterWOW
+		struct UnderlyingTypeHelper
 		{
 			typedef T type;
 		};
 
 		template<typename T>
-		struct returnTypeGetterWOW<T, true>
+		struct UnderlyingTypeHelper<T, true>
 		{
 			typedef typename std::underlying_type<T>::type type;
 		};
 
 		template<typename T>
-		SerializationData<typename returnTypeGetterWOW<T>::type> prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
+		SerializationData<typename UnderlyingTypeHelper<T>::type> prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&)(val), name, persist);
 		}
 
 		template<typename T>
-		SerializationData<typename returnTypeGetterWOW<T>::type> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
+		SerializationData<typename UnderlyingTypeHelper<T>::type> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&&)(val), name, persist);
 		}
