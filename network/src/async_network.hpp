@@ -25,20 +25,23 @@
  */
 
 //Fix bug in llvm...
-#ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1
-#define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1
-#endif
+#ifndef _WIN32
+#	ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1
+#		define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_1
+#	endif
 
-#ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
-#define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
-#endif
+#	ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
+#		define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_2
+#	endif
 
-#ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
-#define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
-#endif
+#	ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
+#		define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4
+#	endif
 
-#ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
-#define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
+#	ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
+#		define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
+#	endif
+#	define SOCKET int
 #endif
 
 //C++ includes
@@ -52,15 +55,20 @@
 #include <unordered_set>
 
 //C includes
-#include <arpa/inet.h>
+#ifndef _WIN32
+#	include <arpa/inet.h>
+#	include <unistd.h>
+#	include <sys/socket.h>
+#	include <netdb.h>
+#	include <sys/time.h>
+#else
+#	include <WS2tcpip.h>
+#	include <Winsock2.h>
+#endif
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <sys/time.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 /// TODO:
@@ -82,10 +90,10 @@ namespace sprawl
 {
 	namespace async_network
 	{
-		typedef std::function<void(const std::shared_ptr<class Connection>, const std::string&)> ReceiveCallback;
+		typedef std::function<void(const std::shared_ptr<class Connection>, const char*, int)> ReceiveCallback;
 		typedef std::function<void(const std::shared_ptr<class Connection>)> ConnectionCallback;
 		typedef std::function<void(void)> SendCallback;
-		typedef std::function<bool(std::string&, std::string&)> PacketValidationCallback;
+		typedef std::function<int(const char*, int)> PacketValidationCallback;
 
 		class SockExcept: public std::exception
 		{
@@ -94,6 +102,17 @@ namespace sprawl
 				: m_str(arg)
 			{
 			}
+#ifdef _WIN32
+			SockExcept(const wchar_t* arg)
+			{
+				size_t i;
+				char mbBuf[32768];
+				char* pmbBuf = mbBuf;
+				wcstombs_s( &i, pmbBuf, 32768, arg, _TRUNCATE );
+				m_str = pmbBuf;
+			}
+#endif
+
 			~SockExcept() throw ()
 			{
 			}
@@ -113,7 +132,7 @@ namespace sprawl
 		{
 		public:
 			//Information about the connection
-			int GetDescriptor();
+			SOCKET GetDescriptor();
 			std::string GetHostname();
 			int GetPort();
 
@@ -129,7 +148,7 @@ namespace sprawl
 			friend class ServerSocket;
 			friend class ClientSocket;
 
-			Connection(int desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			Connection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
 
 			//This send is called by the socket and actually sends everything collected by the other send
 			//Will call the onSend callback when it finishes
@@ -137,7 +156,7 @@ namespace sprawl
 			//Receive data, will call the onReceived callback if there's anything here
 			virtual int Recv();
 
-			int m_desc;
+			SOCKET m_desc;
 			struct sockaddr m_dest;
 
 			bool m_closeSocket;
@@ -162,9 +181,9 @@ namespace sprawl
 			friend class ServerSocket;
 			friend class ClientSocket;
 
-			UDPConnection(int desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			UDPConnection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
 
-			UDPConnection(int desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			UDPConnection(SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
 
 			virtual void Send() override final;
 			virtual int Recv() override final;
@@ -174,11 +193,14 @@ namespace sprawl
 			struct packet
 			{
 				packet(uint32_t _id, FailType _behavior, const std::string& _content, const std::string& header_);
+				packet(packet&& other);
+				packet(const packet& other);
+				packet& operator=(packet&& other);
 				uint32_t m_ID;
 				struct timeval m_sentTime;
 				FailType m_behavior;
-				const std::string m_content;
-				const std::string m_header;
+				std::string m_content;
+				std::string m_header;
 			};
 
 			std::vector< std::pair<packet, SendCallback> > m_outPackets;
@@ -231,7 +253,7 @@ namespace sprawl
 
 			std::weak_ptr<Connection> GetConnectionByPort(int p);
 
-			int GetNumConnections();
+			size_t GetNumConnections();
 
 			void CloseConnection(int i);
 
@@ -245,7 +267,7 @@ namespace sprawl
 
 
 		private:
-			int m_inSock;
+			SOCKET m_inSock;
 			int m_inPort;
 			struct timeval m_tv;
 
@@ -320,7 +342,7 @@ namespace sprawl
 			PacketValidationCallback m_packetValidator;
 
 			std::shared_ptr<Connection> m_con;
-			int m_sock;
+			SOCKET m_sock;
 			fd_set m_inSet;
 			fd_set m_excSet;
 			struct addrinfo m_hints;
