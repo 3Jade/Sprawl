@@ -23,7 +23,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
+
 #include <string>
 #include <cstring>
 #include <vector>
@@ -94,14 +94,26 @@ namespace sprawl
 			return SerializationData<T>(val, name, persist);
 		}
 
+		template<typename T, bool isEnum = std::is_enum<T>::value>
+		struct returnTypeGetterWOW
+		{
+			typedef T type;
+		};
+
 		template<typename T>
-		auto prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0) -> SerializationData<typename std::underlying_type<T>::type>
+		struct returnTypeGetterWOW<T, true>
+		{
+			typedef typename std::underlying_type<T>::type type;
+		};
+
+		template<typename T>
+		SerializationData<typename returnTypeGetterWOW<T>::type> prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&)(val), name, persist);
 		}
 
 		template<typename T>
-		auto prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0) -> SerializationData<typename std::underlying_type<T>::type>
+		SerializationData<typename returnTypeGetterWOW<T>::type> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&&)(val), name, persist);
 		}
@@ -669,7 +681,7 @@ namespace sprawl
 					{
 						size = calcedSize;
 					}
-					for(int i=0; i<size; i++)
+					for(size_t i=0; i<size; i++)
 					{
 						std::string k;
 						val_type v;
