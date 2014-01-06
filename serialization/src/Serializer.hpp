@@ -154,7 +154,7 @@ namespace sprawl
 			}
 			SerializerBase& operator%(SerializationData<unsigned char* >&& var)
 			{
-				size_t len = strlen(reinterpret_cast<char*>(var.val));
+				uint32_t len = (uint32_t)(strlen(reinterpret_cast<char*>(var.val)));
 				if(IsBinary())
 				{
 					*this % prepare_data(len, var.name+"_length", false);
@@ -226,7 +226,7 @@ namespace sprawl
 			}
 			SerializerBase& operator%(SerializationData<char* >&& var)
 			{
-				size_t len = strlen(var.val);
+				uint32_t len = (uint32_t)(strlen(var.val));
 				if(IsBinary())
 				{
 					*this % prepare_data(len, var.name+"_length", false);
@@ -337,7 +337,7 @@ namespace sprawl
 			template< typename T, std::size_t N, std::size_t M, std::size_t O, std::size_t P>
 			SerializerBase& operator%(SerializationData<T [N][M][O][P]>&& var)
 			{
-				size_t size;
+				uint32_t size;
 				StartArray(var.name, size, var.PersistToDB);
 				for(int i = 0; i < N; i++)
 				{
@@ -349,7 +349,7 @@ namespace sprawl
 
 			SerializerBase& operator%(SerializationData<std::string>&& var)
 			{
-				size_t len = var.val.length();
+				uint32_t len = (uint32_t)(var.val.length());
 				if(IsBinary())
 				{
 					*this % prepare_data(len, var.name+"_length", false);
@@ -363,7 +363,7 @@ namespace sprawl
 			template<typename T>
 			void VectorSerialize(SerializationData<std::vector<T>>& var, std::true_type)
 			{
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					*this % prepare_data(size, var.name, false);
@@ -379,7 +379,7 @@ namespace sprawl
 				}
 				else
 				{
-					for(size_t i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						*this % prepare_data(var.val[i], var.name, var.PersistToDB);
 					}
@@ -390,7 +390,7 @@ namespace sprawl
 			template<typename T>
 			void VectorSerialize(SerializationData<std::vector<T>>& var, std::false_type)
 			{
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					*this % prepare_data(size, var.name, false);
@@ -400,7 +400,7 @@ namespace sprawl
 				{
 					var.val.resize(size);
 				}
-				for(size_t i=0; i<size; i++)
+				for(uint32_t i=0; i<size; i++)
 				{
 					*this % prepare_data(var.val[i], var.name, var.PersistToDB);
 				}
@@ -410,7 +410,7 @@ namespace sprawl
 			//Except that bool has its own weird behaviors... so it has to be treated like the other kind.
 			void VectorSerialize(SerializationData<std::vector<bool>>& var, std::true_type)
 			{
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					*this % prepare_data(size, var.name, false);
@@ -420,7 +420,7 @@ namespace sprawl
 				{
 					var.val.resize(size);
 				}
-				for(size_t i=0; i<size; i++)
+				for(uint32_t i=0; i<size; i++)
 				{
 					bool b = var.val[i];
 					*this % prepare_data(b, var.name, var.PersistToDB);
@@ -460,19 +460,19 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				size_t calcedSize = StartMap(var.name, var.PersistToDB);
+				uint32_t calcedSize = (uint32_t)(StartMap(var.name, var.PersistToDB));
 				if(IsLoading())
 				{
 					if(!IsBinary())
 					{
 						size = calcedSize;
 					}
-					for(size_t i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						key_type k;
 						val_type v;
@@ -532,19 +532,19 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				size_t calcedSize = StartMap(var.name, var.PersistToDB);
+				uint32_t calcedSize = (uint32_t)(StartMap(var.name, var.PersistToDB));
 				if(IsLoading())
 				{
 					if(!IsBinary())
 					{
 						size = calcedSize;
 					}
-					for(size_t i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						key_type k;
 						val_type v;
@@ -602,12 +602,12 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				size_t calcedSize = StartMap(var.name, var.PersistToDB);
+				uint32_t calcedSize = (uint32_t)(StartMap(var.name, var.PersistToDB));
 				if(IsLoading())
 				{
 					if(!IsBinary())
@@ -669,19 +669,19 @@ namespace sprawl
 						var.val.clear();
 					}
 				}
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					(*this) % prepare_data(size, var.name, false);
 				}
-				size_t calcedSize = StartMap(var.name, var.PersistToDB);
+				uint32_t calcedSize = (uint32_t)(StartMap(var.name, var.PersistToDB));
 				if(IsLoading())
 				{
 					if(!IsBinary())
 					{
 						size = calcedSize;
 					}
-					for(size_t i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						std::string k;
 						val_type v;
@@ -720,7 +720,7 @@ namespace sprawl
 			template<typename T, typename comp, typename alloc>
 			SerializerBase& operator%(SerializationData<std::set<T, comp, alloc>>&& var)
 			{
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					*this % prepare_data(size, var.name, false);
@@ -728,7 +728,7 @@ namespace sprawl
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
 				{
-					for(size_t i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						T val;
 						*this % prepare_data(val, var.name, var.PersistToDB);
@@ -749,7 +749,7 @@ namespace sprawl
 			template<typename T, typename comp, typename alloc>
 			SerializerBase& operator%(SerializationData<std::unordered_set<T, comp, alloc>>&& var)
 			{
-				size_t size = var.val.size();
+				uint32_t size = (uint32_t)(var.val.size());
 				if(IsBinary())
 				{
 					*this % prepare_data(size, var.name, false);
@@ -757,7 +757,7 @@ namespace sprawl
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
 				{
-					for(size_t i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						T val;
 						*this % prepare_data(val, var.name, var.PersistToDB);
