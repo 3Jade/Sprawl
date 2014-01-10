@@ -171,15 +171,15 @@ namespace sprawl
 					//This shouldn't happen unless someone's being dumb.
 					//And even if they're being dumb, it shouldn't matter unless they're being extra dumb.
 					//...but some people are extra dumb.
-					if(m_builder->hasField("__version__"))
+					if(m_builder->hasField("DataVersion"))
 					{
 						mongo::BSONObj obj = m_builder->obj();
-						obj = obj.removeField("__version__");
+						obj = obj.removeField("DataVersion");
 						delete m_builder;
 						m_builder = new mongo::BSONObjBuilder();
 						m_builder->appendElements(obj);
 					}
-					m_builder->append("__version__", m_version);
+					m_builder->append("DataVersion", m_version);
 				}
 			}
 		protected:
@@ -239,6 +239,109 @@ namespace sprawl
 					}
 				}
 			}
+
+			virtual void serialize(mongo::BSONObj* var, const std::string& name, bool PersistToDB) override
+			{
+				if(!PersistToDB || m_disableDepth)
+				{
+					return;
+				}
+				if(!m_bIsValid)
+				{
+					throw ex_invalid_data();
+				}
+				if(IsSaving())
+				{
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
+					{
+						m_arrayBuilders.back().second->append(*var);
+					}
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
+					{
+						if(m_objectBuilders.back().second->hasField(name))
+						{
+							throw ex_duplicate_key_error(name);
+						}
+						m_objectBuilders.back().second->append(name, *var);
+					}
+					else
+					{
+						if(m_builder->hasField(name))
+						{
+							throw ex_duplicate_key_error(name);
+						}
+						m_builder->append(name, *var);
+					}
+				}
+				else
+				{
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
+					{
+						*var = m_arrays.back().second.front().Obj();
+						m_arrays.back().second.pop_front();
+					}
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
+					{
+						*var = m_objects.back()[name].Obj();
+					}
+					else
+					{
+						*var = m_obj[name].Obj();
+					}
+				}
+			}
+
+			virtual void serialize(mongo::Date_t* var, const std::string& name, bool PersistToDB) override
+			{
+				if(!PersistToDB || m_disableDepth)
+				{
+					return;
+				}
+				if(!m_bIsValid)
+				{
+					throw ex_invalid_data();
+				}
+				if(IsSaving())
+				{
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
+					{
+						m_arrayBuilders.back().second->append(*var);
+					}
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
+					{
+						if(m_objectBuilders.back().second->hasField(name))
+						{
+							throw ex_duplicate_key_error(name);
+						}
+						m_objectBuilders.back().second->append(name, *var);
+					}
+					else
+					{
+						if(m_builder->hasField(name))
+						{
+							throw ex_duplicate_key_error(name);
+						}
+						m_builder->append(name, *var);
+					}
+				}
+				else
+				{
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
+					{
+						*var = m_arrays.back().second.front().Date();
+						m_arrays.back().second.pop_front();
+					}
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
+					{
+						*var = m_objects.back()[name].Date();
+					}
+					else
+					{
+						*var = m_obj[name].Date();
+					}
+				}
+			}
+
 
 			virtual void serialize(int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
 			{
@@ -1726,7 +1829,7 @@ namespace sprawl
 			MongoDeserializer(const std::string& data)
 			{
 				Data(data);
-				m_version = m_obj["__version__"].Int();
+				m_version = m_obj["DataVersion"].Int();
 			}
 
 			MongoDeserializer(const std::string& data, bool)
@@ -1738,7 +1841,7 @@ namespace sprawl
 			MongoDeserializer(const char* data, size_t length)
 			{
 				Data(data, length);
-				m_version = m_obj["__version__"].Int();
+				m_version = m_obj["DataVersion"].Int();
 			}
 
 			MongoDeserializer(const char* data, size_t length, bool)
@@ -1750,7 +1853,13 @@ namespace sprawl
 			MongoDeserializer(const mongo::BSONObj& o)
 			{
 				Data(o);
-				m_version = m_obj["__version__"].Int();
+				m_version = m_obj["DataVersion"].Int();
+			}
+
+			MongoDeserializer(const mongo::BSONObj& o, bool)
+			{
+				Data(o);
+				m_bWithMetadata = false;
 			}
 
 			MongoDeserializer()
@@ -1791,6 +1900,50 @@ namespace sprawl
 				else
 				{
 					s % prepare_data(var.val.str(), var.name, var.PersistToDB);
+				}
+			}
+			return s;
+		}
+
+		inline SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::BSONObj>&& var)
+		{
+			if(s.IsMongoStream())
+			{
+				s.serialize(&var.val, var.name, var.PersistToDB);
+			}
+			else
+			{
+				if(s.IsLoading())
+				{
+					std::string str;
+					s % prepare_data(str, var.name, var.PersistToDB);
+					var.val = mongo::fromjson(str.c_str());
+				}
+				else
+				{
+					s % prepare_data(var.val.jsonString(), var.name, var.PersistToDB);
+				}
+			}
+			return s;
+		}
+
+		inline SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::Date_t>&& var)
+		{
+			if(s.IsMongoStream())
+			{
+				s.serialize(&var.val, var.name, var.PersistToDB);
+			}
+			else
+			{
+				if(s.IsLoading())
+				{
+					int64_t val;
+					s % prepare_data(val, var.name, var.PersistToDB);
+					var.val = mongo::Date_t(val);
+				}
+				else
+				{
+					s % prepare_data(var.val.millis, var.name, var.PersistToDB);
 				}
 			}
 			return s;

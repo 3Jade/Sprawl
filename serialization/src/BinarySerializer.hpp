@@ -163,7 +163,11 @@ namespace sprawl
 					if(m_pos + bytes >= m_capacity*0.75)
 					{
 						int oldcap = m_capacity;
-						m_capacity = m_capacity * 2 + 1;
+						int newPos = m_pos + bytes;
+						while(newPos >= m_capacity*0.75)
+						{
+							m_capacity = m_capacity * 2 + 1;
+						}
 						char* newdata = new char[m_capacity];
 						memcpy(newdata, m_data, oldcap);
 						delete[] m_data;
@@ -493,7 +497,7 @@ namespace sprawl
 				}
 				else
 				{
-					m_size = length;
+					m_size = (uint32_t)length;
 					m_pos = 0;
 					m_data = new char[m_size];
 					memcpy(m_data, data, m_size);

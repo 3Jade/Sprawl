@@ -182,6 +182,38 @@ namespace sprawl
 				this->PopKey();
 			}
 
+			virtual void serialize(mongo::BSONObj* var, const std::string& name, bool PersistToDB) override
+			{
+				this->m_serializer->Reset();
+				this->PushKey(name);
+
+				m_serializer->serialize(var, name, PersistToDB);
+				m_data[m_current_key] = m_serializer->Str();
+				m_objs[m_current_key] = m_serializer->Obj();
+				if(!m_marked)
+				{
+					m_baseline->serialize(var, name, PersistToDB);
+				}
+
+				this->PopKey();
+			}
+
+			virtual void serialize(mongo::Date_t* var, const std::string& name, bool PersistToDB) override
+			{
+				this->m_serializer->Reset();
+				this->PushKey(name);
+
+				m_serializer->serialize(var, name, PersistToDB);
+				m_data[m_current_key] = m_serializer->Str();
+				m_objs[m_current_key] = m_serializer->Obj();
+				if(!m_marked)
+				{
+					m_baseline->serialize(var, name, PersistToDB);
+				}
+
+				this->PopKey();
+			}
+
 			virtual void serialize(int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
