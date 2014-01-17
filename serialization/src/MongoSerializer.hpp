@@ -277,16 +277,16 @@ namespace sprawl
 				{
 					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
 					{
-						*var = m_arrays.back().second.front().Obj();
+						*var = m_arrays.back().second.front().Obj().copy();
 						m_arrays.back().second.pop_front();
 					}
 					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = m_objects.back()[name].Obj();
+						*var = m_objects.back()[name].Obj().copy();
 					}
 					else
 					{
-						*var = m_obj[name].Obj();
+						*var = m_obj[name].Obj().copy();
 					}
 				}
 			}
@@ -353,8 +353,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(int))
 				{
 					size = bytes/sizeof(int);
@@ -437,8 +437,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(long int))
 				{
 					size = bytes/sizeof(long int);
@@ -521,8 +521,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(long long int))
 				{
 					size = bytes/sizeof(long long int);
@@ -605,8 +605,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(short int))
 				{
 					size = bytes/sizeof(short int);
@@ -742,8 +742,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(float))
 				{
 					size = bytes/sizeof(float);
@@ -826,8 +826,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(double))
 				{
 					size = bytes/sizeof(double);
@@ -915,8 +915,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(bool))
 				{
 					size = bytes/sizeof(bool);
@@ -999,8 +999,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(unsigned int))
 				{
 					size = bytes/sizeof(unsigned int);
@@ -1083,8 +1083,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(unsigned long int))
 				{
 					size = bytes/sizeof(unsigned long int);
@@ -1167,8 +1167,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(unsigned long long int))
 				{
 					size = bytes/sizeof(unsigned long long int);
@@ -1251,8 +1251,8 @@ namespace sprawl
 				{
 					throw ex_invalid_data();
 				}
-				bool bIsArray;
-				size_t size;
+				bool bIsArray = false;
+				size_t size = 0;
 				if(bytes != sizeof(unsigned short int))
 				{
 					size = bytes/sizeof(unsigned short int);
@@ -1478,6 +1478,9 @@ namespace sprawl
 						m_objects.push_back(m_obj[str].Obj());
 					}
 					m_stateTracker.push_back(State::Object);
+					std::list<mongo::BSONElement> elements;
+					m_objects.back().elems(elements);
+					m_elementList.push_back(elements);
 					return m_objects.back().nFields();
 				}
 			}
@@ -1516,6 +1519,7 @@ namespace sprawl
 				else
 				{
 					m_objects.pop_back();
+					m_elementList.pop_back();
 				}
 			}
 
@@ -1625,9 +1629,10 @@ namespace sprawl
 					{
 						return "";
 					}
-					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
+				}
+					/*else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						return m_objects.back().firstElement().fieldName();
+						return m_objects.back().firstElementFieldName();
 					}
 					else
 					{
@@ -1640,8 +1645,15 @@ namespace sprawl
 					{
 						throw ex_serializer_overflow();
 					}
-					return m_obj.firstElement().fieldName();
+					return m_obj.firstElementFieldName();
+				}*/
+				if(!m_elementList.empty())
+				{
+					std::string ret = m_elementList.front().front().fieldName();
+					m_elementList.front().pop_front();
+					return ret;
 				}
+				return "";
 			}
 
 			MongoSerializerBase()
@@ -1657,6 +1669,7 @@ namespace sprawl
 				, m_version(0)
 				, m_bIsValid(true)
 				, m_bWithMetadata(true)
+				, m_elementList()
 			{}
 			virtual ~MongoSerializerBase()
 			{
@@ -1682,6 +1695,7 @@ namespace sprawl
 			std::deque<std::pair<std::string, std::deque<mongo::BSONElement>>> m_arrays;
 			std::deque<mongo::BSONObj> m_objects;
 			std::deque<State> m_stateTracker;
+			std::deque<std::list<mongo::BSONElement>> m_elementList;
 
 			//Copied and pasted to avoid indirection with virtual inheritance
 			uint32_t m_version;
@@ -1808,7 +1822,7 @@ namespace sprawl
 				}
 				else
 				{
-					m_obj = mongo::BSONObj(str.c_str());
+					m_obj = mongo::BSONObj(str.c_str()).copy();
 				}
 				m_bIsValid = true;
 			}
@@ -1821,7 +1835,7 @@ namespace sprawl
 				}
 				else
 				{
-					m_obj = mongo::BSONObj(data);
+					m_obj = mongo::BSONObj(data).copy();
 				}
 				m_bIsValid = true;
 			}
@@ -1917,11 +1931,25 @@ namespace sprawl
 				{
 					std::string str;
 					s % prepare_data(str, var.name, var.PersistToDB);
-					var.val = mongo::fromjson(str.c_str());
+					if(s.IsBinary())
+					{
+						var.val = mongo::BSONObj(str.c_str()).copy();
+					}
+					else
+					{
+						var.val = mongo::fromjson(str.c_str());
+					}
 				}
 				else
 				{
-					s % prepare_data(var.val.jsonString(), var.name, var.PersistToDB);
+					if(s.IsBinary())
+					{
+						s % prepare_data(std::string(var.val.objdata(), var.val.objsize()), var.name, var.PersistToDB);
+					}
+					else
+					{
+						s % prepare_data(var.val.jsonString(), var.name, var.PersistToDB);
+					}
 				}
 			}
 			return s;

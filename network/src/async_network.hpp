@@ -41,7 +41,6 @@
 #	ifndef __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
 #		define __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8
 #	endif
-#	define SOCKET int
 #endif
 
 //C++ includes
@@ -90,6 +89,10 @@ namespace sprawl
 {
 	namespace async_network
 	{
+#ifndef _WIN32
+		typedef int SOCKET;
+#endif
+
 		typedef std::function<void(const std::shared_ptr<class Connection>, const char*, int)> ReceiveCallback;
 		typedef std::function<void(const std::shared_ptr<class Connection>)> ConnectionCallback;
 		typedef std::function<void(void)> SendCallback;

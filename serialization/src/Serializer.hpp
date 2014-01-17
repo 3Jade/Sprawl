@@ -39,7 +39,7 @@
 namespace mongo {
 	class OID;
 	class BSONObj;
-	class Date_t;
+	struct Date_t;
 }
 
 namespace sprawl
@@ -586,6 +586,44 @@ namespace sprawl
 				return *this;
 			}
 
+			template<typename key_type, typename val_type>
+			SerializerBase& operator%(SerializationData<std::pair<key_type, val_type>>&& var)
+			{
+				if(IsLoading())
+				{
+					key_type k;
+					val_type v;
+					if(IsBinary())
+					{
+						(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+						var.val = std::make_pair(k, v);
+					}
+					else
+					{
+						std::string key = GetNextKey();
+						this->OneOff(key, k);
+						(*this) % prepare_data(v, key, var.PersistToDB);
+						var.val = std::make_pair(k, v);
+					}
+				}
+				else
+				{
+					if(IsBinary())
+					{
+						key_type name = var.val.first;
+						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
+					}
+					else
+					{
+						std::string s;
+						key_type k = var.val.first;
+						this->OneOff(s, k);
+						(*this) % prepare_data(var.val.second, s, var.PersistToDB);
+					}
+				}
+				return *this;
+			}
+
 			template<typename val_type>
 			SerializerBase& operator%(SerializationData<std::map<std::string, val_type>>&& var)
 			{
@@ -716,6 +754,40 @@ namespace sprawl
 					}
 				}
 				EndMap();
+				return *this;
+			}
+
+			template<typename val_type>
+			SerializerBase& operator%(SerializationData<std::pair<std::string, val_type>>&& var)
+			{
+				if(IsLoading())
+				{
+					std::string k;
+					val_type v;
+					if(IsBinary())
+					{
+						(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+						var.val = std::make_pair(k, v);
+					}
+					else
+					{
+						std::string key = GetNextKey();
+						(*this) % prepare_data(v, key, var.PersistToDB);
+						var.val = std::make_pair(k, v);
+					}
+				}
+				else
+				{
+					if(IsBinary())
+					{
+						std::string name = var.val.first;
+						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
+					}
+					else
+					{
+						(*this) % prepare_data(var.val.second, var.val.first, var.PersistToDB);
+					}
+				}
 				return *this;
 			}
 

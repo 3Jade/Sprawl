@@ -163,7 +163,7 @@ namespace sprawl
 					if(m_pos + bytes >= m_capacity*0.75)
 					{
 						int oldcap = m_capacity;
-						int newPos = m_pos + bytes;
+						size_t newPos = m_pos + bytes;
 						while(newPos >= m_capacity*0.75)
 						{
 							m_capacity = m_capacity * 2 + 1;
