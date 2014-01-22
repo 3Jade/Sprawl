@@ -82,6 +82,8 @@ namespace sprawl
 			T& val;
 			std::string name;
 			bool PersistToDB;
+		private:
+			SerializationData<T> operator=(SerializationData<T>& other);
 		};
 
 		template<typename T>
@@ -848,7 +850,10 @@ namespace sprawl
 				EndArray();
 				return *this;
 			}
-
+#ifdef _WIN32
+#pragma warning(push)
+#pragma warning(disable: 4702)
+#endif
 			virtual SerializerBase& operator%(SerializationData<class Serializer> &&){ throw std::exception(); return *this; }
 			virtual SerializerBase& operator%(SerializationData<class Deserializer> &&){ throw std::exception(); return *this; }
 			virtual SerializerBase& operator%(SerializationData<class BinarySerializer> &&){ throw std::exception(); return *this; }
@@ -871,6 +876,9 @@ namespace sprawl
 		protected:
 			virtual SerializerBase* GetAnother(const std::string& /*data*/){ throw std::exception(); return this; }
 			virtual SerializerBase* GetAnother(){ throw std::exception(); return this; }
+#ifdef _WIN32
+#pragma warning(pop)
+#endif
 
 			template<typename T>
 			std::string to_string( T& val, std::true_type)
@@ -999,9 +1007,9 @@ namespace sprawl
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::BSONObj>&& var);
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::Date_t>&& var);
-			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) {}
-			virtual void serialize(mongo::BSONObj* var, const std::string& name, bool PersistToDB) {}
-			virtual void serialize(mongo::Date_t* var, const std::string& name, bool PersistToDB) {}
+			virtual void serialize(mongo::OID* /*var*/, const std::string& /*name*/, bool /*PersistToDB*/) {}
+			virtual void serialize(mongo::BSONObj* /*var*/, const std::string& /*name*/, bool /*PersistToDB*/) {}
+			virtual void serialize(mongo::Date_t* /*var*/, const std::string& /*name*/, bool /*PersistToDB*/) {}
 
 			SerializerBase() {}
 		private:

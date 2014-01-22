@@ -654,23 +654,23 @@ namespace sprawl
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = m_arrays.back().second.front().Int();
+								var[i] = (short)m_arrays.back().second.front().Int();
 								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = m_arrays.back().second.front().Int();
+							*var = (short)m_arrays.back().second.front().Int();
 							m_arrays.back().second.pop_front();
 						}
 					}
 					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = m_objects.back()[name].Int();
+						*var = (short)m_objects.back()[name].Int();
 					}
 					else
 					{
-						*var = m_obj[name].Int();
+						*var = (short)m_obj[name].Int();
 					}
 				}
 				if(bIsArray)
@@ -1300,23 +1300,23 @@ namespace sprawl
 						{
 							for(size_t i=0; i<size; i++)
 							{
-								var[i] = m_arrays.back().second.front().Int();
+								var[i] = (unsigned short)m_arrays.back().second.front().Int();
 								m_arrays.back().second.pop_front();
 							}
 						}
 						else
 						{
-							*var = m_arrays.back().second.front().Int();
+							*var = (unsigned short)m_arrays.back().second.front().Int();
 							m_arrays.back().second.pop_front();
 						}
 					}
 					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
 					{
-						*var = m_objects.back()[name].Int();
+						*var = (unsigned short)m_objects.back()[name].Int();
 					}
 					else
 					{
-						*var = m_obj[name].Int();
+						*var = (unsigned short)m_obj[name].Int();
 					}
 				}
 				if(bIsArray)
@@ -1649,8 +1649,8 @@ namespace sprawl
 				}*/
 				if(!m_elementList.empty())
 				{
-					std::string ret = m_elementList.front().front().fieldName();
-					m_elementList.front().pop_front();
+					std::string ret = m_elementList.back().front().fieldName();
+					m_elementList.back().pop_front();
 					return ret;
 				}
 				return "";
@@ -1827,7 +1827,7 @@ namespace sprawl
 				m_bIsValid = true;
 			}
 
-			virtual void Data(const char* data, size_t length) override
+			virtual void Data(const char* data, size_t /*length*/) override
 			{
 				if(data[0] == '{')
 				{

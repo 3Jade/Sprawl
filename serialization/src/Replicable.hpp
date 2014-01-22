@@ -185,7 +185,7 @@ namespace sprawl
 						m_current_key.pop_back();
 					}
 					std::map<std::vector<int16_t>, std::string>::iterator it2;
-					while(true)
+					for(;;)
 					{
 						if(!m_serializer->IsBinary())
 						{
@@ -469,8 +469,8 @@ namespace sprawl
 			std::set<std::vector<int16_t>, container_comp<int16_t>> m_removed;
 			std::unordered_map<std::vector<int16_t>, int16_t, container_hash<int16_t>> m_depth_tracker;
 			std::vector<int16_t> m_current_key;
-			std::unordered_map<std::string, int> m_name_index;
-			int m_highest_name;
+			std::unordered_map<std::string, int16_t> m_name_index;
+			int16_t m_highest_name;
 			std::vector<std::vector<int16_t>> m_current_map_key;
 			std::unordered_map<int16_t, std::string> m_keyindex;
 			T* m_serializer;
@@ -615,7 +615,7 @@ namespace sprawl
 				: ReplicableBase<T>()
 				, Deserializer()
 			{
-				this->m_serializer = new T("", false);
+				this->m_serializer = new T("", 0, false);
 				T serializer(data);
 
 				serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex");
@@ -632,7 +632,7 @@ namespace sprawl
 				: ReplicableBase<T>()
 				, Deserializer()
 			{
-				this->m_serializer = new T("", false);
+				this->m_serializer = new T("", 0, false);
 				T serializer(data, length);
 
 				serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex");

@@ -71,14 +71,17 @@ namespace sprawl
 							if(printed)
 							{
 								str << ".";
+								printed = false;
 							}
 							str << (v[i] - 1);
+							printed = true;
 						}
 						else
 						{
 							if(printed)
 							{
 								str << ".";
+								printed = false;
 							}
 							std::string& s = this->m_reverse_name_index[v[i]];
 							if(s == "__array__")
@@ -331,6 +334,18 @@ namespace sprawl
 					m_diffs.erase(it);
 				}
 				PopKey();
+			}
+
+			MongoReplicableDeserializer(const std::string& data)
+				: ReplicableDeserializer<MongoDeserializer>(data)
+			{
+				//
+			}
+
+			MongoReplicableDeserializer(const char* data, size_t length)
+				: ReplicableDeserializer<MongoDeserializer>(data, length)
+			{
+				//
 			}
 		};
 			
