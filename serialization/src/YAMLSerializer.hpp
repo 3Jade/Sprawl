@@ -956,7 +956,7 @@ namespace sprawl
 			{
 				m_dataStr = std::string(data, length);
 				m_serialVect.clear();
-				ParseJSON(m_dataStr, m_serialVect);
+				ParseYAML(m_dataStr, m_serialVect);
 				m_bIsValid = true;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
