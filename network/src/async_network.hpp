@@ -52,6 +52,8 @@
 #include <memory>
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
+#include <condition_variable>
 
 //C includes
 #ifndef _WIN32
@@ -97,6 +99,9 @@ namespace sprawl
 		typedef std::function<void(const std::shared_ptr<class Connection>)> ConnectionCallback;
 		typedef std::function<void(void)> SendCallback;
 		typedef std::function<int(const char*, int)> PacketValidationCallback;
+
+		typedef std::shared_ptr<Connection> ConnectionPtr;
+		typedef std::weak_ptr<Connection> ConnectionWPtr;
 
 		class SockExcept: public std::exception
 		{
@@ -147,11 +152,14 @@ namespace sprawl
 				Send(str, callback);
 			}
 
+			void Close();
+
 		protected:
 			friend class ServerSocket;
 			friend class ClientSocket;
 
-			Connection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			Connection(class ServerSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			Connection(class ClientSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
 
 			//This send is called by the socket and actually sends everything collected by the other send
 			//Will call the onSend callback when it finishes
@@ -170,6 +178,8 @@ namespace sprawl
 
 			std::vector< std::pair<std::string, SendCallback> > m_outData;
 			std::mutex m_outDataMutex;
+			class ServerSocket* m_parentServerSocket;
+			class ClientSocket* m_parentClientSocket;
 		};
 
 		class UDPConnection : public Connection
@@ -184,9 +194,13 @@ namespace sprawl
 			friend class ServerSocket;
 			friend class ClientSocket;
 
-			UDPConnection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			UDPConnection(class ServerSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
 
-			UDPConnection(SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+			UDPConnection(class ServerSocket* parent, SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+
+			UDPConnection(class ClientSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
+
+			UDPConnection(class ClientSocket* parent, SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_);
 
 			virtual void Send() override final;
 			virtual int Recv() override final;
@@ -198,7 +212,7 @@ namespace sprawl
 				packet(uint32_t _id, FailType _behavior, const std::string& _content, const std::string& header_);
 				packet(packet&& other);
 				packet(const packet& other);
-				packet& operator=(packet&& other);
+				packet& operator=(const packet& other);
 				uint32_t m_ID;
 				struct timeval m_sentTime;
 				FailType m_behavior;
@@ -206,11 +220,12 @@ namespace sprawl
 				std::string m_header;
 			};
 
-			std::vector< std::pair<packet, SendCallback> > m_outPackets;
-			std::map<int, packet> m_packets;
-			std::unordered_set<int> m_received;
-			int m_highId;
-			uint32_t m_currentId;
+			std::unordered_map<int32_t, std::pair<packet, SendCallback> > m_outPackets;
+			std::map<int32_t, packet> m_packets;
+			std::unordered_set<int32_t> m_received;
+			std::mutex m_packetMutex;
+			int32_t m_highId;
+			int32_t m_currentId;
 			struct sockaddr m_src;
 			struct timeval m_lastRcvd;
 			struct timeval m_lastSent;
@@ -242,9 +257,6 @@ namespace sprawl
 
 			~ServerSocket();
 
-			//Set timeout in microseconds.
-			void setTimeout(int timeout);
-
 			//Accessors to get and close connections.
 			//Connections are always returned as weak pointers, if a reference is held by client code it may become invalid later.
 			//This ensures the client never has a corrupt pointer to a connection that's been closed
@@ -262,17 +274,17 @@ namespace sprawl
 
 			void CloseConnection(std::shared_ptr<Connection> c);
 
+		protected:
+			friend class Connection;
+			friend class UDPConnection;
+			void NotifySend();
+
 		private:
 			//Starts the network thread
-			void RunThread();
-			//Runs general IO
-			void HandleIO();
+			void SendThread();
+			void RecvThread();
 
-
-		private:
 			SOCKET m_inSock;
-			int m_inPort;
-			struct timeval m_tv;
 
 			ConnectionCallback m_onConnect;
 			ConnectionCallback m_onClose;
@@ -287,8 +299,11 @@ namespace sprawl
 			fd_set m_excSet;
 			struct addrinfo m_hints;
 			struct addrinfo* m_servInfo;
-			std::thread m_thread;
+			std::thread m_sendThread;
+			std::thread m_recvThread;
+			std::condition_variable m_sendNotifier;
 			std::mutex m_mtx;
+			std::mutex m_sendLock;
 
 			ConnectionType m_connectionType;
 		};
@@ -299,9 +314,6 @@ namespace sprawl
 			ClientSocket(ConnectionType connectionType);
 
 			~ClientSocket();
-
-			//Set timeout in microseconds.
-			void setTimeout(int timeout);
 
 			void Connect(const std::string& addr, int port);
 
@@ -333,11 +345,15 @@ namespace sprawl
 
 			void Close();
 
+		protected:
+			friend class Connection;
+			friend class UDPConnection;
+			void NotifySend();
+
 		private:
 			//Starts the network thread
-			void RunThread();
-
-			void HandleIO();
+			void SendThread();
+			void RecvThread();
 
 			ConnectionCallback m_onConnect;
 			ConnectionCallback m_onClose;
@@ -350,10 +366,12 @@ namespace sprawl
 			fd_set m_excSet;
 			struct addrinfo m_hints;
 			struct addrinfo* m_servInfo;
-			struct timeval m_tv;
 
 			bool m_running;
-			std::thread m_thread;
+			std::thread m_sendThread;
+			std::thread m_recvThread;
+			std::condition_variable m_sendNotifier;
+			std::mutex m_sendLock;
 
 			ConnectionType m_connectionType;
 		};

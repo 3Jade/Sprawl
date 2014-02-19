@@ -66,14 +66,40 @@ namespace sprawl
 			std::lock_guard<std::mutex> lock(m_outDataMutex);
 
 			m_outData.push_back(std::make_pair(data, onSendFunction));
+
+			if( m_parentClientSocket )
+			{
+				m_parentClientSocket->NotifySend();
+			}
+			else if( m_parentServerSocket )
+			{
+				m_parentServerSocket->NotifySend();
+			}
 		}
 
-		Connection::Connection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+		Connection::Connection(ServerSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
 			: m_desc(desc_)
 			, m_closeSocket(false)
 			, m_partialPacket()
 			, m_onReceive(onReceive_)
 			, m_validatePacket(validatePacket_)
+			, m_parentServerSocket(parent)
+			, m_parentClientSocket(nullptr)
+		{
+			if(addr != nullptr)
+			{
+				m_dest = *addr;
+			}
+		}
+
+		Connection::Connection(ClientSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+			: m_desc(desc_)
+			, m_closeSocket(false)
+			, m_partialPacket()
+			, m_onReceive(onReceive_)
+			, m_validatePacket(validatePacket_)
+			, m_parentServerSocket(nullptr)
+			, m_parentClientSocket(parent)
 		{
 			if(addr != nullptr)
 			{
@@ -148,14 +174,34 @@ namespace sprawl
 			return ret;
 		}
 
-		/*virtual*/ void UDPConnection::Send(const std::string& str, FailType behavior, SendCallback callback /*= nullptr*/) /*override final*/
+		void Connection::Close()
 		{
-			SendPacketWithID(str, behavior, m_currentId, callback);
-			m_currentId++;
+			if( m_parentClientSocket )
+			{
+				m_parentClientSocket->Close();
+			}
+			else if( m_parentServerSocket )
+			{
+				m_parentServerSocket->CloseConnection( shared_from_this() );
+			}
 		}
 
-		UDPConnection::UDPConnection(SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
-			: Connection(desc_, addr, onReceive_, validatePacket_)
+		/*virtual*/ void UDPConnection::Send(const std::string& str, FailType behavior, SendCallback callback /*= nullptr*/) /*override final*/
+		{
+			SendPacketWithID(str, behavior, ++m_currentId, callback);
+
+			if( m_parentClientSocket )
+			{
+				m_parentClientSocket->NotifySend();
+			}
+			else if( m_parentServerSocket )
+			{
+				m_parentServerSocket->NotifySend();
+			}
+		}
+
+		UDPConnection::UDPConnection(ServerSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+			: Connection(parent, desc_, addr, onReceive_, validatePacket_)
 			, m_packets()
 			, m_highId(-1)
 			, m_currentId(0)
@@ -166,8 +212,33 @@ namespace sprawl
 			m_lastSent.tv_usec = 0;
 		 }
 
-		UDPConnection::UDPConnection(SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
-			: Connection(desc_, nullptr, onReceive_, validatePacket_)
+		UDPConnection::UDPConnection(ServerSocket* parent, SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+			: Connection(parent, desc_, nullptr, onReceive_, validatePacket_)
+			, m_packets()
+			, m_highId(-1)
+			, m_currentId(0)
+			, m_slen(sizeof(sockaddr_in))
+		{
+			m_lastRcvd.tv_sec = 0;
+			m_lastRcvd.tv_usec = 0;
+			m_lastSent.tv_sec = 0;
+			m_lastSent.tv_usec = 0;
+		}
+
+		UDPConnection::UDPConnection(ClientSocket* parent, SOCKET desc_, struct sockaddr* addr, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+			: Connection(parent, desc_, addr, onReceive_, validatePacket_)
+			, m_packets()
+			, m_highId(-1)
+			, m_currentId(0)
+			, m_slen(sizeof(sockaddr_in))
+		 {
+			gettimeofday(&m_lastRcvd, nullptr);
+			m_lastSent.tv_sec = 0;
+			m_lastSent.tv_usec = 0;
+		 }
+
+		UDPConnection::UDPConnection(ClientSocket* parent, SOCKET desc_, ReceiveCallback onReceive_, PacketValidationCallback validatePacket_)
+			: Connection(parent, desc_, nullptr, onReceive_, validatePacket_)
 			, m_packets()
 			, m_highId(-1)
 			, m_currentId(0)
@@ -181,24 +252,33 @@ namespace sprawl
 
 		/*virtual*/ void UDPConnection::Send() /*override final*/
 		{
-			std::vector< std::pair<packet, SendCallback> > outPackets;
+			std::unordered_map<int32_t, std::pair<packet, SendCallback> > outPackets;
 
 			{
 				std::lock_guard<std::mutex> lock(m_outDataMutex);
 				outPackets = std::move( m_outPackets );
 			}
+
+			std::lock_guard<std::mutex> lock(m_packetMutex);
 			for(auto& kvp: outPackets)
 			{
 				//Send the packet...
-				std::string content = kvp.first.m_header + kvp.first.m_content;
+				std::string content = kvp.second.first.m_header + kvp.second.first.m_content;
 				sendto(m_desc, content.c_str(), (int)content.length(), 0, &m_dest, m_slen);
-				if(kvp.second)
+				if(kvp.second.second)
 				{
-					kvp.second();
+					kvp.second.second();
 				}
-				if(kvp.first.m_behavior != FailType::ignore)
+				if(kvp.second.first.m_behavior != FailType::ignore)
 				{
-					m_packets.insert(std::make_pair(kvp.first.m_ID, kvp.first));
+					if(m_packets.count(kvp.first))
+					{
+						m_packets.at(kvp.first) = kvp.second.first;
+					}
+					else
+					{
+						m_packets.insert(std::make_pair(kvp.first, kvp.second.first));
+					}
 				}
 			}
 			if(!outPackets.empty())
@@ -228,37 +308,34 @@ namespace sprawl
 					&& ((sockaddr_in*)&m_dest)->sin_port == ((sockaddr_in*)&m_src)->sin_port)
 			{
 				ret = recvfrom(m_desc, buf, 32768, 0, (sockaddr*)&m_src, &m_slen);
-				int id, ack;
+				int32_t id, ack;
 				uint32_t bits;
-				memcpy(&id, buf, sizeof(uint32_t));
 
-				if(m_received.count(id))
-				{
-					//We already received this packet, so we can ignore it now.
-					return ret;
-				}
-
-				buf += sizeof(uint32_t);
-
-				memcpy(&ack, buf, sizeof(uint32_t));
-				buf += sizeof(uint32_t);
-
-				memcpy(&bits, buf, sizeof(uint32_t));
-				buf += sizeof(uint32_t);
-
-				ret = ret-(sizeof(uint32_t)*3);
+				const int32_t* header = reinterpret_cast<const int32_t*>(buf);
+				id = header[0];
+				ack = header[1];
+				bits = header[2];
 
 				gettimeofday(&m_lastRcvd, nullptr);
+
+				buf += (3 * sizeof(uint32_t));
+				ret -= (3 * sizeof(uint32_t));
+
 				if(id > m_highId)
 				{
 					m_highId = id;
 				}
-				m_received.insert(id);
 				if(ack >= 0)
 				{
-					if(m_packets.find(ack) != m_packets.end())
+					std::lock_guard<std::mutex> dataLock(m_outDataMutex);
+					std::lock_guard<std::mutex> packetLock(m_packetMutex);
+					if(m_packets.count(ack))
 					{
 						m_packets.erase(ack);
+					}
+					if(m_outPackets.count(ack))
+					{
+						m_outPackets.erase(ack);
 					}
 					for(int i=0; i<32; i++)
 					{
@@ -267,16 +344,33 @@ namespace sprawl
 						{
 							break;
 						}
-						if((bits & (1 << i)) == 1 && m_packets.find(ackid) != m_packets.end())
+						if((bits & (1 << i)) != 0)
 						{
-							m_packets.erase(ackid);
+							if(m_packets.count(ackid))
+							{
+								m_packets.erase(ackid);
+							}
+							if(m_outPackets.count(ackid))
+							{
+								m_outPackets.erase(ackid);
+							}
 						}
 					}
+					fflush(stdout);
 				}
 				if(ret <= 0)
 				{
 					return ret;
 				}
+
+				if(m_received.count(id))
+				{
+					//We already received this packet, so we can ignore it now.
+					return ret;
+				}
+
+				m_received.insert(id);
+
 				if(m_onReceive)
 				{
 					//If there's no onReceive callback, what can we do? Nothing.
@@ -321,7 +415,7 @@ namespace sprawl
 				usecs += 1000000;
 				secs -= 1;
 			}
-			if((m_lastRcvd.tv_sec != 0 && m_lastRcvd.tv_usec != 0) && secs >= 5)
+			if((m_lastRcvd.tv_sec != 0 || m_lastRcvd.tv_usec != 0) && secs >= 5)
 			{
 				return true;
 			}
@@ -333,6 +427,7 @@ namespace sprawl
 			gettimeofday(&now, nullptr);
 			int secs, usecs;
 
+			std::lock_guard<std::mutex> lock(m_packetMutex);
 			auto it = m_packets.begin();
 			while( it != m_packets.end() )
 			{
@@ -347,12 +442,8 @@ namespace sprawl
 				if(secs >= 1)
 				{
 					SendPacketWithID(it->second.m_content, FailType::resend, it->first, nullptr);
-					m_packets.erase(it++);
 				}
-				else
-				{
-					it++;
-				}
+				++it;
 			}
 			secs = now.tv_sec - m_lastSent.tv_sec;
 			usecs = now.tv_usec - m_lastSent.tv_usec;
@@ -382,21 +473,23 @@ namespace sprawl
 			, m_behavior(std::move(other.m_behavior))
 			, m_content(std::move(other.m_content))
 			, m_header(std::move(other.m_header))
-		{}
+		{
+		}
 
 		UDPConnection::packet::packet(const UDPConnection::packet& other)
 			: m_ID(other.m_ID)
 			, m_behavior(other.m_behavior)
 			, m_content(other.m_content)
 			, m_header(other.m_header)
-		{}
-
-		UDPConnection::packet& UDPConnection::packet::operator=(UDPConnection::packet&& other)
 		{
-			m_ID = std::move(other.m_ID);
-			m_behavior = std::move(other.m_behavior);
-			m_content = std::move(other.m_content);
-			m_header = std::move(other.m_header);
+		}
+
+		UDPConnection::packet& UDPConnection::packet::operator=(const UDPConnection::packet& other)
+		{
+			m_ID = other.m_ID;
+			m_behavior = other.m_behavior;
+			m_content = other.m_content;
+			m_header = other.m_header;
 			return *this;
 		}
 
@@ -407,7 +500,7 @@ namespace sprawl
 
 			//Construct header: ID, ACK, Ack bits
 			memcpy(ptr, &sendid, sizeof(uint32_t));
-			int id = m_highId;
+			int32_t id = m_highId;
 			memcpy(ptr+sizeof(uint32_t), &id, sizeof(uint32_t));
 			uint32_t bits = 0;
 			if(id >= 0)
@@ -433,21 +526,19 @@ namespace sprawl
 					m_received.erase(rcvd);
 				}
 			}
-			memcpy(ptr+sizeof(uint32_t)*2, &bits, sizeof(uint32_t));
+			memcpy(ptr+(sizeof(uint32_t)*2), &bits, sizeof(uint32_t));
 
 			//Create a packet from header + str...
 			std::string headerStr(header, 3*sizeof(uint32_t));
 
 			{
 				std::lock_guard<std::mutex> lock(m_outDataMutex);
-				m_outPackets.push_back(std::make_pair(packet(sendid, behavior, str, headerStr), callback));
+				m_outPackets.insert(std::make_pair(sendid, std::make_pair(packet(sendid, behavior, str, headerStr), callback)));
 			}
 		}
 
 		ServerSocket::ServerSocket(const ConnectionType connectionType)
 			: m_inSock(-1)
-			, m_inPort(-1)
-			, m_tv()
 			, m_onConnect(nullptr)
 			, m_onClose(nullptr)
 			, m_onReceive(nullptr)
@@ -458,8 +549,10 @@ namespace sprawl
 			, m_excSet()
 			, m_hints()
 			, m_servInfo(nullptr)
-			, m_thread()
+			, m_sendThread()
+			, m_recvThread()
 			, m_mtx()
+			, m_sendLock()
 			, m_connectionType(connectionType)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
@@ -473,10 +566,6 @@ namespace sprawl
 				m_hints.ai_socktype = SOCK_DGRAM;
 			}
 			m_hints.ai_flags = AI_PASSIVE;
-
-			//Default timeout at .5 seconds
-			m_tv.tv_sec = 0;
-			m_tv.tv_usec = 500000;
 		}
 
 		void ServerSocket::SetOnReceive(ReceiveCallback c)
@@ -545,8 +634,11 @@ namespace sprawl
 			//Open the port for incoming connections
 			::listen(m_inSock, 5);
 
+			m_running = true;
+
 			//And start up the network thread to actually handle them
-			m_thread = std::thread(&ServerSocket::RunThread, this );
+			m_sendThread = std::thread(&ServerSocket::SendThread, this );
+			m_recvThread = std::thread(&ServerSocket::RecvThread, this );
 		}
 
 		void ServerSocket::Close()
@@ -554,7 +646,9 @@ namespace sprawl
 			if(m_running)
 			{
 				m_running = false;
-				m_thread.join();
+				m_sendNotifier.notify_one();
+				m_sendThread.join();
+				m_recvThread.join();
 				close(m_inSock);
 				m_inSock = -1;
 				freeaddrinfo(m_servInfo);
@@ -567,16 +661,10 @@ namespace sprawl
 			Close();
 		}
 
-		void ServerSocket::setTimeout(int timeout)
-		{
-			m_tv.tv_sec = timeout/1000;
-			m_tv.tv_usec = (timeout%1000) * 1000;
-		}
-
-		std::vector<std::weak_ptr<Connection> > ServerSocket::GetConnections()
+		std::vector<ConnectionWPtr > ServerSocket::GetConnections()
 		{
 			std::lock_guard<std::mutex> lock(m_mtx);
-			std::vector< std::weak_ptr<Connection> > ret;
+			std::vector< ConnectionWPtr > ret;
 			for( auto& connection : m_connections )
 			{
 				ret.push_back(connection);
@@ -584,13 +672,13 @@ namespace sprawl
 			return std::move(ret);
 		}
 
-		std::weak_ptr<Connection> ServerSocket::GetConnection(int i)
+		ConnectionWPtr ServerSocket::GetConnection(int i)
 		{
 			std::lock_guard<std::mutex> lock(m_mtx);
 			return m_connections[i];
 		}
 
-		std::weak_ptr<Connection> ServerSocket::GetConnectionByDesc(int d)
+		ConnectionWPtr ServerSocket::GetConnectionByDesc(int d)
 		{
 			std::lock_guard<std::mutex> lock(m_mtx);
 			for( auto& connection : m_connections )
@@ -600,10 +688,10 @@ namespace sprawl
 					return connection;
 				}
 			}
-			return std::weak_ptr<Connection>();
+			return ConnectionWPtr();
 		}
 
-		std::weak_ptr<Connection> ServerSocket::GetConnectionByPort(int p)
+		ConnectionWPtr ServerSocket::GetConnectionByPort(int p)
 		{
 			std::lock_guard<std::mutex> lock(m_mtx);
 			for( auto& connection : m_connections )
@@ -613,7 +701,7 @@ namespace sprawl
 					return connection;
 				}
 			}
-			return std::weak_ptr<Connection>();
+			return ConnectionWPtr();
 		}
 
 		size_t ServerSocket::GetNumConnections()
@@ -622,7 +710,7 @@ namespace sprawl
 			return m_connections.size();
 		}
 
-		void ServerSocket::CloseConnection(std::shared_ptr<Connection> c)
+		void ServerSocket::CloseConnection(ConnectionPtr c)
 		{
 			if(!c)
 			{
@@ -649,148 +737,171 @@ namespace sprawl
 			}
 		}
 
-		void ServerSocket::RunThread()
+		void ServerSocket::SendThread()
 		{
-			m_running = true;
 			while(m_running)
 			{
-				HandleIO();
-			}
-		}
-
-		void ServerSocket::HandleIO()
-		{
-			struct sockaddr_storage addr;
-			socklen_t addr_size = sizeof(addr);
-			std::shared_ptr<Connection> c;
-			struct timeval t = m_tv;
-
-			FD_ZERO(&m_inSet);
-			FD_ZERO(&m_excSet);
-			FD_SET(m_inSock, &m_inSet);
-			SOCKET newcon = -1;
-			SOCKET max = m_inSock;
-
-			for( auto& connection : m_connections )
-			{
-				SOCKET desc = connection->GetDescriptor();
-				if (desc > max)
-					max = desc;
-				FD_SET( desc, &m_inSet );
-				FD_SET( desc, &m_excSet );
-			}
-
-			int ret = select((int)(max + 1), &m_inSet, NULL, &m_excSet, &t);
-
-			std::lock_guard<std::mutex> lock(m_mtx);
-
-			if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
-			{
-				throw SockExcept(std::string("HandleIO poll failure: ") + strerror(errno));
-			}
-
-			if( FD_ISSET( m_inSock, &m_excSet ) )
-			{
-				throw SockExcept("Exception on listen port.");
-				FD_CLR( m_inSock, &m_inSet );
-			}
-			else if( FD_ISSET( m_inSock, &m_inSet ) )
-			{
-				if (m_connectionType == ConnectionType::TCP)
 				{
-					newcon = accept(m_inSock, (struct sockaddr *)& addr, &addr_size);
-					if(newcon != -1)
+					std::unique_lock<std::mutex> lock(m_sendLock);
+					if(m_connectionType == ConnectionType::UDP)
 					{
-						int yes = 1;
-#ifndef _WIN32
-						setsockopt(newcon, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(int));
-#else
-						setsockopt(newcon, SOL_SOCKET, SO_KEEPALIVE, (char*) &yes, sizeof(int));
-#endif
-						c.reset(new Connection(newcon, ((sockaddr*)&addr), m_onReceive, m_packetValidator));
-						if(m_onConnect)
-						{
-							m_onConnect(c);
-						}
-						m_connections.push_back(c);
+						m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
 					}
-					else if(errno != EWOULDBLOCK && errno != EAGAIN)
+					else
 					{
-						throw SockExcept("Error accepting new connection.");
+						m_sendNotifier.wait( lock );
+					}
+				}
+
+
+				if(m_connectionType == ConnectionType::TCP)
+				{
+					for( size_t i = 0; i < m_connections.size(); i++ )
+					{
+						m_connections[i]->Send();
 					}
 				}
 				else
 				{
-					bool bFound = false;
-					for (auto it = m_connections.begin(); it != m_connections.end(); it++)
+					std::vector<size_t> indexes_to_erase;
+					for( size_t i = 0; i < m_connections.size(); i++ )
 					{
-						if((*it)->Recv() != -2)
-						{
-							bFound = true;
-						}
-					}
-					if(!bFound)
-					{
-						c.reset(new UDPConnection(m_inSock, m_onReceive, m_packetValidator));
-						if(m_onConnect)
-						{
-							m_onConnect(c);
-						}
-						m_connections.push_back(c);
-						c->Recv();
-					}
-				}
-			}
-
-			std::vector<size_t> indexes_to_erase;
-			if(m_connectionType == ConnectionType::TCP)
-			{
-				for( size_t i = 0; i < m_connections.size(); i++ )
-				{
-					auto& connection = m_connections[i];
-					connection->Send();
-					if( FD_ISSET( connection->GetDescriptor(), &m_inSet ) )
-					{
-						if(connection->Recv() == 0)
+						auto& connection = m_connections[i];
+						connection->Send();
+						if(std::static_pointer_cast<UDPConnection>(connection)->CheckClosed())
 						{
 							if(m_onClose)
 							{
 								m_onClose(connection);
 							}
 							indexes_to_erase.push_back(i);
+							continue;
 						}
+						std::static_pointer_cast<UDPConnection>(connection)->SendKeepAlive();
 					}
-				}
-			}
-			else
-			{
-				for( size_t i = 0; i < m_connections.size(); i++ )
-				{
-					auto& connection = m_connections[i];
-					connection->Send();
-					if(std::static_pointer_cast<UDPConnection>(connection)->CheckClosed())
+					for( int i = (int)indexes_to_erase.size() - 1; i >= 0; --i )
 					{
-						if(m_onClose)
-						{
-							m_onClose(connection);
-						}
-						indexes_to_erase.push_back(i);
-						continue;
+						m_connections.erase(m_connections.begin() + indexes_to_erase[i]);
 					}
-					std::static_pointer_cast<UDPConnection>(connection)->SendKeepAlive();
 				}
 			}
+		}
 
-			for( int i = (int)indexes_to_erase.size() - 1; i >= 0; --i )
+		void ServerSocket::RecvThread()
+		{
+			while(m_running)
 			{
-				m_connections.erase(m_connections.begin() + indexes_to_erase[i]);
+				struct sockaddr_storage addr;
+				socklen_t addr_size = sizeof(addr);
+				ConnectionPtr c;
+
+				FD_ZERO(&m_inSet);
+				FD_ZERO(&m_excSet);
+				FD_SET(m_inSock, &m_inSet);
+				SOCKET newcon = -1;
+				SOCKET max = m_inSock;
+
+				for( auto& connection : m_connections )
+				{
+					SOCKET desc = connection->GetDescriptor();
+					if (desc > max)
+						max = desc;
+					FD_SET( desc, &m_inSet );
+					FD_SET( desc, &m_excSet );
+				}
+
+				int ret = select((int)(max + 1), &m_inSet, NULL, &m_excSet, nullptr);
+
+				std::lock_guard<std::mutex> lock(m_mtx);
+
+				if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
+				{
+					throw SockExcept(std::string("HandleIO poll failure: ") + strerror(errno));
+				}
+
+				if( FD_ISSET( m_inSock, &m_excSet ) )
+				{
+					throw SockExcept("Exception on listen port.");
+					FD_CLR( m_inSock, &m_inSet );
+				}
+				else if( FD_ISSET( m_inSock, &m_inSet ) )
+				{
+					if (m_connectionType == ConnectionType::TCP)
+					{
+						newcon = accept(m_inSock, (struct sockaddr *)& addr, &addr_size);
+						if(newcon != -1)
+						{
+							int yes = 1;
+#ifndef _WIN32
+							setsockopt(newcon, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(int));
+#else
+							setsockopt(newcon, SOL_SOCKET, SO_KEEPALIVE, (char*) &yes, sizeof(int));
+#endif
+							c.reset(new Connection(this, newcon, ((sockaddr*)&addr), m_onReceive, m_packetValidator));
+							if(m_onConnect)
+							{
+								m_onConnect(c);
+							}
+							m_connections.push_back(c);
+						}
+						else if(errno != EWOULDBLOCK && errno != EAGAIN)
+						{
+							throw SockExcept("Error accepting new connection.");
+						}
+					}
+					else
+					{
+						bool bFound = false;
+						for (auto it = m_connections.begin(); it != m_connections.end(); it++)
+						{
+							if((*it)->Recv() != -2)
+							{
+								bFound = true;
+							}
+						}
+						if(!bFound)
+						{
+							c.reset(new UDPConnection(this, m_inSock, m_onReceive, m_packetValidator));
+							if(m_onConnect)
+							{
+								m_onConnect(c);
+							}
+							m_connections.push_back(c);
+							c->Recv();
+						}
+					}
+				}
+
+				if(m_connectionType == ConnectionType::TCP)
+				{
+					std::vector<size_t> indexes_to_erase;
+					for( size_t i = 0; i < m_connections.size(); i++ )
+					{
+						auto& connection = m_connections[i];
+						if( FD_ISSET( connection->GetDescriptor(), &m_inSet ) )
+						{
+							if(connection->Recv() == 0)
+							{
+								if(m_onClose)
+								{
+									m_onClose(connection);
+								}
+								indexes_to_erase.push_back(i);
+							}
+						}
+					}
+					for( int i = (int)indexes_to_erase.size() - 1; i >= 0; --i )
+					{
+						m_connections.erase(m_connections.begin() + indexes_to_erase[i]);
+					}
+				}
 			}
 		}
 
 		void ServerSocket::CloseConnection(int i)
 		{
 			std::lock_guard<std::mutex> lock(m_mtx);
-			std::shared_ptr<Connection> c = m_connections[i];
+			ConnectionPtr c = m_connections[i];
 			if(m_connectionType == ConnectionType::TCP)
 			{
 				close(c->GetDescriptor());
@@ -800,6 +911,11 @@ namespace sprawl
 				m_onClose(c);
 			}
 			m_connections.erase(m_connections.begin() + i);
+		}
+
+		void ServerSocket::NotifySend()
+		{
+			m_sendNotifier.notify_one();
 		}
 
 		ClientSocket::ClientSocket(ConnectionType connectionType)
@@ -813,9 +929,10 @@ namespace sprawl
 			, m_excSet()
 			, m_hints()
 			, m_servInfo(nullptr)
-			, m_tv()
 			, m_running(false)
-			, m_thread()
+			, m_sendThread()
+			, m_recvThread()
+			, m_sendLock()
 			, m_connectionType(connectionType)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
@@ -828,21 +945,12 @@ namespace sprawl
 			{
 				m_hints.ai_socktype = SOCK_DGRAM;
 			}
-			//Default timeout at .5 seconds
-			m_tv.tv_sec = 0;
-			m_tv.tv_usec = 500000;
 		}
 
 		ClientSocket::~ClientSocket()
 		{
 			Close();
 			freeaddrinfo(m_servInfo);
-		}
-
-		void ClientSocket::setTimeout(int timeout)
-		{
-			m_tv.tv_sec = timeout/1000;
-			m_tv.tv_usec = (timeout%1000) * 1000;
 		}
 
 		void ClientSocket::Connect(const std::string& addr, int port)
@@ -871,14 +979,22 @@ namespace sprawl
 
 			if(m_connectionType == ConnectionType::TCP)
 			{
-				m_con.reset(new Connection(m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
+				m_con.reset(new Connection(this, m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
 			}
 			else
 			{
-				m_con.reset(new UDPConnection(m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
+				m_con.reset(new UDPConnection(this, m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
 			}
 
-			m_thread = std::thread(&ClientSocket::RunThread, this );
+			m_running = true;
+
+			m_sendThread = std::thread(&ClientSocket::SendThread, this );
+			m_recvThread = std::thread(&ClientSocket::RecvThread, this );
+
+			if(m_onConnect)
+			{
+				m_onConnect(m_con);
+			}
 		}
 
 		void ClientSocket::Reconnect()
@@ -906,14 +1022,22 @@ namespace sprawl
 
 			if(m_connectionType == ConnectionType::TCP)
 			{
-				m_con.reset(new Connection(m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
+				m_con.reset(new Connection(this, m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
 			}
 			else
 			{
-				m_con.reset(new UDPConnection(m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
+				m_con.reset(new UDPConnection(this, m_sock, (sockaddr*)p->ai_addr, m_onReceive, m_packetValidator));
 			}
 
-			m_thread = std::thread(&ClientSocket::RunThread, this );
+			m_running = true;
+
+			m_sendThread = std::thread(&ClientSocket::SendThread, this );
+			m_recvThread = std::thread(&ClientSocket::RecvThread, this );
+
+			if(m_onConnect)
+			{
+				m_onConnect(m_con);
+			}
 		}
 
 		void ClientSocket::SetOnReceive(ReceiveCallback c)
@@ -941,9 +1065,14 @@ namespace sprawl
 			if(m_running)
 			{
 				m_running = false;
-				if(std::this_thread::get_id() != m_thread.get_id())
+				m_sendNotifier.notify_one();
+				if(std::this_thread::get_id() != m_recvThread.get_id())
 				{
-					m_thread.join();
+					m_recvThread.join();
+				}
+				if(std::this_thread::get_id() != m_sendThread.get_id())
+				{
+					m_sendThread.join();
 				}
 				if(m_onClose)
 				{
@@ -953,58 +1082,68 @@ namespace sprawl
 			}
 		}
 
-		void ClientSocket::RunThread()
+		void ClientSocket::SendThread()
 		{
-			m_running = true;
-
-			if(m_onConnect)
-			{
-				m_onConnect(m_con);
-			}
-
 			while(m_running)
 			{
-				HandleIO();
+				{
+					std::unique_lock<std::mutex> lock(m_sendLock);
+					if(m_connectionType == ConnectionType::UDP)
+					{
+						m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+					}
+					else
+					{
+						m_sendNotifier.wait( lock );
+					}
+				}
+				m_con->Send();
+				if(m_connectionType == ConnectionType::UDP)
+				{
+					if(std::static_pointer_cast<UDPConnection>(m_con)->CheckClosed())
+					{
+						Close();
+						return;
+					}
+					std::static_pointer_cast<UDPConnection>(m_con)->SendKeepAlive();
+				}
 			}
 		}
 
-		void ClientSocket::HandleIO()
+		void ClientSocket::RecvThread()
 		{
-			if(m_con == nullptr)
+			while(m_running)
 			{
-				throw SockExcept("No active connection.");
-			}
-			FD_ZERO(&m_inSet);
-			FD_ZERO(&m_excSet);
-			FD_SET( m_sock, &m_inSet );
-			FD_SET( m_sock, &m_excSet );
-
-			struct timeval t = m_tv;
-			int ret = select((int)(m_sock + 1), &m_inSet, NULL, &m_excSet, &t);
-
-			if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
-			{
-				throw SockExcept(std::string("HandleIO poll failure: ") + strerror(errno));
-			}
-
-			if( FD_ISSET( m_sock, &m_inSet ) )
-			{
-				if( m_con->Recv() == 0 && m_connectionType == ConnectionType::TCP )
+				if(m_con == nullptr)
 				{
-					Close();
-					return;
+					throw SockExcept("No active connection.");
+				}
+				FD_ZERO(&m_inSet);
+				FD_ZERO(&m_excSet);
+				FD_SET( m_sock, &m_inSet );
+				FD_SET( m_sock, &m_excSet );
+
+				int ret = select((int)(m_sock + 1), &m_inSet, NULL, &m_excSet, nullptr);
+
+				if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
+				{
+					throw SockExcept(std::string("HandleIO poll failure: ") + strerror(errno));
+				}
+
+				if( FD_ISSET( m_sock, &m_inSet ) )
+				{
+					if( m_con->Recv() == 0 && m_connectionType == ConnectionType::TCP )
+					{
+						Close();
+						return;
+					}
 				}
 			}
-			m_con->Send();
-			if(m_connectionType == ConnectionType::UDP)
-			{
-				if(std::static_pointer_cast<UDPConnection>(m_con)->CheckClosed())
-				{
-					Close();
-					return;
-				}
-				std::static_pointer_cast<UDPConnection>(m_con)->SendKeepAlive();
-			}
+		}
+
+		void ClientSocket::NotifySend()
+		{
+			m_sendNotifier.notify_one();
 		}
 	}
 }
