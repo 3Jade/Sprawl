@@ -96,6 +96,8 @@ namespace sprawl
 				}
 			}
 			using SerializerBase::Data;
+			using SerializerBase::operator%;
+
 			virtual const char* Data() override
 			{
 				EnsureVersion();
@@ -182,6 +184,68 @@ namespace sprawl
 					m_builder->append("DataVersion", m_version);
 				}
 			}
+
+			virtual SerializerBase& operator%(BinaryData&& var) override
+			{
+				if(!var.PersistToDB || m_disableDepth)
+				{
+					return *this;
+				}
+				if(!m_bIsValid)
+				{
+					throw ex_invalid_data();
+				}
+				if(IsSaving())
+				{
+					if(!m_arrayBuilders.empty() && m_stateTracker.back() == State::Array)
+					{
+						mongo::BSONObjBuilder builder;
+						builder.appendBinData("binaryData", var.size, mongo::BinDataGeneral, var.val);
+						m_arrayBuilders.back().second->append(builder.obj());
+					}
+					else if(!m_objectBuilders.empty() && m_stateTracker.back() == State::Object)
+					{
+						if(m_objectBuilders.back().second->hasField(var.name))
+						{
+							throw ex_duplicate_key_error(var.name);
+						}
+						m_objectBuilders.back().second->appendBinData(var.name, var.size, mongo::BinDataGeneral, var.val);
+					}
+					else
+					{
+						if(m_builder->hasField(var.name))
+						{
+							throw ex_duplicate_key_error(var.name);
+						}
+						m_builder->appendBinData(var.name, var.size, mongo::BinDataGeneral, var.val);
+					}
+				}
+				else
+				{
+					const char* str;
+					int size = 0;
+					if(!m_arrays.empty() && m_stateTracker.back() == State::Array)
+					{
+						str = m_arrays.back().second.front().Obj()["binaryData"].binData(size);
+						m_arrays.back().second.pop_front();
+					}
+					else if(!m_objects.empty() && m_stateTracker.back() == State::Object)
+					{
+						str = m_objects.back()[var.name].binData(size);
+					}
+					else
+					{
+						str = m_obj[var.name].binData(size);
+					}
+					if(var.size != size)
+					{
+						throw ex_serializer_overflow();
+					}
+					memcpy(var.val, str, size);
+				}
+				return *this;
+			}
+
 		protected:
 			template<typename T>
 			friend class ReplicableBase;
@@ -343,7 +407,7 @@ namespace sprawl
 			}
 
 
-			virtual void serialize(int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -354,7 +418,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(int))
 				{
 					size = bytes/sizeof(int);
@@ -367,7 +431,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -400,7 +464,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = m_arrays.back().second.front().Int();
 								m_arrays.back().second.pop_front();
@@ -427,7 +491,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -438,7 +502,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(long int))
 				{
 					size = bytes/sizeof(long int);
@@ -451,7 +515,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append((long long int)var[i]);
 							}
@@ -484,7 +548,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = (long)m_arrays.back().second.front().Long();
 								m_arrays.back().second.pop_front();
@@ -511,7 +575,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long long int* var, const size_t bytes, const std::string& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB)  override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -522,7 +586,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(long long int))
 				{
 					size = bytes/sizeof(long long int);
@@ -535,7 +599,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -568,7 +632,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = m_arrays.back().second.front().Long();
 								m_arrays.back().second.pop_front();
@@ -595,7 +659,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(short int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -606,7 +670,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(short int))
 				{
 					size = bytes/sizeof(short int);
@@ -619,7 +683,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -652,7 +716,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = (short)m_arrays.back().second.front().Int();
 								m_arrays.back().second.pop_front();
@@ -679,7 +743,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -732,7 +796,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(float* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -743,7 +807,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(float))
 				{
 					size = bytes/sizeof(float);
@@ -756,7 +820,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -789,7 +853,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = (float)m_arrays.back().second.front().Double();
 								m_arrays.back().second.pop_front();
@@ -816,7 +880,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(double* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -827,7 +891,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(double))
 				{
 					size = bytes/sizeof(double);
@@ -840,7 +904,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -873,7 +937,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = m_arrays.back().second.front().Double();
 								m_arrays.back().second.pop_front();
@@ -900,12 +964,12 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(long double* /*var*/, const size_t /*bytes*/, const std::string& /*name*/, bool /*PersistToDB*/) override
+			virtual void serialize(long double* /*var*/, const uint32_t /*bytes*/, const std::string& /*name*/, bool /*PersistToDB*/) override
 			{
 				throw std::exception();
 			}
 
-			virtual void serialize(bool* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -916,7 +980,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(bool))
 				{
 					size = bytes/sizeof(bool);
@@ -929,7 +993,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -962,7 +1026,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = m_arrays.back().second.front().Bool();
 								m_arrays.back().second.pop_front();
@@ -989,7 +1053,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -1000,7 +1064,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(unsigned int))
 				{
 					size = bytes/sizeof(unsigned int);
@@ -1013,7 +1077,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -1046,7 +1110,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = m_arrays.back().second.front().Int();
 								m_arrays.back().second.pop_front();
@@ -1073,7 +1137,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned long int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -1084,7 +1148,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(unsigned long int))
 				{
 					size = bytes/sizeof(unsigned long int);
@@ -1097,7 +1161,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append((long long int)var[i]);
 							}
@@ -1130,7 +1194,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = (unsigned long)m_arrays.back().second.front().Long();
 								m_arrays.back().second.pop_front();
@@ -1157,7 +1221,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned long long int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -1168,7 +1232,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(unsigned long long int))
 				{
 					size = bytes/sizeof(unsigned long long int);
@@ -1181,7 +1245,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append((long long int)var[i]);
 							}
@@ -1214,7 +1278,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = m_arrays.back().second.front().Long();
 								m_arrays.back().second.pop_front();
@@ -1241,7 +1305,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned short int* var, const size_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -1252,7 +1316,7 @@ namespace sprawl
 					throw ex_invalid_data();
 				}
 				bool bIsArray = false;
-				size_t size = 0;
+				uint32_t size = 0;
 				if(bytes != sizeof(unsigned short int))
 				{
 					size = bytes/sizeof(unsigned short int);
@@ -1265,7 +1329,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								m_arrayBuilders.back().second->append(var[i]);
 							}
@@ -1298,7 +1362,7 @@ namespace sprawl
 					{
 						if(bIsArray)
 						{
-							for(size_t i=0; i<size; i++)
+							for(uint32_t i=0; i<size; i++)
 							{
 								var[i] = (unsigned short)m_arrays.back().second.front().Int();
 								m_arrays.back().second.pop_front();
@@ -1325,7 +1389,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void serialize(unsigned char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -1377,7 +1441,7 @@ namespace sprawl
 					strcpy((char*)var, str.c_str());
 				}
 			}
-			virtual void serialize(std::string* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
 				{
@@ -1428,7 +1492,7 @@ namespace sprawl
 				}
 			}
 
-			virtual size_t StartObject(const std::string& str, bool PersistToDB = true) override
+			virtual uint32_t StartObject(const std::string& str, bool PersistToDB = true) override
 			{
 				if(m_disableDepth || !PersistToDB)
 				{
@@ -1523,7 +1587,7 @@ namespace sprawl
 				}
 			}
 
-			virtual void StartArray(const std::string& str, size_t& size, bool PersistToDB = true) override
+			virtual void StartArray(const std::string& str, uint32_t& size, bool PersistToDB = true) override
 			{
 				if(m_disableDepth || !PersistToDB)
 				{

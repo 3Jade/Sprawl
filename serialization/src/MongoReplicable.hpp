@@ -42,13 +42,66 @@ namespace sprawl
 			std::pair<mongo::BSONObj, mongo::BSONObj> generateUpdateQuery()
 			{
 				mongo::BSONObjBuilder b;
-				
-				mongo::BSONObjBuilder changed;
-				bool changed_something = false;
 
-				std::unordered_set<std::string> arraysWithRemovedItems;
-				auto get_string_key = [this, &arraysWithRemovedItems](const std::vector<int16_t>& v, bool removal)
+				struct ArrayIndexInfo
 				{
+					ArrayIndexInfo()
+						: parentIndex(nullptr)
+						, key()
+						, parentKey()
+						, hasValidChildren(false)
+						, hasRemovedChildren(false)
+						, removeQuery()
+						, children()
+					{
+						//
+					}
+
+					void SetRemovedChildren()
+					{
+						hasRemovedChildren = true;
+						if(parentIndex)
+						{
+							parentIndex->SetRemovedChildren();
+						}
+					}
+
+					void SetValidChildren()
+					{
+						hasValidChildren = true;
+						if(parentIndex)
+						{
+							parentIndex->SetValidChildren();
+						}
+					}
+
+					ArrayIndexInfo* parentIndex;
+					std::string key;
+					std::string parentKey;
+					bool hasValidChildren;
+					bool hasRemovedChildren;
+					mongo::BSONObjBuilder removeQuery;
+					std::unordered_set<ArrayIndexInfo*> children;
+				};
+
+				ArrayIndexInfo* currentArrayIndex = nullptr;
+				std::list<ArrayIndexInfo> allArrayIndexes;
+				std::unordered_map<std::string, ArrayIndexInfo*> allArrayIndexesByKey;
+				std::unordered_set<ArrayIndexInfo*> rootIndexes;
+
+				auto get_string_key = [
+					this,
+					&currentArrayIndex,
+					&allArrayIndexes,
+					&allArrayIndexesByKey,
+					&rootIndexes
+				] (
+					const std::vector<int16_t>& v,
+					bool removal
+				)
+
+				{
+					currentArrayIndex = nullptr;
 					std::stringstream str;
 					bool array = false;
 					bool printed = false;
@@ -63,17 +116,50 @@ namespace sprawl
 						if(isCounter)
 						{
 							array = false;
-							if(removal && i == (v.size() - 1))
-							{
-								arraysWithRemovedItems.insert(str.str());
-							}
 
+							std::string parentKey = str.str();
 							if(printed)
 							{
 								str << ".";
 								printed = false;
 							}
 							str << (v[i] - 1);
+
+							ArrayIndexInfo* parentIndex = currentArrayIndex;
+							std::string key = str.str();
+							auto it = allArrayIndexesByKey.find(key);
+							if(it != allArrayIndexesByKey.end())
+							{
+								currentArrayIndex = it->second;
+							}
+							else
+							{
+								allArrayIndexes.emplace_back();
+								currentArrayIndex = &allArrayIndexes.back();
+								currentArrayIndex->key = key;
+								currentArrayIndex->parentKey = parentKey;
+								allArrayIndexesByKey.insert(std::make_pair(key, currentArrayIndex));
+							}
+
+							if(!parentIndex)
+							{
+								rootIndexes.insert(currentArrayIndex);
+							}
+							else
+							{
+								currentArrayIndex->parentIndex = parentIndex;
+								parentIndex->children.insert(currentArrayIndex);
+							}
+
+							if(removal)
+							{
+								currentArrayIndex->SetRemovedChildren();
+							}
+							else
+							{
+								currentArrayIndex->SetValidChildren();
+							}
+
 							printed = true;
 						}
 						else
@@ -96,7 +182,10 @@ namespace sprawl
 					}
 					return std::move(str.str());
 				};
-				
+
+				mongo::BSONObjBuilder changed;
+				bool changed_something = false;
+
 				//Adds and changes
 				for( auto& kvp : this->m_data )
 				{
@@ -114,27 +203,100 @@ namespace sprawl
 
 				//Removes get their own special treatment
 				mongo::BSONObjBuilder removed;
+				bool removed_from_array = false;
+
 				bool removed_something = false;
+				for( auto& kvp : this->m_marked_data )
+				{
+					auto it = this->m_data.find(kvp.first);
+					if( it != this->m_data.end() )
+					{
+						//Not what this says it does, but it will implicitly mark children valid.
+						get_string_key(kvp.first, false).c_str();
+					}
+				}
 				for( auto& kvp : this->m_marked_data )
 				{
 					auto it = this->m_data.find(kvp.first);
 					if( it == this->m_data.end() )
 					{
-						removed.append(get_string_key(kvp.first, true), "");
+						std::string key = get_string_key(kvp.first, true);
+						if(currentArrayIndex)
+						{
+							currentArrayIndex->removeQuery.append(key, "");
+							removed_from_array = true;
+						}
+						else
+						{
+							removed.append(key, "");
+						}
 						removed_something = true;
 					}
 				}
+
+				struct
+				{
+					mongo::BSONObj operator()(ArrayIndexInfo* index)
+					{
+						if(index->hasValidChildren)
+						{
+							for(ArrayIndexInfo* child : index->children)
+							{
+								index->removeQuery.appendElements((*this)(child));
+							}
+							return index->removeQuery.obj();
+						}
+						else
+						{
+							return BSON(index->key << "");
+						}
+					}
+				} getRemoveQuery;
+
+				for(ArrayIndexInfo* index : rootIndexes)
+				{
+					if(index->hasRemovedChildren)
+					{
+						removed.appendElements(getRemoveQuery(index));
+					}
+				}
+
 				if(removed_something)
 				{
 					b.append("$unset", removed.obj());
 				}
+
 				mongo::BSONObjBuilder b2;
-				if(!arraysWithRemovedItems.empty())
+
+				struct
+				{
+					mongo::BSONObj operator()(ArrayIndexInfo* index)
+					{
+						if(index->hasValidChildren)
+						{
+							mongo::BSONObjBuilder removedArrayIndexes;
+							for(ArrayIndexInfo* child : index->children)
+							{
+								removedArrayIndexes.appendElements((*this)(child));
+							}
+							return removedArrayIndexes.obj();
+						}
+						else
+						{
+							return BSON(index->parentKey << mongo::BSONNULL);
+						}
+					}
+				} getCorrectRemoveIndex;
+
+				if(removed_from_array)
 				{
 					mongo::BSONObjBuilder pulled;
-					for(auto& key : arraysWithRemovedItems)
+					for(ArrayIndexInfo* index : rootIndexes)
 					{
-						pulled << key << mongo::BSONNULL;
+						if(index->hasRemovedChildren)
+						{
+							pulled.appendElements(getCorrectRemoveIndex(index));
+						}
 					}
 					b2.append("$pull", pulled.obj());
 				}
@@ -217,76 +379,76 @@ namespace sprawl
 				this->PopKey();
 			}
 
-			virtual void serialize(int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}

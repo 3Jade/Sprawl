@@ -146,7 +146,7 @@ namespace sprawl
 
 			virtual bool IsReplicable() override { return true; }
 
-			void StartArray( const std::string& name, size_t& size, bool b ) override
+			void StartArray( const std::string& name, uint32_t& size, bool b ) override
 			{
 				PushKey("__array__");
 				if(IsLoading())
@@ -234,7 +234,7 @@ namespace sprawl
 				}
 			}
 
-			virtual size_t StartObject( const std::string& name, bool b) override
+			virtual uint32_t StartObject( const std::string& name, bool b) override
 			{
 				PushKey(name);
 				if(!m_marked)
@@ -244,7 +244,7 @@ namespace sprawl
 				return 0;
 			}
 
-			virtual size_t StartMap( const std::string& name, bool b) override
+			virtual uint32_t StartMap( const std::string& name, bool b) override
 			{
 				PushKey(name);
 				m_current_map_key.push_back(m_current_key);
@@ -358,76 +358,76 @@ namespace sprawl
 				PopKey();
 			}
 
-			virtual void serialize(int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const size_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
