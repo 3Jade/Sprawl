@@ -521,7 +521,7 @@ namespace sprawl
 				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
 				for( l = m_idTable[index]; l; l = l->m_next )
 					if(l->m_ptr->GetInt()() == searchKey)
-						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
+						return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
 				return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 			}
 		
@@ -534,17 +534,17 @@ namespace sprawl
 				list_t<ValueType, IntFuncPtr, StrFuncPtr>* l = nullptr;
 				for( l = m_nameTable[index]; l; l = l->m_next )
 					if(strToLower(l->m_ptr->GetStr()(), m_ignoreCase) == strToLower(searchKey, m_ignoreCase))
-						return multiaccess_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
+						return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(l->m_ptr);
 				return multiaccess_const_iterator<T, IntFuncPtr, StrFuncPtr>(nullptr);
 			}
 
 		private:
-			unsigned long _hash(int i)
+			unsigned long _hash(int i) const
 			{
 				return abs(i)%m_totalSize;
 			}
 
-			unsigned long _hash(const char* str)
+			unsigned long _hash(const char* str) const
 			{
 				unsigned int hash = 0;
 				int c;
@@ -557,12 +557,12 @@ namespace sprawl
 
 			   return hash%m_totalSize;
 			}
-			unsigned long getIndex(int searchKey)
+			unsigned long getIndex(int searchKey) const
 			{
 				return _hash(searchKey);
 			}
 
-			unsigned long getIndex(std::string searchKey)
+			unsigned long getIndex(std::string searchKey) const
 			{
 				return _hash(strToLower(searchKey, m_ignoreCase).c_str());
 			}
