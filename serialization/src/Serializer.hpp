@@ -688,7 +688,7 @@ namespace sprawl
 					{
 						size = calcedSize;
 					}
-					for(int i=0; i<size; i++)
+					for(uint32_t i=0; i<size; i++)
 					{
 						std::string k;
 						val_type v;

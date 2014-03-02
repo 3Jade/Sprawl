@@ -39,6 +39,26 @@ namespace sprawl
 		class MongoReplicableSerializer : public ReplicableSerializer<MongoSerializer>
 		{
 		public:
+			virtual void StartArray(const std::string &name, uint32_t &size, bool b) override
+			{
+				ReplicableSerializer<MongoSerializer>::StartArray(name, size, b);
+				m_allArrays.insert(m_current_key);
+			}
+
+			virtual uint32_t StartObject(const std::string &name, bool b)
+			{
+				uint32_t ret = ReplicableSerializer<MongoSerializer>::StartObject(name, b);
+				m_allObjs.insert(m_current_key);
+				return ret;
+			}
+
+			virtual uint32_t StartMap(const std::string &name, bool b)
+			{
+				uint32_t ret = ReplicableSerializer<MongoSerializer>::StartMap(name, b);
+				m_allObjs.insert(m_current_key);
+				return ret;
+			}
+
 			std::pair<mongo::BSONObj, mongo::BSONObj> generateUpdateQuery()
 			{
 				mongo::BSONObjBuilder b;
@@ -105,6 +125,7 @@ namespace sprawl
 					std::stringstream str;
 					bool array = false;
 					bool printed = false;
+					int currentArray = 0;
 					for(size_t i = 0; i < v.size(); ++i)
 					{
 						bool isCounter = ((i % 2) != 0);
@@ -112,21 +133,15 @@ namespace sprawl
 						{
 							continue;
 						}
-						
-						if(isCounter)
+
+						auto handleArrays = [
+							&allArrayIndexes,
+							&allArrayIndexesByKey,
+							&currentArrayIndex,
+							&rootIndexes
+						](const std::string& key, const std::string& parentKey)
 						{
-							array = false;
-
-							std::string parentKey = str.str();
-							if(printed)
-							{
-								str << ".";
-								printed = false;
-							}
-							str << (v[i] - 1);
-
 							ArrayIndexInfo* parentIndex = currentArrayIndex;
-							std::string key = str.str();
 							auto it = allArrayIndexesByKey.find(key);
 							if(it != allArrayIndexesByKey.end())
 							{
@@ -150,6 +165,22 @@ namespace sprawl
 								currentArrayIndex->parentIndex = parentIndex;
 								parentIndex->children.insert(currentArrayIndex);
 							}
+						};
+						
+						if(isCounter)
+						{
+							array = false;
+
+							std::string parentKey = str.str();
+
+							if(printed)
+							{
+								str << ".";
+								printed = false;
+							}
+							str << (v[i] - 1);
+
+							handleArrays(str.str(), parentKey);
 
 							if(removal)
 							{
@@ -164,19 +195,59 @@ namespace sprawl
 						}
 						else
 						{
+							int key = v[i];
+							if(key < 0)
+							{
+								key = -key;
+								if(currentArray != key)
+								{
+									if(printed)
+									{
+										str << ".";
+										printed = false;
+									}
+									currentArray = key;
+									std::string& s = this->m_reverse_name_index[key];
+									str << s;
+
+									printed = true;
+									++i;
+								}
+								array = true;
+								continue;
+							}
+
+							std::string parentKey = str.str();
+
 							if(printed)
 							{
 								str << ".";
 								printed = false;
 							}
-							std::string& s = this->m_reverse_name_index[v[i]];
-							if(s == "__array__")
+
+							if(currentArray != 0)
 							{
-								array = true;
 								++i;
-								continue;
+								str << (v[i] - 1);
+								currentArray = 0;
+
+								handleArrays(str.str(), parentKey);
+
+								if(removal)
+								{
+									currentArrayIndex->SetRemovedChildren();
+								}
+								else
+								{
+									currentArrayIndex->SetValidChildren();
+								}
+								array = false;
 							}
-							str << s;
+							else
+							{
+								std::string& s = this->m_reverse_name_index[key];
+								str << s;
+							}
 							printed = true;
 						}
 					}
@@ -196,6 +267,25 @@ namespace sprawl
 						changed.appendAs(this->m_objs[kvp.first][this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]], get_string_key(kvp.first, false));
 					}
 				}
+
+				for( auto& key : this->m_allArrays )
+				{
+					if(!this->m_markedArrays.count(key))
+					{
+						changed_something = true;
+						changed.append( get_string_key(key, false), mongo::BSONArray() );
+					}
+				}
+
+				for( auto& key : this->m_allObjs )
+				{
+					if(!this->m_markedObjs.count(key))
+					{
+						changed_something = true;
+						changed.append( get_string_key(key, false), mongo::BSONObj() );
+					}
+				}
+
 				if(changed_something)
 				{
 					b.append("$set", changed.obj());
@@ -206,15 +296,18 @@ namespace sprawl
 				bool removed_from_array = false;
 
 				bool removed_something = false;
-				for( auto& kvp : this->m_marked_data )
+
+				for( auto& key : this->m_allArrays )
 				{
-					auto it = this->m_data.find(kvp.first);
-					if( it != this->m_data.end() )
-					{
-						//Not what this says it does, but it will implicitly mark children valid.
-						get_string_key(kvp.first, false).c_str();
-					}
+					//Not what this says it does, but it will implicitly mark children valid.
+					get_string_key(key, false);
 				}
+				for( auto& key : this->m_allObjs )
+				{
+					//Not what this says it does, but it will implicitly mark children valid.
+					get_string_key(key, false);
+				}
+
 				for( auto& kvp : this->m_marked_data )
 				{
 					auto it = this->m_data.find(kvp.first);
@@ -234,6 +327,42 @@ namespace sprawl
 					}
 				}
 
+				for( auto& key : this->m_markedArrays )
+				{
+					if(!this->m_allArrays.count(key))
+					{
+						std::string keyStr = get_string_key(key, true);
+						if(currentArrayIndex)
+						{
+							currentArrayIndex->removeQuery.append(keyStr, "");
+							removed_from_array = true;
+						}
+						else
+						{
+							removed.append(keyStr, "");
+						}
+						removed_something = true;
+					}
+				}
+
+				for( auto& key : this->m_markedObjs )
+				{
+					if(!this->m_allObjs.count(key))
+					{
+						std::string keyStr = get_string_key(key, true);
+						if(currentArrayIndex)
+						{
+							currentArrayIndex->removeQuery.append(keyStr, "");
+							removed_from_array = true;
+						}
+						else
+						{
+							removed.append(keyStr, "");
+						}
+						removed_something = true;
+					}
+				}
+
 				struct
 				{
 					mongo::BSONObj operator()(ArrayIndexInfo* index)
@@ -242,7 +371,7 @@ namespace sprawl
 						{
 							for(ArrayIndexInfo* child : index->children)
 							{
-								index->removeQuery.appendElements((*this)(child));
+								index->removeQuery.appendElementsUnique((*this)(child));
 							}
 							return index->removeQuery.obj();
 						}
@@ -257,7 +386,7 @@ namespace sprawl
 				{
 					if(index->hasRemovedChildren)
 					{
-						removed.appendElements(getRemoveQuery(index));
+						removed.appendElementsUnique(getRemoveQuery(index));
 					}
 				}
 
@@ -277,7 +406,7 @@ namespace sprawl
 							mongo::BSONObjBuilder removedArrayIndexes;
 							for(ArrayIndexInfo* child : index->children)
 							{
-								removedArrayIndexes.appendElements((*this)(child));
+								removedArrayIndexes.appendElementsUnique((*this)(child));
 							}
 							return removedArrayIndexes.obj();
 						}
@@ -295,7 +424,7 @@ namespace sprawl
 					{
 						if(index->hasRemovedChildren)
 						{
-							pulled.appendElements(getCorrectRemoveIndex(index));
+							pulled.appendElementsUnique(getCorrectRemoveIndex(index));
 						}
 					}
 					b2.append("$pull", pulled.obj());
@@ -312,6 +441,13 @@ namespace sprawl
 			mongo::BSONObj getBaselineTempObj()
 			{
 				return m_baseline->tempObj();
+			}
+
+			virtual void Mark()
+			{
+				ReplicableSerializer<MongoSerializer>::Mark();
+				m_markedArrays = std::move( m_allArrays );
+				m_markedObjs = std::move( m_allObjs );
 			}
 		protected:
 			template<typename T2>
@@ -453,8 +589,13 @@ namespace sprawl
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void PushKey(const std::string& name) override
+			virtual void PushKey(const std::string& name, bool forArray = false) override
 			{
+				bool parentIsArray = false;
+				if(!m_current_key.empty() && m_current_key[m_current_key.size() - 2] < 0)
+				{
+					parentIsArray = true;
+				}
 				if(!this->m_serializer->IsBinary() || (!this->m_current_map_key.empty() && this->m_current_key == this->m_current_map_key.back()))
 				{
 					if( this->m_name_index.count(name) == 0 )
@@ -462,19 +603,52 @@ namespace sprawl
 						this->m_reverse_name_index[this->m_highest_name] = name;
 						this->m_name_index[name] = this->m_highest_name++;
 					}
-					this->m_current_key.push_back(this->m_name_index[name]);
+					int key = this->m_name_index[name];
+					if(forArray)
+					{
+						//Use sign bit to encode this as an array member.
+						key = -key;
+					}
+					this->m_current_key.push_back(key);
 				}
 				else
 				{
 					this->m_current_key.push_back(-1);
 				}
-				int16_t& depth = this->m_depth_tracker[this->m_current_key];
-				depth++;
-				this->m_current_key.push_back( depth );
+				if(parentIsArray)
+				{
+					int16_t& item = m_array_tracker.back();
+					++item;
+					m_current_key.push_back( item );
+				}
+				else
+				{
+					int16_t& depth = this->m_depth_tracker[this->m_current_key];
+					depth++;
+					this->m_current_key.push_back( depth );
+				}
+				if(forArray)
+				{
+					this->m_array_tracker.push_back(0);
+				}
+			}
+
+			virtual void PopKey() override
+			{
+				if( m_current_key[m_current_key.size() - 2] < 0 )
+				{
+					this->m_array_tracker.pop_back();
+				}
+				ReplicableSerializer<MongoSerializer>::PopKey();
 			}
 
 			std::unordered_map<std::vector<int16_t>, mongo::BSONObj, container_hash<int16_t>> m_objs;
 			std::unordered_map<int16_t, std::string> m_reverse_name_index;
+			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_allArrays;
+			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_allObjs;
+			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_markedArrays;
+			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_markedObjs;
+			std::vector<int16_t> m_array_tracker;
 		};
 
 		class MongoReplicableDeserializer : public ReplicableDeserializer<MongoDeserializer>

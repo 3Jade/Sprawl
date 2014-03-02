@@ -104,7 +104,7 @@ namespace sprawl
 				, m_depth_tracker()
 				, m_current_key()
 				, m_name_index()
-				, m_highest_name(0)
+				, m_highest_name(1)
 				, m_current_map_key()
 				, m_keyindex()
 				, m_serializer(nullptr)
@@ -139,7 +139,7 @@ namespace sprawl
 				this->m_removed.clear();
 				this->m_name_index.clear();
 				this->m_current_map_key.clear();
-				this->m_highest_name = 0;
+				this->m_highest_name = 1;
 				this->m_current_key.clear();
 				this->m_keyindex.clear();
 			}
@@ -148,7 +148,7 @@ namespace sprawl
 
 			void StartArray( const std::string& name, uint32_t& size, bool b ) override
 			{
-				PushKey("__array__");
+				PushKey(name, true);
 				if(IsLoading())
 				{
 					//A little less pleasant than would be ideal...
@@ -432,7 +432,7 @@ namespace sprawl
 				serialize_impl(var, name, PersistToDB);
 			}
 			
-			virtual void PushKey(const std::string& name)
+			virtual void PushKey(const std::string& name, bool forArray = false)
 			{
 				if(!m_serializer->IsBinary() || (!m_current_map_key.empty() && m_current_key == m_current_map_key.back()))
 				{
@@ -451,7 +451,7 @@ namespace sprawl
 				m_current_key.push_back( depth );
 			}
 
-			void PopKey()
+			virtual void PopKey()
 			{
 				m_current_key.pop_back();
 				m_current_key.pop_back();
