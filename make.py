@@ -9,7 +9,7 @@ csbuild.Toolchain("gcc").WarnFlags("all", "extra", "ctor-dtor-privacy", "old-sty
 
 csbuild.NoPrecompile()
 
-@csbuild.project("multiaccess", "multiaccess/src")
+@csbuild.project("multiaccess", "multiaccess")
 def multiaccess():
 	csbuild.Output("libsprawl_multiaccess", csbuild.ProjectType.SharedLibrary)
 
@@ -17,14 +17,14 @@ def multiaccess():
 	csbuild.InstallSubdir("sprawl/multiaccess")
 	csbuild.InstallOutput()
 
-@csbuild.project("multitype", "multitype/src")
+@csbuild.project("multitype", "multitype")
 def multitype():
 	csbuild.Output("libsprawl_multitype", csbuild.ProjectType.SharedLibrary)
 
 	csbuild.InstallSubdir("sprawl/multitype")
 	csbuild.InstallHeaders()
 	
-@csbuild.project("format", "format/src")
+@csbuild.project("format", "format")
 def format():
 	csbuild.Output("libsprawl_format", csbuild.ProjectType.SharedLibrary)
 
@@ -32,7 +32,7 @@ def format():
 	csbuild.InstallSubdir("sprawl/format")
 	csbuild.InstallOutput()
 	
-@csbuild.project("network", "network/src")
+@csbuild.project("network", "network")
 def network():
 	csbuild.Output("libsprawl_network", csbuild.ProjectType.SharedLibrary)
 	
@@ -42,7 +42,7 @@ def network():
 	csbuild.InstallSubdir("sprawl/network")
 	csbuild.InstallOutput()
 	
-@csbuild.project("serialization", "serialization/src")
+@csbuild.project("serialization", "serialization")
 def serialization():
 	csbuild.Output("libsprawl_serialization", csbuild.ProjectType.SharedLibrary)
 
