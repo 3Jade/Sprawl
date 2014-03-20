@@ -1,5 +1,7 @@
 #ifdef _WIN32
 #	define _CRT_SECURE_NO_WARNINGS
+#else
+#	include <string.h>
 #endif
 
 #include "async_network.hpp"
@@ -39,10 +41,39 @@
 	}
 #endif
 
+#ifndef SPRAWL_NETWORK_DEBUG_ERRORS
+#	define SPRAWL_NETWORK_DEBUG_ERRORS 0
+#endif
+
+#ifdef _WIN32
+#	if SPRAWL_NETWORK_DEBUG_ERRORS		
+#		include <WinBase.h>
+#		include <Winsock2.h>
+#	endif
+#endif
+
 namespace sprawl
 {
 	namespace async_network
 	{
+
+#if SPRAWL_NETWORK_DEBUG_ERRORS
+		namespace
+		{
+			static void PrintLastError()
+			{
+#	ifdef _WIN32
+				char buf[512];
+				FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, WSAGetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 512, NULL);
+				fprintf( stderr, "%s\n", buf );
+#	else
+				fprintf( stderr, "%s\n", strerror(errno) );
+#	endif
+			}
+		}
+#	else
+#		define PrintLastError()
+#endif
 		SOCKET Connection::GetDescriptor()
 		{
 			return m_desc;
@@ -119,7 +150,12 @@ namespace sprawl
 
 			for(auto& data : outData)
 			{
-				send(m_desc, data.first.c_str(), (int)data.first.length(), 0);
+				int ret = send(m_desc, data.first.c_str(), (int)data.first.length(), 0);
+				if(ret == -1)
+				{
+					PrintLastError();
+				}
+
 				if(data.second)
 				{
 					data.second();
@@ -140,6 +176,10 @@ namespace sprawl
 			ret = recv(m_desc, pbuf, 32768, 0);
 			if(ret <= 0)
 			{
+				if(ret == -1)
+				{
+					PrintLastError();
+				}
 				return ret;
 			}
 
@@ -264,7 +304,11 @@ namespace sprawl
 			{
 				//Send the packet...
 				std::string content = kvp.second.first.m_header + kvp.second.first.m_content;
-				sendto(m_desc, content.c_str(), (int)content.length(), 0, &m_dest, m_slen);
+				int ret = sendto(m_desc, content.c_str(), (int)content.length(), 0, &m_dest, m_slen);
+				if(ret == -1)
+				{
+					PrintLastError();
+				}
 				if(kvp.second.second)
 				{
 					kvp.second.second();
@@ -296,6 +340,7 @@ namespace sprawl
 			ret = recvfrom(m_desc, buf, 32768, MSG_PEEK, (sockaddr*)&m_src, &m_slen);
 			if(ret == -1)
 			{
+				PrintLastError();
 				return ret;
 			}
 			if(m_lastRcvd.tv_sec == 0 && m_lastRcvd.tv_usec == 0)
@@ -648,8 +693,8 @@ namespace sprawl
 				m_running = false;
 				m_sendNotifier.notify_one();
 				m_sendThread.join();
-				m_recvThread.join();
 				close(m_inSock);
+				m_recvThread.join();
 				m_inSock = -1;
 				freeaddrinfo(m_servInfo);
 
@@ -880,7 +925,7 @@ namespace sprawl
 						auto& connection = m_connections[i];
 						if( FD_ISSET( connection->GetDescriptor(), &m_inSet ) )
 						{
-							if(connection->Recv() == 0)
+							if(connection->Recv() <= 0)
 							{
 								if(m_onClose)
 								{
@@ -1066,13 +1111,14 @@ namespace sprawl
 			{
 				m_running = false;
 				m_sendNotifier.notify_one();
-				if(std::this_thread::get_id() != m_recvThread.get_id())
-				{
-					m_recvThread.join();
-				}
 				if(std::this_thread::get_id() != m_sendThread.get_id())
 				{
 					m_sendThread.join();
+				}
+				close(m_con->GetDescriptor());
+				if(std::this_thread::get_id() != m_recvThread.get_id())
+				{
+					m_recvThread.join();
 				}
 				if(m_onClose)
 				{
@@ -1132,7 +1178,7 @@ namespace sprawl
 
 				if( FD_ISSET( m_sock, &m_inSet ) )
 				{
-					if( m_con->Recv() == 0 && m_connectionType == ConnectionType::TCP )
+					if( m_con->Recv() <= 0 && m_connectionType == ConnectionType::TCP )
 					{
 						Close();
 						return;
