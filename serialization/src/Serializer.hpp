@@ -905,6 +905,22 @@ namespace sprawl
 			virtual std::string GetNextKey(){ return ""; }
 			virtual std::unordered_set<std::string> GetDeletedKeys(const std::string&){ return std::unordered_set<std::string>(); }
 
+			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(float* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(long double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(bool* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual void serialize(std::string* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+
 		protected:
 			virtual SerializerBase* GetAnother(const std::string& /*data*/){ throw std::exception(); return this; }
 			virtual SerializerBase* GetAnother(){ throw std::exception(); return this; }
@@ -999,11 +1015,20 @@ namespace sprawl
 			template<typename T>
 			SerializerBase& operator%(SerializationData<std::shared_ptr<T>>&& var)
 			{
-				if(IsLoading() && !var.val)
+				bool hasValue = (var.val != nullptr);
+				*this % prepare_data(hasValue, var.name+"_exists", var.PersistToDB);
+				if(hasValue)
 				{
-					var.val.reset( new T() );
+					if(IsLoading() && !var.val)
+					{
+						var.val.reset( new T() );
+					}
+					*this % prepare_data(*var.val, var.name, var.PersistToDB);
 				}
-				*this % prepare_data(*var.val, var.name, var.PersistToDB);
+				else if(IsLoading())
+				{
+					var.val.reset();
+				}
 				return *this;
 			}
 
@@ -1018,22 +1043,6 @@ namespace sprawl
 			{
 				serialize(&var, bytes, name, PersistToDB);
 			}
-
-			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(float* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(long double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(bool* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(std::string* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
 
 			//Usually does nothing, but has to be here for mongo serializer to work properly with OIDs.
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);

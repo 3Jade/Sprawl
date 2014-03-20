@@ -361,6 +361,7 @@ namespace sprawl
 				}
 			}
 
+		public:
 			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
@@ -681,6 +682,7 @@ namespace sprawl
 				}
 			}
 
+		protected:
 			YAMLSerializerBase()
 				: SerializerBase()
 				, m_indent(0)
@@ -689,7 +691,6 @@ namespace sprawl
 				, m_bWithMetadata(true)
 			{}
 			virtual ~YAMLSerializerBase() {}
-		protected:
 			static void ParseYAML(const std::string& str, std::deque<std::pair<std::string, std::string>>& ret)
 			{
 				std::string key, value;

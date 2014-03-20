@@ -45,392 +45,18 @@ namespace sprawl
 				m_allArrays.insert(m_current_key);
 			}
 
-			virtual uint32_t StartObject(const std::string &name, bool b)
+			virtual uint32_t StartObject(const std::string &name, bool b) override
 			{
 				uint32_t ret = ReplicableSerializer<MongoSerializer>::StartObject(name, b);
 				m_allObjs.insert(m_current_key);
 				return ret;
 			}
 
-			virtual uint32_t StartMap(const std::string &name, bool b)
+			virtual uint32_t StartMap(const std::string &name, bool b) override
 			{
 				uint32_t ret = ReplicableSerializer<MongoSerializer>::StartMap(name, b);
 				m_allObjs.insert(m_current_key);
 				return ret;
-			}
-
-			std::pair<mongo::BSONObj, mongo::BSONObj> generateUpdateQuery()
-			{
-				mongo::BSONObjBuilder b;
-
-				struct ArrayIndexInfo
-				{
-					ArrayIndexInfo()
-						: parentIndex(nullptr)
-						, key()
-						, parentKey()
-						, hasValidChildren(false)
-						, hasRemovedChildren(false)
-						, removeQuery()
-						, children()
-					{
-						//
-					}
-
-					void SetRemovedChildren()
-					{
-						hasRemovedChildren = true;
-						if(parentIndex)
-						{
-							parentIndex->SetRemovedChildren();
-						}
-					}
-
-					void SetValidChildren()
-					{
-						hasValidChildren = true;
-						if(parentIndex)
-						{
-							parentIndex->SetValidChildren();
-						}
-					}
-
-					ArrayIndexInfo* parentIndex;
-					std::string key;
-					std::string parentKey;
-					bool hasValidChildren;
-					bool hasRemovedChildren;
-					mongo::BSONObjBuilder removeQuery;
-					std::unordered_set<ArrayIndexInfo*> children;
-				};
-
-				ArrayIndexInfo* currentArrayIndex = nullptr;
-				std::list<ArrayIndexInfo> allArrayIndexes;
-				std::unordered_map<std::string, ArrayIndexInfo*> allArrayIndexesByKey;
-				std::unordered_set<ArrayIndexInfo*> rootIndexes;
-
-				auto get_string_key = [
-					this,
-					&currentArrayIndex,
-					&allArrayIndexes,
-					&allArrayIndexesByKey,
-					&rootIndexes
-				] (
-					const std::vector<int16_t>& v,
-					bool removal
-				)
-
-				{
-					currentArrayIndex = nullptr;
-					std::stringstream str;
-					bool array = false;
-					bool printed = false;
-					int currentArray = 0;
-					for(size_t i = 0; i < v.size(); ++i)
-					{
-						bool isCounter = ((i % 2) != 0);
-						if(isCounter && !array)
-						{
-							continue;
-						}
-
-						auto handleArrays = [
-							&allArrayIndexes,
-							&allArrayIndexesByKey,
-							&currentArrayIndex,
-							&rootIndexes
-						](const std::string& key, const std::string& parentKey)
-						{
-							ArrayIndexInfo* parentIndex = currentArrayIndex;
-							auto it = allArrayIndexesByKey.find(key);
-							if(it != allArrayIndexesByKey.end())
-							{
-								currentArrayIndex = it->second;
-							}
-							else
-							{
-								allArrayIndexes.emplace_back();
-								currentArrayIndex = &allArrayIndexes.back();
-								currentArrayIndex->key = key;
-								currentArrayIndex->parentKey = parentKey;
-								allArrayIndexesByKey.insert(std::make_pair(key, currentArrayIndex));
-							}
-
-							if(!parentIndex)
-							{
-								rootIndexes.insert(currentArrayIndex);
-							}
-							else
-							{
-								currentArrayIndex->parentIndex = parentIndex;
-								parentIndex->children.insert(currentArrayIndex);
-							}
-						};
-						
-						if(isCounter)
-						{
-							array = false;
-
-							std::string parentKey = str.str();
-
-							if(printed)
-							{
-								str << ".";
-								printed = false;
-							}
-							str << (v[i] - 1);
-
-							handleArrays(str.str(), parentKey);
-
-							if(removal)
-							{
-								currentArrayIndex->SetRemovedChildren();
-							}
-							else
-							{
-								currentArrayIndex->SetValidChildren();
-							}
-
-							printed = true;
-						}
-						else
-						{
-							int key = v[i];
-							if(key < 0)
-							{
-								key = -key;
-								if(currentArray != key)
-								{
-									if(printed)
-									{
-										str << ".";
-										printed = false;
-									}
-									currentArray = key;
-									std::string& s = this->m_reverse_name_index[key];
-									str << s;
-
-									printed = true;
-									++i;
-								}
-								array = true;
-								continue;
-							}
-
-							std::string parentKey = str.str();
-
-							if(printed)
-							{
-								str << ".";
-								printed = false;
-							}
-
-							if(currentArray != 0)
-							{
-								++i;
-								str << (v[i] - 1);
-								currentArray = 0;
-
-								handleArrays(str.str(), parentKey);
-
-								if(removal)
-								{
-									currentArrayIndex->SetRemovedChildren();
-								}
-								else
-								{
-									currentArrayIndex->SetValidChildren();
-								}
-								array = false;
-							}
-							else
-							{
-								std::string& s = this->m_reverse_name_index[key];
-								str << s;
-							}
-							printed = true;
-						}
-					}
-					return std::move(str.str());
-				};
-
-				mongo::BSONObjBuilder changed;
-				bool changed_something = false;
-
-				//Adds and changes
-				for( auto& kvp : this->m_data )
-				{
-					auto it = this->m_marked_data.find(kvp.first);
-					if( it == this->m_marked_data.end() || kvp.second != it->second )
-					{
-						changed_something = true;
-						changed.appendAs(this->m_objs[kvp.first][this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]], get_string_key(kvp.first, false));
-					}
-				}
-
-				for( auto& key : this->m_allArrays )
-				{
-					if(!this->m_markedArrays.count(key))
-					{
-						changed_something = true;
-						changed.append( get_string_key(key, false), mongo::BSONArray() );
-					}
-				}
-
-				for( auto& key : this->m_allObjs )
-				{
-					if(!this->m_markedObjs.count(key))
-					{
-						changed_something = true;
-						changed.append( get_string_key(key, false), mongo::BSONObj() );
-					}
-				}
-
-				if(changed_something)
-				{
-					b.append("$set", changed.obj());
-				}
-
-				//Removes get their own special treatment
-				mongo::BSONObjBuilder removed;
-				bool removed_from_array = false;
-
-				bool removed_something = false;
-
-				for( auto& key : this->m_allArrays )
-				{
-					//Not what this says it does, but it will implicitly mark children valid.
-					get_string_key(key, false);
-				}
-				for( auto& key : this->m_allObjs )
-				{
-					//Not what this says it does, but it will implicitly mark children valid.
-					get_string_key(key, false);
-				}
-
-				for( auto& kvp : this->m_marked_data )
-				{
-					auto it = this->m_data.find(kvp.first);
-					if( it == this->m_data.end() )
-					{
-						std::string key = get_string_key(kvp.first, true);
-						if(currentArrayIndex)
-						{
-							currentArrayIndex->removeQuery.append(key, "");
-							removed_from_array = true;
-						}
-						else
-						{
-							removed.append(key, "");
-						}
-						removed_something = true;
-					}
-				}
-
-				for( auto& key : this->m_markedArrays )
-				{
-					if(!this->m_allArrays.count(key))
-					{
-						std::string keyStr = get_string_key(key, true);
-						if(currentArrayIndex)
-						{
-							currentArrayIndex->removeQuery.append(keyStr, "");
-							removed_from_array = true;
-						}
-						else
-						{
-							removed.append(keyStr, "");
-						}
-						removed_something = true;
-					}
-				}
-
-				for( auto& key : this->m_markedObjs )
-				{
-					if(!this->m_allObjs.count(key))
-					{
-						std::string keyStr = get_string_key(key, true);
-						if(currentArrayIndex)
-						{
-							currentArrayIndex->removeQuery.append(keyStr, "");
-							removed_from_array = true;
-						}
-						else
-						{
-							removed.append(keyStr, "");
-						}
-						removed_something = true;
-					}
-				}
-
-				struct
-				{
-					mongo::BSONObj operator()(ArrayIndexInfo* index)
-					{
-						if(index->hasValidChildren)
-						{
-							for(ArrayIndexInfo* child : index->children)
-							{
-								index->removeQuery.appendElementsUnique((*this)(child));
-							}
-							return index->removeQuery.obj();
-						}
-						else
-						{
-							return BSON(index->key << "");
-						}
-					}
-				} getRemoveQuery;
-
-				for(ArrayIndexInfo* index : rootIndexes)
-				{
-					if(index->hasRemovedChildren)
-					{
-						removed.appendElementsUnique(getRemoveQuery(index));
-					}
-				}
-
-				if(removed_something)
-				{
-					b.append("$unset", removed.obj());
-				}
-
-				mongo::BSONObjBuilder b2;
-
-				struct
-				{
-					mongo::BSONObj operator()(ArrayIndexInfo* index)
-					{
-						if(index->hasValidChildren)
-						{
-							mongo::BSONObjBuilder removedArrayIndexes;
-							for(ArrayIndexInfo* child : index->children)
-							{
-								removedArrayIndexes.appendElementsUnique((*this)(child));
-							}
-							return removedArrayIndexes.obj();
-						}
-						else
-						{
-							return BSON(index->parentKey << mongo::BSONNULL);
-						}
-					}
-				} getCorrectRemoveIndex;
-
-				if(removed_from_array)
-				{
-					mongo::BSONObjBuilder pulled;
-					for(ArrayIndexInfo* index : rootIndexes)
-					{
-						if(index->hasRemovedChildren)
-						{
-							pulled.appendElementsUnique(getCorrectRemoveIndex(index));
-						}
-					}
-					b2.append("$pull", pulled.obj());
-				}
-				
-				return std::make_pair(b.obj(), b2.obj());
 			}
 
 			mongo::BSONObj getBaselineObj()
@@ -448,7 +74,34 @@ namespace sprawl
 				ReplicableSerializer<MongoSerializer>::Mark();
 				m_markedArrays = std::move( m_allArrays );
 				m_markedObjs = std::move( m_allObjs );
+				m_markedObjData = std::move( m_objData );
+				m_array_tracker.clear();
 			}
+
+			virtual void Reset()
+			{
+				ReplicableSerializer<MongoSerializer>::Reset();
+				m_allArrays.clear();
+				m_markedArrays.clear();
+				m_allObjs.clear();
+				m_markedObjs.clear();
+				m_objData.clear();
+				m_markedObjData.clear();
+				m_array_tracker.clear();
+			}
+
+			std::pair<mongo::BSONObj, mongo::BSONObj> generateUpdateQuery()
+			{
+				BuildDeltaParams params = { m_objData, m_data, m_marked_data, m_allArrays, m_markedArrays, m_allObjs, m_markedObjs };
+				return this->BuildDelta( params );
+			}
+
+			std::pair<mongo::BSONObj, mongo::BSONObj> generateUndoQuery()
+			{
+				BuildDeltaParams params = {m_markedObjData, m_marked_data, m_data, m_markedArrays, m_allArrays, m_markedObjs, m_allObjs};
+				return this->BuildDelta( params );
+			}
+
 		protected:
 			template<typename T2>
 			void serialize_impl( T2* var, const std::string& name, bool PersistToDB)
@@ -457,8 +110,8 @@ namespace sprawl
 				this->PushKey(name);
 
 				(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
-				m_data[m_current_key] = m_serializer->Str();
-				m_objs[m_current_key] = m_serializer->Obj();
+				m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
+				m_objData.insert(std::make_pair(m_current_key, m_serializer->Obj()));
 				if(!m_marked)
 				{
 					(*m_baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
@@ -467,14 +120,15 @@ namespace sprawl
 				this->PopKey();
 			}
 
+		public:
 			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
 
 				m_serializer->serialize(var, name, PersistToDB);
-				m_data[m_current_key] = m_serializer->Str();
-				m_objs[m_current_key] = m_serializer->Obj();
+				m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
+				m_objData.insert(std::make_pair(m_current_key, m_serializer->Obj()));
 				if(!m_marked)
 				{
 					m_baseline->serialize(var, name, PersistToDB);
@@ -489,8 +143,8 @@ namespace sprawl
 				this->PushKey(name);
 
 				m_serializer->serialize(var, name, PersistToDB);
-				m_data[m_current_key] = m_serializer->Str();
-				m_objs[m_current_key] = m_serializer->Obj();
+				m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
+				m_objData.insert(std::make_pair(m_current_key, m_serializer->Obj()));
 				if(!m_marked)
 				{
 					m_baseline->serialize(var, name, PersistToDB);
@@ -505,8 +159,8 @@ namespace sprawl
 				this->PushKey(name);
 
 				m_serializer->serialize(var, name, PersistToDB);
-				m_data[m_current_key] = m_serializer->Str();
-				m_objs[m_current_key] = m_serializer->Obj();
+				m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
+				m_objData.insert(std::make_pair(m_current_key, m_serializer->Obj()));
 				if(!m_marked)
 				{
 					m_baseline->serialize(var, name, PersistToDB);
@@ -589,6 +243,7 @@ namespace sprawl
 				serialize_impl(var, name, PersistToDB);
 			}
 
+		private:
 			virtual void PushKey(const std::string& name, bool forArray = false) override
 			{
 				bool parentIsArray = false;
@@ -596,6 +251,7 @@ namespace sprawl
 				{
 					parentIsArray = true;
 				}
+				//TODO: Remove this ifcheck, it's certainly going to return true.
 				if(!this->m_serializer->IsBinary() || (!this->m_current_map_key.empty() && this->m_current_key == this->m_current_map_key.back()))
 				{
 					if( this->m_name_index.count(name) == 0 )
@@ -617,7 +273,7 @@ namespace sprawl
 				}
 				if(parentIsArray)
 				{
-					int16_t& item = m_array_tracker.back();
+					int32_t& item = m_array_tracker.back();
 					++item;
 					m_current_key.push_back( item );
 				}
@@ -642,17 +298,472 @@ namespace sprawl
 				ReplicableSerializer<MongoSerializer>::PopKey();
 			}
 
-			std::unordered_map<std::vector<int16_t>, mongo::BSONObj, container_hash<int16_t>> m_objs;
+			struct BuildDeltaParams
+			{
+				const std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash>& objs;
+				const std::map<ReplicationKey, std::string>& data;
+				const std::map<ReplicationKey, std::string>& markedData;
+				const std::unordered_set<ReplicationKey, RKeyHash>& allArrays;
+				const std::unordered_set<ReplicationKey, RKeyHash>& markedArrays;
+				const std::unordered_set<ReplicationKey, RKeyHash>& allObjs;
+				const std::unordered_set<ReplicationKey, RKeyHash>& markedObjs;
+			};
+
+			std::pair<mongo::BSONObj, mongo::BSONObj> BuildDelta(const BuildDeltaParams& params)
+			{
+				const std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash>& objs = params.objs;
+				const std::map<ReplicationKey, std::string>& data = params.data;
+				const std::map<ReplicationKey, std::string>& markedData = params.markedData;
+				const std::unordered_set<ReplicationKey, RKeyHash>& allArrays = params.allArrays;
+				const std::unordered_set<ReplicationKey, RKeyHash>& markedArrays = params.markedArrays;
+				const std::unordered_set<ReplicationKey, RKeyHash>& allObjs = params.allObjs;
+				const std::unordered_set<ReplicationKey, RKeyHash>& markedObjs = params.markedObjs;
+
+				mongo::BSONObjBuilder b;
+
+				struct ObjectData
+				{
+					ObjectData()
+						: parentObject(nullptr)
+						, children()
+						, data()
+						, shortKey()
+						, fullKey()
+						, intKey()
+						, isArray(false)
+						, isNew(true)
+						, hasValidChildren(false)
+						, hasRemovedChildren(false)
+						, removeQuery()
+					{
+						//
+					}
+
+					void MarkNotNew()
+					{
+						isNew = false;
+						if(parentObject)
+						{
+							parentObject->MarkNotNew();
+						}
+					}
+
+					void SetRemovedChildren()
+					{
+						hasRemovedChildren = true;
+						if(parentObject)
+						{
+							parentObject->SetRemovedChildren();
+						}
+					}
+
+					void SetValidChildren()
+					{
+						hasValidChildren = true;
+						if(parentObject)
+						{
+							parentObject->SetValidChildren();
+						}
+					}
+
+					mongo::BSONElement BuildData()
+					{
+						if(children.empty())
+						{
+							return data;
+						}
+
+						if(isArray)
+						{
+							mongo::BSONArrayBuilder arrayBuilder;
+							for(auto& kvp : children)
+							{
+								arrayBuilder.append(kvp.second->BuildData());
+							}
+							mongo::BSONObjBuilder objBuilder;
+							objBuilder.append("firstElem", arrayBuilder.arr());
+							objData = objBuilder.obj();
+						}
+						else
+						{
+							mongo::BSONObjBuilder childObjsBuilder;
+							for(auto& kvp : children)
+							{
+								childObjsBuilder.appendAs(kvp.second->BuildData(), kvp.second->shortKey);
+							}
+							mongo::BSONObjBuilder objBuilder;
+							objBuilder.append("firstElem", childObjsBuilder.obj());
+							objData = objBuilder.obj();
+						}
+						return objData.firstElement();
+					}
+
+					ObjectData* parentObject;
+					std::map<ReplicationKey, ObjectData*> children;
+					mongo::BSONElement data;
+					mongo::BSONObj objData;
+					std::string shortKey;
+					std::string fullKey;
+					ReplicationKey intKey;
+					bool isArray;
+					bool isNew;
+					bool hasValidChildren;
+					bool hasRemovedChildren;
+					mongo::BSONObjBuilder removeQuery;
+				};
+
+				std::list<ObjectData> allObjects;
+				std::map<ReplicationKey, ObjectData*> allKeys;
+				ObjectData* currentObject;
+				std::set<ObjectData*> rootObjects;
+
+				auto buildObjectData = [
+					this,
+					&allKeys,
+					&allObjects,
+					&currentObject,
+					&rootObjects
+				] (
+					const ReplicationKey& keyToBuild,
+					bool newObj,
+					bool removal
+				)
+
+				{
+					ReplicationKey currentKey;
+					currentObject = nullptr;
+					uint32_t size = keyToBuild.size();
+					const int32_t* cArray = &keyToBuild[0];
+
+					for(uint32_t i = 1; i < size; i += 2)
+					{
+						currentKey.push_back(cArray[i - 1]);
+						currentKey.push_back(cArray[i]);
+
+						ObjectData* parentObject = currentObject;
+						auto it = allKeys.find(currentKey);
+						if(it != allKeys.end())
+						{
+							currentObject = it->second;
+						}
+						else
+						{
+							allObjects.emplace_back();
+							currentObject = &allObjects.back();
+
+							int key = currentKey[currentKey.size() - 2];
+							if(key < 0)
+							{
+								key = -key;
+								currentObject->isArray = true;
+							}
+
+							if(parentObject)
+							{
+								if(parentObject->isArray)
+								{
+									char buf[16];
+#if _WIN32
+									_snprintf( buf, 16, "%d", currentKey.back() - 1 );
+#else
+									snprintf( buf, 16, "%d", currentKey.back() - 1 );
+#endif
+									currentObject->shortKey = buf;
+								}
+								else
+								{
+									currentObject->shortKey = this->m_reverse_name_index[key];
+								}
+
+								currentObject->fullKey = parentObject->fullKey + "." + currentObject->shortKey;
+
+								parentObject->children.insert(std::make_pair(currentKey, currentObject));
+							}
+							else
+							{
+								currentObject->shortKey = this->m_reverse_name_index[key];
+								currentObject->fullKey = currentObject->shortKey;
+								rootObjects.insert(currentObject);
+							}
+
+							currentObject->parentObject = parentObject;
+							currentObject->intKey = currentKey;
+
+							allKeys.insert(std::make_pair(currentKey, currentObject));
+						}
+
+						if(!newObj)
+						{
+							currentObject->isNew = false;
+						}
+
+						if(removal)
+						{
+							currentObject->SetRemovedChildren();
+						}
+						else
+						{
+							currentObject->SetValidChildren();
+						}
+
+					}
+				};
+
+				bool changed_something = false;
+
+				//Adds and changes
+				for( auto& kvp : data )
+				{
+					auto it = markedData.find(kvp.first);
+					bool isNew = ( it == markedData.end() );
+					if( isNew || kvp.second != it->second )
+					{
+						changed_something = true;
+						mongo::BSONElement obj = objs.at(kvp.first)[this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]];
+						buildObjectData(kvp.first, isNew, false);
+						if(currentObject)
+						{
+							currentObject->data = obj;
+						}
+					}
+				}
+
+				for( auto& key : allArrays )
+				{
+					if(!markedArrays.count(key))
+					{
+						if(!allKeys.count(key))
+						{
+							buildObjectData(key, true, false);
+							if(currentObject)
+							{
+								mongo::BSONObjBuilder b;
+								b.append("firstElement", mongo::BSONArray());
+								currentObject->objData = b.obj();
+								currentObject->data = currentObject->objData.firstElement();
+							}
+							changed_something = true;
+						}
+					}
+					else
+					{
+						auto kvp = allKeys.find(key);
+						if(kvp != allKeys.end())
+						{
+							kvp->second->MarkNotNew();
+						}
+					}
+				}
+
+				for( auto& key : allObjs )
+				{
+					if(!markedObjs.count(key))
+					{
+						if(!allKeys.count(key))
+						{
+							changed_something = true;
+							buildObjectData(key, true, false);
+							if(currentObject)
+							{
+								mongo::BSONObjBuilder b;
+								b.append("firstElement", mongo::BSONObj());
+								currentObject->objData = b.obj();
+								currentObject->data = currentObject->objData.firstElement();
+							}
+						}
+					}
+					else
+					{
+						auto kvp = allKeys.find(key);
+						if(kvp != allKeys.end())
+						{
+							kvp->second->MarkNotNew();
+						}
+					}
+				}
+
+				struct
+				{
+					void operator()(mongo::BSONObjBuilder& b, ObjectData* obj)
+					{
+						if(obj->isNew || obj->children.empty())
+						{
+							b.appendAs(obj->BuildData(), obj->fullKey);
+						}
+						else
+						{
+							for(auto& kvp : obj->children)
+							{
+								(*this)(b, kvp.second);
+							}
+						}
+					}
+				} getAddQuery;
+
+				if(changed_something)
+				{
+					mongo::BSONObjBuilder changed;
+					for(auto obj : rootObjects)
+					{
+						getAddQuery(changed, obj);
+					}
+					b.append("$set", changed.obj());
+				}
+
+				//Removes get their own special treatment
+				mongo::BSONObjBuilder removed;
+				bool removed_something = false;
+
+				for( auto& key : allArrays )
+				{
+					if(!allKeys.count(key))
+					{
+						buildObjectData(key, false, false);
+					}
+				}
+				for( auto& key : allObjs )
+				{
+					if(!allKeys.count(key))
+					{
+						buildObjectData(key, false, false);
+					}
+				}
+
+				for( auto& kvp : markedData )
+				{
+					auto it = data.find(kvp.first);
+					if( it == data.end() )
+					{
+						buildObjectData(kvp.first, false, true);
+						if(currentObject)
+						{
+							currentObject->removeQuery.append(currentObject->fullKey, "");
+						}
+						removed_something = true;
+					}
+				}
+
+				for( auto& key : markedArrays )
+				{
+					if(!allArrays.count(key))
+					{
+						buildObjectData(key, false, true);
+						if(currentObject)
+						{
+							currentObject->removeQuery.append(currentObject->fullKey, "");
+						}
+						removed_something = true;
+					}
+				}
+
+				for( auto& key : markedObjs )
+				{
+					if(!allObjs.count(key))
+					{
+						buildObjectData(key, false, true);
+						if(currentObject)
+						{
+							currentObject->removeQuery.append(currentObject->fullKey, "");
+						}
+						removed_something = true;
+					}
+				}
+
+				struct
+				{
+					mongo::BSONObj operator()(ObjectData* obj)
+					{
+						if(obj->hasValidChildren)
+						{
+							for(auto& kvp : obj->children)
+							{
+								obj->removeQuery.appendElementsUnique((*this)(kvp.second));
+							}
+							return obj->removeQuery.obj();
+						}
+						else
+						{
+							return BSON(obj->fullKey << "");
+						}
+					}
+				} getRemoveQuery;
+
+				if(removed_something)
+				{
+					for(ObjectData* obj : rootObjects)
+					{
+						if(obj->hasRemovedChildren)
+						{
+							removed.appendElementsUnique(getRemoveQuery(obj));
+						}
+					}
+
+					b.append("$unset", removed.obj());
+				}
+
+				mongo::BSONObjBuilder b2;
+
+				struct
+				{
+					mongo::BSONObj operator()(ObjectData* obj, bool& pulled_something)
+					{
+						if(obj->hasValidChildren)
+						{
+							mongo::BSONObjBuilder removedArrayIndexes;
+							for(auto& kvp : obj->children)
+							{
+								removedArrayIndexes.appendElementsUnique((*this)(kvp.second, pulled_something));
+							}
+							return removedArrayIndexes.obj();
+						}
+						else
+						{
+							if(obj->parentObject && obj->parentObject->isArray)
+							{
+								pulled_something = true;
+								return BSON(obj->parentObject->fullKey << mongo::BSONNULL);
+							}
+							else
+							{
+								return mongo::BSONObj();
+							}
+						}
+					}
+				} getCorrectRemoveIndex;
+
+				if(removed_something)
+				{
+					bool pulled_something = false;
+					mongo::BSONObjBuilder pulled;
+					for(ObjectData* obj : rootObjects)
+					{
+						if(obj->hasRemovedChildren)
+						{
+							pulled.appendElementsUnique(getCorrectRemoveIndex(obj, pulled_something));
+						}
+					}
+					if(pulled_something)
+					{
+						b2.append("$pull", pulled.obj());
+					}
+				}
+
+				return std::make_pair(b.obj(), b2.obj());
+			}
+
+			std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash> m_objData;
+			std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash> m_markedObjData;
 			std::unordered_map<int16_t, std::string> m_reverse_name_index;
-			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_allArrays;
-			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_allObjs;
-			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_markedArrays;
-			std::unordered_set<std::vector<int16_t>, container_hash<int16_t>> m_markedObjs;
-			std::vector<int16_t> m_array_tracker;
+			std::unordered_set<ReplicationKey, RKeyHash> m_allArrays;
+			std::unordered_set<ReplicationKey, RKeyHash> m_allObjs;
+			std::unordered_set<ReplicationKey, RKeyHash> m_markedArrays;
+			std::unordered_set<ReplicationKey, RKeyHash> m_markedObjs;
+			ReplicationKey m_array_tracker;
 		};
 
 		class MongoReplicableDeserializer : public ReplicableDeserializer<MongoDeserializer>
 		{
+		public:
 			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
 			{
 				m_serializer->Reset();

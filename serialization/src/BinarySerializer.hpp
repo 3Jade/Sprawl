@@ -193,6 +193,8 @@ namespace sprawl
 
 				m_pos += (uint32_t)bytes;
 			}
+
+		public:
 			virtual void serialize(int* var, const uint32_t bytes, const std::string&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
@@ -277,6 +279,7 @@ namespace sprawl
 					serialize_impl(const_cast<char*>(var->c_str()), bytes, PersistToDB);
 				}
 			}
+		protected:
 
 			BinarySerializerBase()
 				: SerializerBase()

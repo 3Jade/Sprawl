@@ -29,6 +29,10 @@
 	#pragma warning( disable: 4250 )
 #endif
 
+#ifndef SPRAWL_REPLICABLE_MAX_DEPTH
+#		define SPRAWL_REPLICABLE_MAX_DEPTH 64
+#endif
+
 #include "Serializer.hpp"
 #include <map>
 
@@ -36,59 +40,160 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		template <typename T> // we can make this generic for any container [1]
-		struct container_hash
+		class ReplicationKey
 		{
-			std::size_t operator()(const std::vector<T> & c) const
+		public:
+			ReplicationKey()
+				: m_size(0)
+				, m_data()
+			{
+				//
+			}
+
+			ReplicationKey( const ReplicationKey& other )
+				: m_size(other.m_size)
+			{
+				memcpy( m_data, other.m_data, sizeof(int32_t) * other.m_size );
+			}
+
+			uint32_t size() const
+			{
+				return m_size;
+			}
+
+			int32_t& operator[](const uint32_t index)
+			{
+				return m_data[index];
+			}
+
+			const int32_t& operator[](const uint32_t index) const
+			{
+				return m_data[index];
+			}
+
+			void push_back(const int32_t val)
+			{
+				if(m_size == SPRAWL_REPLICABLE_MAX_DEPTH)
+				{
+					throw ex_serializer_overflow();
+				}
+				m_data[m_size++] = val;
+			}
+
+			void pop_back()
+			{
+				--m_size;
+			}
+
+			int32_t& front()
+			{
+				return m_data[0];
+			}
+
+			int32_t& back()
+			{
+				return m_data[m_size - 1];
+			}
+
+			const int32_t& front() const
+			{
+				return m_data[0];
+			}
+
+			const int32_t& back() const
+			{
+				return m_data[m_size - 1];
+			}
+
+			bool empty() const
+			{
+				return (m_size == 0);
+			}
+
+			bool operator==( const ReplicationKey& other ) const
+			{
+				if( m_size != other.m_size )
+				{
+					return false;
+				}
+				return (memcmp( m_data, other.m_data, sizeof(int32_t) * m_size ) == 0);
+			}
+
+			bool operator<( const ReplicationKey& other ) const
+			{
+				uint32_t size = (m_size < other.m_size ? m_size : other.m_size);
+				
+				for(uint32_t i = 0; i < size; ++i)
+				{
+					if( m_data[i] == other.m_data[i] )
+						continue;
+
+					return abs(m_data[i]) < abs(other.m_data[i]);
+
+				}
+
+				return m_size < other.m_size;
+			}
+
+			void clear()
+			{
+				m_size = 0;
+			}
+
+			void Serialize(SerializerBase& s)
+			{
+				if(s.IsBinary())
+				{
+					s % prepare_data(m_size, "size", true);
+				}
+				s.StartArray("ReplicationKey", m_size, true);
+				if(s.IsBinary())
+				{
+					s.serialize(m_data, m_size * sizeof(int32_t), "data", true);
+				}
+				else
+				{
+					for(uint32_t i=0; i<m_size; ++i)
+					{
+						s % prepare_data(m_data[i], "data");
+					}
+				}
+				s.EndArray();
+			}
+
+		private:
+			uint32_t m_size;
+			int32_t m_data[SPRAWL_REPLICABLE_MAX_DEPTH];
+		};
+
+		struct RKeyHash
+		{
+			std::size_t operator()(const ReplicationKey& key) const
 			{
 				std::size_t ret = 0;
-				for(auto& item : c)
+				uint32_t size = key.size();
+				const int32_t* array = &key[0];
+
+				for(uint32_t i = 0; i < size; ++i)
 				{
 					//Pulled from boost::hash_combine, placed here directly to avoid dependency on boost.
-					ret ^= std::hash<T>()(item) + 0x9e3779b9 + (ret << 6) + (ret >> 2);
+					ret ^= std::hash<int32_t>()(array[i]) + 0x9e3779b9 + (ret << 6) + (ret >> 2);
 				}
 				return ret;
 			}
 		};
 
-		template <typename Container>
-		struct container_comp
+		bool StartsWith(const ReplicationKey& x, const ReplicationKey& y)
 		{
-			bool operator()(const std::vector<Container> & x, const std::vector<Container> & y) const
-			{
-				size_t xsize = x.size();
-				size_t ysize = y.size();
-				for(size_t i = 0; i < std::min(xsize, ysize); i++)
-				{
-					if(x[i] < y[i])
-					{
-						return true;
-					}
-					if(y[i] < x[i])
-					{
-						return false;
-					}
-				}
-
-				if(xsize < ysize)
-				{
-					return true;
-				}
-
-				return false;
-			}
-		};
-
-		template <typename Container>
-		bool StartsWith(const std::vector<Container> & x, const std::vector<Container> & y)
-		{
-			size_t xsize = x.size();
-			size_t ysize = y.size();
+			uint32_t xsize = x.size();
+			uint32_t ysize = y.size();
 			if(xsize < ysize)
 				return false;
-			for(size_t i = 0; i < ysize; i++)
+			const int32_t* xArr = &x[0];
+			const int32_t* yArr = &y[0];
+			for(uint32_t i = 0; i < ysize; i++)
 			{
-				if(x[i] != y[i])
+				if(xArr[i] != yArr[i])
 					return false;
 			}
 			return true;
@@ -153,7 +258,7 @@ namespace sprawl
 				{
 					//A little less pleasant than would be ideal...
 					//Go through the list of unconsumed keys to determine the size of the array post-merge.
-					std::set<std::vector<int16_t>>::iterator it;
+					std::set<ReplicationKey>::iterator it;
 					bool shrunk = false;
 					for(size_t i=0; i<size; i++)
 					{
@@ -184,7 +289,7 @@ namespace sprawl
 						m_current_key.pop_back();
 						m_current_key.pop_back();
 					}
-					std::map<std::vector<int16_t>, std::string>::iterator it2;
+					std::map<ReplicationKey, std::string>::iterator it2;
 					for(;;)
 					{
 						if(!m_serializer->IsBinary())
@@ -349,7 +454,7 @@ namespace sprawl
 				else
 				{
 					(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
-					m_data[m_current_key] = m_serializer->Str();
+					m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
 					if(!m_marked)
 					{
 						(*m_baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
@@ -358,6 +463,7 @@ namespace sprawl
 				PopKey();
 			}
 
+		public:
 			virtual void serialize(int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
@@ -431,7 +537,8 @@ namespace sprawl
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			
+
+		protected:
 			virtual void PushKey(const std::string& name, bool forArray = false)
 			{
 				if(!m_serializer->IsBinary() || (!m_current_map_key.empty() && m_current_key == m_current_map_key.back()))
@@ -464,15 +571,15 @@ namespace sprawl
 				m_current_key.push_back(-1);
 			}
 
-			std::map<std::vector<int16_t>, std::string, container_comp<int16_t>> m_data;
-			std::map<std::vector<int16_t>, std::string, container_comp<int16_t>> m_diffs;
-			std::set<std::vector<int16_t>, container_comp<int16_t>> m_removed;
-			std::unordered_map<std::vector<int16_t>, int16_t, container_hash<int16_t>> m_depth_tracker;
-			std::vector<int16_t> m_current_key;
-			std::unordered_map<std::string, int16_t> m_name_index;
-			int16_t m_highest_name;
-			std::vector<std::vector<int16_t>> m_current_map_key;
-			std::unordered_map<int16_t, std::string> m_keyindex;
+			std::map<ReplicationKey, std::string> m_data;
+			std::map<ReplicationKey, std::string> m_diffs;
+			std::set<ReplicationKey> m_removed;
+			std::unordered_map<ReplicationKey, int16_t, RKeyHash> m_depth_tracker;
+			ReplicationKey m_current_key;
+			std::unordered_map<std::string, int32_t> m_name_index;
+			int32_t m_highest_name;
+			std::vector<ReplicationKey> m_current_map_key;
+			std::unordered_map<int32_t, std::string> m_keyindex;
 			T* m_serializer;
 			T* m_baseline;
 			bool m_marked;
@@ -546,15 +653,38 @@ namespace sprawl
 
 			std::string diff()
 			{
+				return GetDiff( this->m_data, this->m_marked_data );
+			}
+
+			std::string rdiff()
+			{
+				return GetDiff( this->m_marked_data, this->m_data );
+			}
+
+			std::string getBaselineStr()
+			{
+				return this->m_baseline->Str();
+			}
+
+		protected:
+			std::string GetDiff(
+				const std::map<ReplicationKey, std::string>& data,
+				const std::map<ReplicationKey, std::string>& markedData
+			)
+			{
 				//Meat and potatoes of this replication system: Go through all of our keys and determine if they've changed since the last time we serialized data.
 				//Ignore what hasn't, return what has.
-				std::unordered_set<int16_t> used_indices;
+				std::unordered_set<int32_t> used_indices;
+
+				this->m_diffs.clear();
+				this->m_removed.clear();
+				this->m_keyindex.clear();
 
 				//Adds and changes
-				for( auto& kvp : this->m_data )
+				for( auto& kvp : data )
 				{
-					auto it = this->m_marked_data.find(kvp.first);
-					if( it == this->m_marked_data.end() || kvp.second != it->second )
+					auto it = markedData.find(kvp.first);
+					if( it == markedData.end() || kvp.second != it->second )
 					{
 						this->m_diffs.insert(kvp);
 						for(size_t idx = 0; idx < kvp.first.size(); idx += 2)
@@ -568,10 +698,10 @@ namespace sprawl
 				}
 
 				//Removes get their own special treatment
-				for( auto& kvp : this->m_marked_data )
+				for( auto& kvp : markedData )
 				{
-					auto it = this->m_data.find(kvp.first);
-					if( it == this->m_data.end() )
+					auto it = data.find(kvp.first);
+					if( it == data.end() )
 					{
 						this->m_removed.insert(kvp.first);
 						for(size_t idx = 0; idx < kvp.first.size(); idx += 2)
@@ -598,13 +728,7 @@ namespace sprawl
 				return serializer.Str();
 			}
 
-			std::string getBaselineStr()
-			{
-				return this->m_baseline->Str();
-			}
-
-		protected:
-			std::map<std::vector<int16_t>, std::string, container_comp<int16_t>> m_marked_data;
+			std::map<ReplicationKey, std::string> m_marked_data;
 		};
 
 		template<typename T>

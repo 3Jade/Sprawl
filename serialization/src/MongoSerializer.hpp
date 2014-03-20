@@ -253,6 +253,7 @@ namespace sprawl
 
 			friend class MongoReplicableDeserializer;
 			friend class MongoReplicableSerializer;
+		public:
 			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
 			{
 				if(!PersistToDB || m_disableDepth)
@@ -1720,6 +1721,8 @@ namespace sprawl
 				return "";
 			}
 
+		protected:
+
 			MongoSerializerBase()
 				: SerializerBase()
 				, m_disableDepth(0)
@@ -1749,7 +1752,6 @@ namespace sprawl
 				delete m_builder;
 			}
 
-		protected:
 			int m_disableDepth;
 			enum class State { None, Array, Object };
 			mongo::BSONObj m_obj;
