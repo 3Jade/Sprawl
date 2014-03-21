@@ -1,6 +1,7 @@
-.jmake/*
+.csbuild/*
 *.pyc
-*/.jmake/*
+*/Debug/
+*/Release/
 */*.pyc
 *.o
 */*.o
@@ -8,3 +9,4 @@
 *.so
 */*.so
 */*/*.so
+Solutions/
