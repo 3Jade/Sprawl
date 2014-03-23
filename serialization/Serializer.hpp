@@ -35,6 +35,9 @@
 #include <type_traits>
 #include <memory>
 #include <sstream>
+#include "../string/String.hpp"
+#include "../memory/PoolAllocator.hpp"
+#include "../memory/StlWrapper.hpp"
 
 namespace mongo {
 	class OID;
@@ -74,13 +77,13 @@ namespace sprawl
 		class SerializationData
 		{
 		public:
-			explicit SerializationData(T& a, const std::string& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
+			explicit SerializationData(T& a, const sprawl::String& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
 			{}
-			explicit SerializationData(T&& a, const std::string& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
+			explicit SerializationData(T&& a, const sprawl::String& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
 			{}
 			T& operator*(){ return val; }
 			T& val;
-			std::string name;
+			sprawl::String name;
 			bool PersistToDB;
 		private:
 			SerializationData<T> operator=(SerializationData<T>& other);
@@ -89,7 +92,7 @@ namespace sprawl
 		class BinaryData
 		{
 		public:
-			explicit BinaryData(char* data, uint32_t dataLength, const std::string& b = "noname", bool c=true)
+			explicit BinaryData(char* data, uint32_t dataLength, const sprawl::String& b = "noname", bool c=true)
 				: val(data)
 				, size(dataLength)
 				, name(b)
@@ -98,25 +101,25 @@ namespace sprawl
 			const char* operator*(){ return val; }
 			char* val;
 			uint32_t size;
-			std::string name;
+			sprawl::String name;
 			bool PersistToDB;
 		private:
 			BinaryData operator=(BinaryData& other);
 		};
 
-		inline BinaryData prepare_data(char* val, uint32_t dataLength, const std::string& name = "noname", bool persist=true)
+		inline BinaryData prepare_data(char* val, uint32_t dataLength, const sprawl::String& name = "noname", bool persist=true)
 		{
 			return BinaryData(val, dataLength, name, persist);
 		}
 
 		template<typename T>
-		inline SerializationData<T> prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_enum<T>::value>::type* = 0)
+		inline SerializationData<T> prepare_data(T& val, const sprawl::String& name = "noname", bool persist=true, typename std::enable_if<!std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<T>(val, name, persist);
 		}
 
 		template<typename T>
-		inline SerializationData<T> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<!std::is_enum<T>::value>::type* = 0)
+		inline SerializationData<T> prepare_data(T&& val, const sprawl::String& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<!std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<T>(val, name, persist);
 		}
@@ -134,25 +137,26 @@ namespace sprawl
 		};
 
 		template<typename T>
-		inline SerializationData<typename UnderlyingTypeHelper<T>::type> prepare_data(T& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
+		inline SerializationData<typename UnderlyingTypeHelper<T>::type> prepare_data(T& val, const sprawl::String& name = "noname", bool persist=true, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&)(val), name, persist);
 		}
 
 		template<typename T>
-		inline SerializationData<typename UnderlyingTypeHelper<T>::type> prepare_data(T&& val, const std::string& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
+		inline SerializationData<typename UnderlyingTypeHelper<T>::type> prepare_data(T&& val, const sprawl::String& name = "noname", bool persist=true, typename std::enable_if<!std::is_reference<T>::value>::type* = 0, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
 		{
 			return SerializationData<typename std::underlying_type<T>::type>((typename std::underlying_type<T>::type&&)(val), name, persist);
 		}
 
-		#define NAME_PROPERTY(var) sprawl::serialization::prepare_data(var, #var)
-		#define TRANSIENT_NAME_PROPERTY(var) sprawl::serialization::prepare_data(var, #var, false)
-		#define BINARY_NAME_PROPERTY(var, length) sprawl::serialization::prepare_data(var, length, #var, true)
-		#define TRANSIENT_BINARY_NAME_PROPERTY(var, length) sprawl::serialization::prepare_data(var, length, #var, false)
+		#define NAME_PROPERTY(var) sprawl::serialization::prepare_data(var, sprawl::StringLiteral(#var))
+		#define TRANSIENT_NAME_PROPERTY(var) sprawl::serialization::prepare_data(var, sprawl::StringLiteral(#var), false)
+		#define BINARY_NAME_PROPERTY(var, length) sprawl::serialization::prepare_data(var, length, sprawl::StringLiteral(#var), true)
+		#define TRANSIENT_BINARY_NAME_PROPERTY(var, length) sprawl::serialization::prepare_data(var, length, sprawl::StringLiteral(#var), false)
 
 		class SerializerBase
 		{
 		public:
+			typedef std::unordered_set<sprawl::String, std::hash<sprawl::String>, std::equal_to<sprawl::String>, sprawl::memory::StlWrapper<sprawl::String>> StringSet;
 			virtual bool IsLoading() = 0;
 			bool IsSaving() { return !IsLoading(); }
 			virtual bool IsBinary() { return false; }
@@ -186,7 +190,7 @@ namespace sprawl
 				uint32_t len = (uint32_t)strlen(reinterpret_cast<char*>(var.val));
 				if(IsBinary())
 				{
-					*this % prepare_data(len, var.name+"_length", false);
+					*this % prepare_data(len, var.name, false);
 				}
 				serialize(var.val, len, var.name, var.PersistToDB);
 				return *this;
@@ -258,7 +262,7 @@ namespace sprawl
 				uint32_t len = (uint32_t)strlen(var.val);
 				if(IsBinary())
 				{
-					*this % prepare_data(len, var.name+"_length", false);
+					*this % prepare_data(len, var.name, false);
 				}
 				serialize(var.val, len, var.name, var.PersistToDB);
 				return *this;
@@ -388,11 +392,23 @@ namespace sprawl
 				uint32_t len = (uint32_t)var.val.length();
 				if(IsBinary())
 				{
-					*this % prepare_data(len, var.name+"_length", false);
+					*this % prepare_data(len, var.name, false);
 				}
 				serialize(&var.val, len, var.name, var.PersistToDB);
 				return *this;
 			}
+
+			SerializerBase& operator%(SerializationData<sprawl::String>&& var)
+			{
+				uint32_t len = (uint32_t)var.val.length();
+				if(IsBinary())
+				{
+					*this % prepare_data(len, var.name, false);
+				}
+				serialize(&var.val, len, var.name, var.PersistToDB);
+				return *this;
+			}
+
 
 		private:
 			//Optimized vector implementations for simple types
@@ -483,11 +499,11 @@ namespace sprawl
 				{
 					if(IsReplicable())
 					{
-						std::unordered_set<std::string> deleted_keys = GetDeletedKeys(var.name);
+						StringSet deleted_keys = GetDeletedKeys(var.name);
 						for(auto& key : deleted_keys)
 						{
 							key_type k;
-							this->OneOff(const_cast<std::string&>(key), k);
+							this->OneOff(const_cast<sprawl::String&>(key), k);
 							var.val.erase(k);
 						}
 					}
@@ -519,7 +535,7 @@ namespace sprawl
 						}
 						else
 						{
-							std::string key = GetNextKey();
+							sprawl::String key = GetNextKey();
 							this->OneOff(key, k);
 							(*this) % prepare_data(v, key, var.PersistToDB);
 							var.val[k] = v;
@@ -537,7 +553,7 @@ namespace sprawl
 						}
 						else
 						{
-							std::string s;
+							sprawl::String s;
 							key_type k = kvp.first;
 							this->OneOff(s, k);
 							(*this) % prepare_data(kvp.second, s, var.PersistToDB);
@@ -548,18 +564,18 @@ namespace sprawl
 				return *this;
 			}
 
-			template<typename key_type, typename val_type, typename comp, typename alloc>
-			SerializerBase& operator%(SerializationData<std::unordered_map<key_type, val_type, comp, alloc>>&& var)
+			template<typename key_type, typename val_type, typename hash, typename eq, typename alloc>
+			SerializerBase& operator%(SerializationData<std::unordered_map<key_type, val_type, hash, eq, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
 					if(IsReplicable())
 					{
-						std::unordered_set<std::string> deleted_keys = GetDeletedKeys(var.name);
+						StringSet deleted_keys = GetDeletedKeys(var.name);
 						for(auto& key : deleted_keys)
 						{
 							key_type k;
-							this->OneOff(const_cast<std::string&>(key), k);
+							this->OneOff(const_cast<sprawl::String&>(key), k);
 							var.val.erase(k);
 						}
 					}
@@ -591,7 +607,7 @@ namespace sprawl
 						}
 						else
 						{
-							std::string key = GetNextKey();
+							sprawl::String key = GetNextKey();
 							this->OneOff(key, k);
 							(*this) % prepare_data(v, key, var.PersistToDB);
 							var.val[k] = v;
@@ -609,7 +625,7 @@ namespace sprawl
 						}
 						else
 						{
-							std::string s;
+							sprawl::String s;
 							key_type k = kvp.first;
 							this->OneOff(s, k);
 							(*this) % prepare_data(kvp.second, s, var.PersistToDB);
@@ -634,7 +650,7 @@ namespace sprawl
 					}
 					else
 					{
-						std::string key = GetNextKey();
+						sprawl::String key = GetNextKey();
 						this->OneOff(key, k);
 						(*this) % prepare_data(v, key, var.PersistToDB);
 						var.val = std::make_pair(k, v);
@@ -649,7 +665,7 @@ namespace sprawl
 					}
 					else
 					{
-						std::string s;
+						sprawl::String s;
 						key_type k = var.val.first;
 						this->OneOff(s, k);
 						(*this) % prepare_data(var.val.second, s, var.PersistToDB);
@@ -658,17 +674,17 @@ namespace sprawl
 				return *this;
 			}
 
-			template<typename val_type>
-			SerializerBase& operator%(SerializationData<std::map<std::string, val_type>>&& var)
+			template<typename val_type, typename comp, typename alloc>
+			SerializerBase& operator%(SerializationData<std::map<std::string, val_type, comp, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
 					if(IsReplicable())
 					{
-						std::unordered_set<std::string> deleted_keys = GetDeletedKeys(var.name);
+						StringSet deleted_keys = GetDeletedKeys(var.name);
 						for(auto& key : deleted_keys)
 						{
-							var.val.erase(key);
+							var.val.erase(key.toStdString());
 						}
 					}
 					else
@@ -699,9 +715,142 @@ namespace sprawl
 						}
 						else
 						{
-							std::string key = GetNextKey();
+							sprawl::String key = GetNextKey();
 							(*this) % prepare_data(v, key, var.PersistToDB);
-							var.val[key] = v;
+							var.val[key.toStdString()] = v;
+						}
+					}
+				}
+				else
+				{
+					for(auto& kvp : var.val)
+					{
+						if(IsBinary())
+						{
+							std::string name = kvp.first;
+							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+						}
+						else
+						{
+							(*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB);
+						}
+					}
+				}
+				EndMap();
+				return *this;
+			}
+
+			template<typename val_type, typename comp, typename alloc>
+			SerializerBase& operator%(SerializationData<std::map<sprawl::String, val_type, comp, alloc>>&& var)
+			{
+				if(IsLoading())
+				{
+					if(IsReplicable())
+					{
+						StringSet deleted_keys = GetDeletedKeys(var.name);
+						for(auto& key : deleted_keys)
+						{
+							var.val.erase(key.toStdString());
+						}
+					}
+					else
+					{
+						var.val.clear();
+					}
+				}
+				uint32_t size = (uint32_t)var.val.size();
+				if(IsBinary())
+				{
+					(*this) % prepare_data(size, var.name, false);
+				}
+				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
+				if(IsLoading())
+				{
+					if(!IsBinary())
+					{
+						size = calcedSize;
+					}
+					for(uint32_t i=0; i<size; i++)
+					{
+						sprawl::String k;
+						val_type v;
+						if(IsBinary())
+						{
+							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							var.val[k] = v;
+						}
+						else
+						{
+							sprawl::String key = GetNextKey();
+							(*this) % prepare_data(v, key, var.PersistToDB);
+							var.val[key.toStdString()] = v;
+						}
+					}
+				}
+				else
+				{
+					for(auto& kvp : var.val)
+					{
+						if(IsBinary())
+						{
+							sprawl::String name = kvp.first;
+							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+						}
+						else
+						{
+							(*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB);
+						}
+					}
+				}
+				EndMap();
+				return *this;
+			}
+
+			//Specialization for performance.
+			template<typename val_type, typename hash, typename eq, typename alloc>
+			SerializerBase& operator%(SerializationData<std::unordered_map<std::string, val_type, hash, eq, alloc>>&& var)
+			{
+				if(IsLoading())
+				{
+					if(IsReplicable())
+					{
+						StringSet deleted_keys = GetDeletedKeys(var.name);
+						for(auto& key : deleted_keys)
+						{
+							var.val.erase(key.toStdString());
+						}
+					}
+					else
+					{
+						var.val.clear();
+					}
+				}
+				uint32_t size = (uint32_t)var.val.size();
+				if(IsBinary())
+				{
+					(*this) % prepare_data(size, var.name, false);
+				}
+				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
+				if(IsLoading())
+				{
+					if(!IsBinary())
+					{
+						size = calcedSize;
+					}
+					for(uint32_t i=0; i<size; i++)
+					{
+						std::string k;
+						val_type v;
+						if(IsBinary())
+						{
+							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							var.val[k] = v;
+						}
+						else
+						{
+							sprawl::String key = GetNextKey();
+							(*this) % prepare_data(v, key, var.PersistToDB);
+							var.val[key.toStdString()] = v;
 						}
 					}
 				}
@@ -725,17 +874,17 @@ namespace sprawl
 			}
 
 			//Specialization for performance.
-			template<typename val_type>
-			SerializerBase& operator%(SerializationData<std::unordered_map<std::string, val_type>>&& var)
+			template<typename val_type, typename hash, typename eq, typename alloc>
+			SerializerBase& operator%(SerializationData<std::unordered_map<sprawl::String, val_type, hash, eq, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
 					if(IsReplicable())
 					{
-						std::unordered_set<std::string> deleted_keys = GetDeletedKeys(var.name);
+						StringSet deleted_keys = GetDeletedKeys(var.name);
 						for(auto& key : deleted_keys)
 						{
-							var.val.erase(key);
+							var.val.erase(key.toStdString());
 						}
 					}
 					else
@@ -757,7 +906,7 @@ namespace sprawl
 					}
 					for(uint32_t i=0; i<size; i++)
 					{
-						std::string k;
+						sprawl::String k;
 						val_type v;
 						if(IsBinary())
 						{
@@ -766,9 +915,9 @@ namespace sprawl
 						}
 						else
 						{
-							std::string key = GetNextKey();
+							sprawl::String key = GetNextKey();
 							(*this) % prepare_data(v, key, var.PersistToDB);
-							var.val[key] = v;
+							var.val[key.toStdString()] = v;
 						}
 					}
 				}
@@ -778,7 +927,7 @@ namespace sprawl
 					{
 						if(IsBinary())
 						{
-							std::string name = kvp.first;
+							sprawl::String name = kvp.first;
 							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
 						}
 						else
@@ -805,7 +954,7 @@ namespace sprawl
 					}
 					else
 					{
-						std::string key = GetNextKey();
+						sprawl::String key = GetNextKey();
 						(*this) % prepare_data(v, key, var.PersistToDB);
 						var.val = std::make_pair(k, v);
 					}
@@ -815,6 +964,40 @@ namespace sprawl
 					if(IsBinary())
 					{
 						std::string name = var.val.first;
+						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
+					}
+					else
+					{
+						(*this) % prepare_data(var.val.second, var.val.first, var.PersistToDB);
+					}
+				}
+				return *this;
+			}
+
+			template<typename val_type>
+			SerializerBase& operator%(SerializationData<std::pair<sprawl::String, val_type>>&& var)
+			{
+				if(IsLoading())
+				{
+					sprawl::String k;
+					val_type v;
+					if(IsBinary())
+					{
+						(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+						var.val = std::make_pair(k, v);
+					}
+					else
+					{
+						sprawl::String key = GetNextKey();
+						(*this) % prepare_data(v, key, var.PersistToDB);
+						var.val = std::make_pair(k, v);
+					}
+				}
+				else
+				{
+					if(IsBinary())
+					{
+						sprawl::String name = var.val.first;
 						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
 					}
 					else
@@ -896,38 +1079,40 @@ namespace sprawl
 			virtual SerializerBase& operator%(SerializationData<class YAMLDeserializer> &&){ throw std::exception(); return *this; }
 			virtual SerializerBase& operator%(SerializationData<class MongoSerializer> &&){ throw std::exception(); return *this; }
 			virtual SerializerBase& operator%(SerializationData<class MongoDeserializer> &&){ throw std::exception(); return *this; }
-			virtual void StartArray(const std::string& , uint32_t&, bool = true){}
+			virtual void StartArray(const sprawl::String& , uint32_t&, bool = true){}
 			virtual void EndArray(){}
-			virtual uint32_t StartObject(const std::string& , bool = true){ return 0; }
+			virtual uint32_t StartObject(const sprawl::String& , bool = true){ return 0; }
 			virtual void EndObject(){}
-			virtual uint32_t StartMap(const std::string& s, bool b = true){ return StartObject(s, b); }
+			virtual uint32_t StartMap(const sprawl::String& s, bool b = true){ return StartObject(s, b); }
 			virtual void EndMap(){ EndObject(); }
-			virtual std::string GetNextKey(){ return ""; }
-			virtual std::unordered_set<std::string> GetDeletedKeys(const std::string&){ return std::unordered_set<std::string>(); }
+			virtual sprawl::String GetNextKey(){ return ""; }
 
-			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(float* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(long double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(bool* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
-			virtual void serialize(std::string* var, const uint32_t bytes, const std::string& name, bool PersistToDB) = 0;
+			virtual StringSet GetDeletedKeys(const sprawl::String&){ return StringSet(); }
+
+			virtual void serialize(int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(float* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(long double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(bool* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(unsigned char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(std::string* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
+			virtual void serialize(sprawl::String* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) = 0;
 
 		protected:
-			virtual SerializerBase* GetAnother(const std::string& /*data*/){ throw std::exception(); return this; }
+			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/){ throw std::exception(); return this; }
 			virtual SerializerBase* GetAnother(){ throw std::exception(); return this; }
 #ifdef _WIN32
 #pragma warning(pop)
 #endif
-
+			///TODO sprawl::string
 			template<typename T>
 			std::string to_string( T& val, std::true_type)
 			{
@@ -939,13 +1124,13 @@ namespace sprawl
 			{
 				SerializerBase* s = this->GetAnother();
 				*s % prepare_data( val, "key", false );
-				std::string data = s->Str();
+				sprawl::String data = s->Str();
 				delete s;
-				return std::move(data);
+				return data.toStdString();
 			}
 
 			template<typename T>
-			void get_from_string( const std::string& data, T& val, std::false_type )
+			void get_from_string( const sprawl::String& data, T& val, std::false_type )
 			{
 				SerializerBase* d = this->GetAnother(data);
 				*d % prepare_data( val, "key", false );
@@ -953,14 +1138,15 @@ namespace sprawl
 			}
 
 			template<typename T>
-			void get_from_string( const std::string& data, T& val, std::true_type )
+			void get_from_string( const sprawl::String& data, T& val, std::true_type )
 			{
-				std::stringstream s(data);
+				///TODO: Get rid of std::stringstream here
+				std::stringstream s(data.toStdString());
 				s >> val;
 			}
 
 			template<typename T>
-			void OneOff( std::string& data, T& val )
+			void OneOff( sprawl::String& data, T& val )
 			{
 				if(IsLoading())
 				{
@@ -1033,13 +1219,13 @@ namespace sprawl
 			}
 
 			virtual const char* Data() = 0;
-			virtual void Data(const std::string&){}
-			virtual std::string Str() = 0;
+			virtual void Data(const sprawl::String&){}
+			virtual sprawl::String Str() = 0;
 			virtual ~SerializerBase(){}
 		protected:
 
 			template<typename T>
-			void serialize(T& var, const uint32_t bytes, const std::string& name, bool PersistToDB)
+			void serialize(T& var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB)
 			{
 				serialize(&var, bytes, name, PersistToDB);
 			}
@@ -1048,9 +1234,9 @@ namespace sprawl
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::BSONObj>&& var);
 			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::Date_t>&& var);
-			virtual void serialize(mongo::OID* /*var*/, const std::string& /*name*/, bool /*PersistToDB*/) {}
-			virtual void serialize(mongo::BSONObj* /*var*/, const std::string& /*name*/, bool /*PersistToDB*/) {}
-			virtual void serialize(mongo::Date_t* /*var*/, const std::string& /*name*/, bool /*PersistToDB*/) {}
+			virtual void serialize(mongo::OID* /*var*/, const sprawl::String& /*name*/, bool /*PersistToDB*/) {}
+			virtual void serialize(mongo::BSONObj* /*var*/, const sprawl::String& /*name*/, bool /*PersistToDB*/) {}
+			virtual void serialize(mongo::Date_t* /*var*/, const sprawl::String& /*name*/, bool /*PersistToDB*/) {}
 
 			SerializerBase() {}
 		private:
@@ -1099,7 +1285,7 @@ namespace sprawl
 		public:
 			using SerializerBase::operator%;
 			using SerializerBase::Data;
-			virtual void Data(const std::string& str) = 0;
+			virtual void Data(const sprawl::String& str) = 0;
 			virtual void Data(const char* data, size_t length) = 0;
 			virtual ~Deserializer(){}
 			virtual bool IsLoading() override { return true; }

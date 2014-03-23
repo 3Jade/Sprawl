@@ -117,7 +117,7 @@ namespace sprawl
 					return m_length;
 				}
 
-				char const* const Data() const
+				char const* Data() const
 				{
 					return m_data;
 				}
@@ -382,6 +382,11 @@ namespace sprawl
 					{
 						return m_arrayChildren.size();
 					}
+					case JSONType::Boolean:
+					case JSONType::Double:
+					case JSONType::Integer:
+					case JSONType::String:
+					case JSONType::Unknown:
 					default:
 					{
 						return 1;
@@ -1015,7 +1020,7 @@ namespace sprawl
 			virtual void Reset() override { }
 			using SerializerBase::Data;
 			virtual const char* Data() override { return Str().c_str(); }
-			virtual std::string Str() override
+			virtual sprawl::String Str() override
 			{
 				std::stringstream datastream;
 				datastream << "{";
@@ -1030,7 +1035,7 @@ namespace sprawl
 				for(size_t i =0; i < m_serialVect.size(); i++)
 				{
 					auto& kvp = m_serialVect[i];
-					datastream << "\"" << kvp.first << "\" : " << kvp.second;
+					datastream << "\"" << kvp.first.c_str() << "\" : " << kvp.second.c_str();
 					if(i != m_serialVect.size() - 1)
 					{
 						datastream << ",";
@@ -1061,7 +1066,7 @@ namespace sprawl
 			}
 			bool More(){ return !m_serialVect.empty() || !m_thisArray.empty() || !m_thisObject.empty(); }
 		protected:
-			char const* const GetSeparator()
+			char const* GetSeparator()
 			{
 				if(m_prettyPrint)
 				{
@@ -1077,7 +1082,7 @@ namespace sprawl
 			friend class ReplicableBase;
 			using SerializerBase::serialize;
 			template<typename T>
-			void serialize_impl(T* var, const uint32_t bytes, const std::string& name, bool)
+			void serialize_impl(T* var, const uint32_t bytes, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -1102,7 +1107,7 @@ namespace sprawl
 								int i = 0;
 								while(!m_thisArray.back().second.empty())
 								{
-									strval = m_thisArray.back().second.front();
+									strval = m_thisArray.back().second.front().toStdString();
 									std::stringstream converter(strval);
 									T newvar;
 									converter >> newvar;
@@ -1113,7 +1118,7 @@ namespace sprawl
 							}
 							else
 							{
-								strval = m_thisArray.back().second.front();
+								strval = m_thisArray.back().second.front().toStdString();
 								m_thisArray.back().second.erase(m_thisArray.back().second.begin());
 								std::stringstream converter(strval);
 								converter >> *var;
@@ -1124,7 +1129,7 @@ namespace sprawl
 							bool bFound = false;
 							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
 							{
-								if(it->first == name)
+								if(it->first == name.toStdString())
 								{
 									strval = it->second;
 									m_thisObject.back().second.erase(it);
@@ -1145,7 +1150,7 @@ namespace sprawl
 						bool bFound = false;
 						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
 						{
-							if(it->first == name)
+							if(it->first == name.toStdString())
 							{
 								strval = it->second;
 								m_serialVect.erase(it);
@@ -1184,12 +1189,12 @@ namespace sprawl
 							}
 							else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
 							{
-								m_thisObject.back().second.push_back(std::make_pair(name, converter.str()));
+								m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), converter.str()));
 							}
 						}
 						else
 						{
-							m_serialVect.push_back(std::make_pair(name, converter.str()));
+							m_serialVect.push_back(std::make_pair(name.toStdString(), converter.str()));
 						}
 					}
 				}
@@ -1199,7 +1204,7 @@ namespace sprawl
 				}
 			}
 
-			void serialize_impl(bool* var, const uint32_t, const std::string& name, bool)
+			void serialize_impl(bool* var, const uint32_t, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -1212,7 +1217,7 @@ namespace sprawl
 					{
 						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
 						{
-							strval = m_thisArray.back().second.front();
+							strval = m_thisArray.back().second.front().toStdString();
 							m_thisArray.back().second.erase(m_thisArray.back().second.begin());
 							if(strval == "true")
 							{
@@ -1228,7 +1233,7 @@ namespace sprawl
 							bool bFound = false;
 							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
 							{
-								if(it->first == name)
+								if(it->first == name.toStdString())
 								{
 									strval = it->second;
 									m_thisObject.back().second.erase(it);
@@ -1256,7 +1261,7 @@ namespace sprawl
 						bool bFound = false;
 						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
 						{
-							if(it->first == name)
+							if(it->first == name.toStdString())
 							{
 								strval = it->second;
 								m_serialVect.erase(it);
@@ -1290,17 +1295,17 @@ namespace sprawl
 						}
 						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
 						{
-							m_thisObject.back().second.push_back(std::make_pair(name, strval));
+							m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), strval));
 						}
 					}
 					else
 					{
-						m_serialVect.push_back(std::make_pair(name, strval));
+						m_serialVect.push_back(std::make_pair(name.toStdString(), strval));
 					}
 				}
 			}
 
-			void serialize_impl(char* var, const uint32_t, const std::string& name, bool)
+			void serialize_impl(char* var, const uint32_t, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -1313,7 +1318,7 @@ namespace sprawl
 					{
 						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
 						{
-							strval = m_thisArray.back().second.front();
+							strval = m_thisArray.back().second.front().toStdString();
 							m_thisArray.back().second.erase(m_thisArray.back().second.begin());
 							strcpy(var, strval.substr(1, strval.length()-2).c_str());
 						}
@@ -1322,7 +1327,7 @@ namespace sprawl
 							bool bFound = false;
 							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
 							{
-								if(it->first == name)
+								if(it->first == name.toStdString())
 								{
 									strval = it->second;
 									m_thisObject.back().second.erase(it);
@@ -1342,7 +1347,7 @@ namespace sprawl
 						bool bFound = false;
 						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
 						{
-							if(it->first == name)
+							if(it->first == name.toStdString())
 							{
 								strval = it->second;
 								m_serialVect.erase(it);
@@ -1369,17 +1374,17 @@ namespace sprawl
 						}
 						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
 						{
-							m_thisObject.back().second.push_back(std::make_pair(name, converter.str()));
+							m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), converter.str()));
 						}
 					}
 					else
 					{
-						m_serialVect.push_back(std::make_pair(name, converter.str()));
+						m_serialVect.push_back(std::make_pair(name.toStdString(), converter.str()));
 					}
 				}
 			}
 
-			void serialize_impl(std::string* var, const uint32_t, const std::string& name, bool)
+			void serialize_impl(std::string* var, const uint32_t, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -1392,7 +1397,7 @@ namespace sprawl
 					{
 						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
 						{
-							strval = m_thisArray.back().second.front();
+							strval = m_thisArray.back().second.front().toStdString();
 							m_thisArray.back().second.erase(m_thisArray.back().second.begin());
 							*var = strval.substr(1, strval.length()-2);
 						}
@@ -1401,7 +1406,7 @@ namespace sprawl
 							bool bFound = false;
 							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
 							{
-								if(it->first == name)
+								if(it->first == name.toStdString())
 								{
 									strval = it->second;
 									m_thisObject.back().second.erase(it);
@@ -1421,7 +1426,7 @@ namespace sprawl
 						bool bFound = false;
 						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
 						{
-							if(it->first == name)
+							if(it->first == name.toStdString())
 							{
 								strval = it->second;
 								m_serialVect.erase(it);
@@ -1448,92 +1453,101 @@ namespace sprawl
 						}
 						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
 						{
-							m_thisObject.back().second.push_back(std::make_pair(name, converter.str()));
+							m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), converter.str()));
 						}
 					}
 					else
 					{
-						m_serialVect.push_back(std::make_pair(name, converter.str()));
+						m_serialVect.push_back(std::make_pair(name.toStdString(), converter.str()));
 					}
 				}
 			}
 
 		public:
-			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
+			}
+			virtual void serialize(sprawl::String* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
+			{
+				std::string str = var->toStdString();
+				serialize_impl(&str, bytes, name, PersistToDB);
+				if(IsLoading())
+				{
+					*var = sprawl::String(str);
+				}
 			}
 
-			virtual uint32_t StartObject(const std::string& str, bool = true) override
+			virtual uint32_t StartObject(const sprawl::String& str, bool = true) override
 			{
 				++m_tabDepth;
 				State LastState = m_stateTracker.empty() ? State::None : m_stateTracker.back();
@@ -1551,7 +1565,7 @@ namespace sprawl
 					{
 						for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
 						{
-							if(it->first == str)
+							if(it->first == str.toStdString())
 							{
 								strval = it->second;
 								m_thisObject.back().second.erase(it);
@@ -1564,9 +1578,9 @@ namespace sprawl
 					{
 						for(auto it = m_thisArray.begin(); it != m_thisArray.end(); it++)
 						{
-							if(it->first == str)
+							if(it->first == str.toStdString())
 							{
-								strval = it->second.front();
+								strval = it->second.front().toStdString();
 								it->second.erase(it->second.begin());
 								bFound = true;
 								break;
@@ -1578,7 +1592,7 @@ namespace sprawl
 					{
 						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
 						{
-							if(it->first == str)
+							if(it->first == str.toStdString())
 							{
 								strval = it->second;
 								m_serialVect.erase(it);
@@ -1599,7 +1613,7 @@ namespace sprawl
 				if(IsSaving())
 				{
 					auto& kvp = m_thisObject.back();
-					std::string key = kvp.first;
+					std::string key = kvp.first.toStdString();
 					std::string objstr = "{";
 					if(m_prettyPrint)
 					{
@@ -1669,14 +1683,14 @@ namespace sprawl
 				}
 			}
 
-			virtual void StartArray(const std::string& str, uint32_t& size, bool = true) override
+			virtual void StartArray(const sprawl::String& str, uint32_t& size, bool = true) override
 			{
 				++m_tabDepth;
 				State LastState = m_stateTracker.empty() ? State::None : m_stateTracker.back();
 				m_stateTracker.push_back(State::Array);
 				if(IsSaving())
 				{
-					m_thisArray.push_back(std::make_pair(str, std::deque<std::string>()));
+					m_thisArray.push_back(std::make_pair(str, std::deque<sprawl::String>()));
 				}
 				else
 				{
@@ -1685,14 +1699,14 @@ namespace sprawl
 					size = 0;
 					if(!m_thisArray.empty() && LastState == State::Array)
 					{
-						strval = m_thisArray.back().second.front();
+						strval = m_thisArray.back().second.front().toStdString();
 						m_thisArray.back().second.erase(m_thisArray.back().second.begin());
 					}
 					else if(!m_thisObject.empty() && LastState == State::Object)
 					{
 						for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
 						{
-							if(it->first == str)
+							if(it->first == str.toStdString())
 							{
 								strval = it->second;
 								m_thisObject.back().second.erase(it);
@@ -1705,7 +1719,7 @@ namespace sprawl
 					{
 						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
 						{
-							if(it->first == str)
+							if(it->first == str.toStdString())
 							{
 								strval = it->second;
 								m_serialVect.erase(it);
@@ -1716,7 +1730,7 @@ namespace sprawl
 					}
 					std::deque<std::pair<std::string, std::string>> jsondata;
 					ParseJSON(strval, jsondata);
-					std::deque<std::string> jsondata_nokeys;
+					std::deque<sprawl::String> jsondata_nokeys;
 					//Because arrays aren't in kvp format, the keys here will be in first, and second will be empty
 					for(auto& kvp : jsondata)
 					{
@@ -1733,7 +1747,7 @@ namespace sprawl
 				if(IsSaving())
 				{
 					auto& kvp = m_thisArray.back();
-					std::string key = kvp.first;
+					std::string key = kvp.first.toStdString();
 					std::string arrstr = "[";
 					if( m_prettyPrint )
 					{
@@ -1752,7 +1766,7 @@ namespace sprawl
 								arrstr += "\t";
 							}
 						}
-						arrstr += kvp.second[i];
+						arrstr += kvp.second[i].c_str();
 						if(i != kvp.second.size() - 1)
 						{
 							arrstr += ",";
@@ -1791,7 +1805,7 @@ namespace sprawl
 					}
 					else if(!m_thisArray.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array)
 					{
-						if(key != m_thisArray.back().first)
+						if(key != m_thisArray.back().first.toStdString())
 						{
 							arrstr = "\"" + key + "\" : " + arrstr;
 						}
@@ -1808,7 +1822,7 @@ namespace sprawl
 				}
 			}
 
-			std::string GetNextKey()
+			sprawl::String GetNextKey()
 			{
 				if(IsSaving())
 				{
@@ -1850,7 +1864,7 @@ namespace sprawl
 			{}
 			virtual ~JSONSerializerBase() {}
 
-			static void ParseJSON(const std::string& str, std::deque<std::pair<std::string, std::string>>& ret)
+			static void ParseJSON(const sprawl::String& str, std::deque<std::pair<std::string, std::string>>& ret)
 			{
 				int TokenLevel = 0;
 				std::string key, value;
@@ -1956,8 +1970,8 @@ namespace sprawl
 
 			enum class State { None, Array, Object };
 			std::deque<State> m_stateTracker;
-			std::deque<std::pair<std::string, std::deque<std::string>>> m_thisArray;
-			std::deque<std::pair<std::string, std::deque<std::pair<std::string, std::string>>>> m_thisObject;
+			std::deque<std::pair<sprawl::String, std::deque<sprawl::String>>> m_thisArray;
+			std::deque<std::pair<sprawl::String, std::deque<std::pair<std::string, std::string>>>> m_thisObject;
 			std::deque<std::pair<std::string, std::string>> m_serialVect;
 
 			//Copied and pasted to avoid indirection with virtual inheritance
@@ -2007,14 +2021,14 @@ namespace sprawl
 			}
 			virtual SerializerBase& operator%(SerializationData<Serializer>&& var) override
 			{
-				std::string str = var.val.Str();
+				sprawl::String str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
 				return *this;
 			}
 
 			virtual SerializerBase& operator%(SerializationData<JSONSerializer>&& var) override
 			{
-				std::string str = var.val.Str();
+				sprawl::String str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
 				return *this;
 			}
@@ -2036,7 +2050,7 @@ namespace sprawl
 
 			virtual ~JSONSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(const std::string& /*data*/) override { throw std::exception(); }
+			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { throw std::exception(); }
 			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
 		};
 
@@ -2070,24 +2084,24 @@ namespace sprawl
 
 			virtual SerializerBase& operator%(SerializationData<Deserializer>&& var) override
 			{
-				std::string str;
+				sprawl::String str;
 				*this % str;
 				var.val.Data(str);
 				return *this;
 			}
 			virtual SerializerBase& operator%(SerializationData<JSONDeserializer>&& var) override
 			{
-				std::string str;
+				sprawl::String str;
 				*this % str;
 				var.val.Data(str);
 				return *this;
 			}
 
-			virtual void Data(const std::string& str) override
+			virtual void Data(const sprawl::String& str) override
 			{
 				m_dataStr = str;
 				m_serialVect.clear();
-				ParseJSON(str, m_serialVect);
+				ParseJSON(str.toStdString(), m_serialVect);
 				m_bIsValid = true;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
@@ -2095,20 +2109,20 @@ namespace sprawl
 
 			virtual void Data(const char* data, size_t length) override
 			{
-				m_dataStr = std::string(data, length);
+				m_dataStr = sprawl::String(data, length);
 				m_serialVect.clear();
-				ParseJSON(m_dataStr, m_serialVect);
+				ParseJSON(m_dataStr.toStdString(), m_serialVect);
 				m_bIsValid = true;
 				if(m_bWithMetadata)
 					serialize(m_version, sizeof(m_version), "__version__", true);
 			}
 
 
-			JSONDeserializer(const std::string& data) : JSONSerializerBase(), Deserializer()
+			JSONDeserializer(const sprawl::String& data) : JSONSerializerBase(), Deserializer()
 			{
 				Data(data);
 			}
-			JSONDeserializer(const std::string& data, bool) : JSONSerializerBase(), Deserializer()
+			JSONDeserializer(const sprawl::String& data, bool) : JSONSerializerBase(), Deserializer()
 			{
 				m_bWithMetadata = false;
 				Data(data);
@@ -2136,10 +2150,10 @@ namespace sprawl
 			}
 			virtual ~JSONDeserializer(){}
 		protected:
-			virtual SerializerBase* GetAnother(const std::string& data) override { return new JSONDeserializer(data, false); }
+			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new JSONDeserializer(data, false); }
 			virtual SerializerBase* GetAnother() override { throw std::exception(); }
 		private:
-			std::string m_dataStr;
+			sprawl::String m_dataStr;
 		};
 	}
 }

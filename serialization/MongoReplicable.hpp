@@ -39,20 +39,22 @@ namespace sprawl
 		class MongoReplicableSerializer : public ReplicableSerializer<MongoSerializer>
 		{
 		public:
-			virtual void StartArray(const std::string &name, uint32_t &size, bool b) override
+			typedef std::unordered_set<ReplicationKey, RKeyHash, std::equal_to<ReplicationKey>, sprawl::memory::StlWrapper<ReplicationKey>> ReplicationSet;
+			typedef std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash, std::equal_to<ReplicationKey>, sprawl::memory::StlWrapper<std::pair<ReplicationKey, mongo::BSONObj>>> ReplicationBSONMap;
+			virtual void StartArray(const sprawl::String &name, uint32_t &size, bool b) override
 			{
 				ReplicableSerializer<MongoSerializer>::StartArray(name, size, b);
 				m_allArrays.insert(m_current_key);
 			}
 
-			virtual uint32_t StartObject(const std::string &name, bool b) override
+			virtual uint32_t StartObject(const sprawl::String &name, bool b) override
 			{
 				uint32_t ret = ReplicableSerializer<MongoSerializer>::StartObject(name, b);
 				m_allObjs.insert(m_current_key);
 				return ret;
 			}
 
-			virtual uint32_t StartMap(const std::string &name, bool b) override
+			virtual uint32_t StartMap(const sprawl::String &name, bool b) override
 			{
 				uint32_t ret = ReplicableSerializer<MongoSerializer>::StartMap(name, b);
 				m_allObjs.insert(m_current_key);
@@ -104,7 +106,7 @@ namespace sprawl
 
 		protected:
 			template<typename T2>
-			void serialize_impl( T2* var, const std::string& name, bool PersistToDB)
+			void serialize_impl( T2* var, const sprawl::String& name, bool PersistToDB)
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -121,7 +123,7 @@ namespace sprawl
 			}
 
 		public:
-			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
+			virtual void serialize(mongo::OID* var, const sprawl::String& name, bool PersistToDB) override
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -137,7 +139,7 @@ namespace sprawl
 				this->PopKey();
 			}
 
-			virtual void serialize(mongo::BSONObj* var, const std::string& name, bool PersistToDB) override
+			virtual void serialize(mongo::BSONObj* var, const sprawl::String& name, bool PersistToDB) override
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -153,7 +155,7 @@ namespace sprawl
 				this->PopKey();
 			}
 
-			virtual void serialize(mongo::Date_t* var, const std::string& name, bool PersistToDB) override
+			virtual void serialize(mongo::Date_t* var, const sprawl::String& name, bool PersistToDB) override
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -169,108 +171,106 @@ namespace sprawl
 				this->PopKey();
 			}
 
-			virtual void serialize(int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const std::string& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			{
+				serialize_impl(var, name, PersistToDB);
+			}
+			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
 		private:
-			virtual void PushKey(const std::string& name, bool forArray = false) override
+			virtual void PushKey(const sprawl::String& name, bool forArray = false) override
 			{
 				bool parentIsArray = false;
 				if(!m_current_key.empty() && m_current_key[m_current_key.size() - 2] < 0)
 				{
 					parentIsArray = true;
 				}
-				//TODO: Remove this ifcheck, it's certainly going to return true.
-				if(!this->m_serializer->IsBinary() || (!this->m_current_map_key.empty() && this->m_current_key == this->m_current_map_key.back()))
+
+				if( this->m_name_index.count(name) == 0 )
 				{
-					if( this->m_name_index.count(name) == 0 )
-					{
-						this->m_reverse_name_index[this->m_highest_name] = name;
-						this->m_name_index[name] = this->m_highest_name++;
-					}
-					int key = this->m_name_index[name];
-					if(forArray)
-					{
-						//Use sign bit to encode this as an array member.
-						key = -key;
-					}
-					this->m_current_key.push_back(key);
+					this->m_reverse_name_index[this->m_highest_name] = name;
+					this->m_name_index[name] = this->m_highest_name++;
 				}
-				else
+				int key = this->m_name_index[name];
+				if(forArray)
 				{
-					this->m_current_key.push_back(-1);
+					//Use sign bit to encode this as an array member.
+					key = -key;
 				}
+				this->m_current_key.push_back(key);
+
 				if(parentIsArray)
 				{
 					int32_t& item = m_array_tracker.back();
@@ -300,24 +300,24 @@ namespace sprawl
 
 			struct BuildDeltaParams
 			{
-				const std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash>& objs;
-				const std::map<ReplicationKey, std::string>& data;
-				const std::map<ReplicationKey, std::string>& markedData;
-				const std::unordered_set<ReplicationKey, RKeyHash>& allArrays;
-				const std::unordered_set<ReplicationKey, RKeyHash>& markedArrays;
-				const std::unordered_set<ReplicationKey, RKeyHash>& allObjs;
-				const std::unordered_set<ReplicationKey, RKeyHash>& markedObjs;
+				const ReplicationBSONMap& objs;
+				const ReplicationMap& data;
+				const ReplicationMap& markedData;
+				const ReplicationSet& allArrays;
+				const ReplicationSet& markedArrays;
+				const ReplicationSet& allObjs;
+				const ReplicationSet& markedObjs;
 			};
 
 			std::pair<mongo::BSONObj, mongo::BSONObj> BuildDelta(const BuildDeltaParams& params)
 			{
-				const std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash>& objs = params.objs;
-				const std::map<ReplicationKey, std::string>& data = params.data;
-				const std::map<ReplicationKey, std::string>& markedData = params.markedData;
-				const std::unordered_set<ReplicationKey, RKeyHash>& allArrays = params.allArrays;
-				const std::unordered_set<ReplicationKey, RKeyHash>& markedArrays = params.markedArrays;
-				const std::unordered_set<ReplicationKey, RKeyHash>& allObjs = params.allObjs;
-				const std::unordered_set<ReplicationKey, RKeyHash>& markedObjs = params.markedObjs;
+				const ReplicationBSONMap& objs = params.objs;
+				const ReplicationMap& data = params.data;
+				const ReplicationMap& markedData = params.markedData;
+				const ReplicationSet& allArrays = params.allArrays;
+				const ReplicationSet& markedArrays = params.markedArrays;
+				const ReplicationSet& allObjs = params.allObjs;
+				const ReplicationSet& markedObjs = params.markedObjs;
 
 				mongo::BSONObjBuilder b;
 
@@ -389,7 +389,7 @@ namespace sprawl
 							mongo::BSONObjBuilder childObjsBuilder;
 							for(auto& kvp : children)
 							{
-								childObjsBuilder.appendAs(kvp.second->BuildData(), kvp.second->shortKey);
+								childObjsBuilder.appendAs(kvp.second->BuildData(), kvp.second->shortKey.c_str());
 							}
 							mongo::BSONObjBuilder objBuilder;
 							objBuilder.append("firstElem", childObjsBuilder.obj());
@@ -399,10 +399,12 @@ namespace sprawl
 					}
 
 					ObjectData* parentObject;
-					std::map<ReplicationKey, ObjectData*> children;
+					std::map<ReplicationKey, ObjectData*, std::less<ReplicationKey>, sprawl::memory::StlWrapper<std::pair<ReplicationKey, ObjectData*>>> children;
 					mongo::BSONElement data;
 					mongo::BSONObj objData;
-					std::string shortKey;
+					sprawl::String shortKey;
+
+					///TODO: sprawl::String here
 					std::string fullKey;
 					ReplicationKey intKey;
 					bool isArray;
@@ -412,10 +414,10 @@ namespace sprawl
 					mongo::BSONObjBuilder removeQuery;
 				};
 
-				std::list<ObjectData> allObjects;
-				std::map<ReplicationKey, ObjectData*> allKeys;
+				std::list<ObjectData, sprawl::memory::StlWrapper<ObjectData>> allObjects;
+				std::map<ReplicationKey, ObjectData*, std::less<ReplicationKey>, sprawl::memory::StlWrapper<std::pair<ReplicationKey, ObjectData*>>> allKeys;
 				ObjectData* currentObject;
-				std::set<ObjectData*> rootObjects;
+				std::set<ObjectData*, std::less<ObjectData*>, sprawl::memory::StlWrapper<ObjectData*>> rootObjects;
 
 				auto buildObjectData = [
 					this,
@@ -463,7 +465,7 @@ namespace sprawl
 								if(parentObject->isArray)
 								{
 									char buf[16];
-#if _WIN32
+#ifdef _WIN32
 									_snprintf( buf, 16, "%d", currentKey.back() - 1 );
 #else
 									snprintf( buf, 16, "%d", currentKey.back() - 1 );
@@ -475,14 +477,14 @@ namespace sprawl
 									currentObject->shortKey = this->m_reverse_name_index[key];
 								}
 
-								currentObject->fullKey = parentObject->fullKey + "." + currentObject->shortKey;
+								currentObject->fullKey = parentObject->fullKey + "." + currentObject->shortKey.toStdString();
 
 								parentObject->children.insert(std::make_pair(currentKey, currentObject));
 							}
 							else
 							{
 								currentObject->shortKey = this->m_reverse_name_index[key];
-								currentObject->fullKey = currentObject->shortKey;
+								currentObject->fullKey = currentObject->shortKey.toStdString();
 								rootObjects.insert(currentObject);
 							}
 
@@ -519,7 +521,7 @@ namespace sprawl
 					if( isNew || kvp.second != it->second )
 					{
 						changed_something = true;
-						mongo::BSONElement obj = objs.at(kvp.first)[this->m_reverse_name_index[kvp.first[kvp.first.size()-2]]];
+						mongo::BSONElement obj = objs.at(kvp.first)[this->m_reverse_name_index[kvp.first[kvp.first.size()-2]].c_str()];
 						buildObjectData(kvp.first, isNew, false);
 						if(currentObject)
 						{
@@ -751,20 +753,22 @@ namespace sprawl
 				return std::make_pair(b.obj(), b2.obj());
 			}
 
-			std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash> m_objData;
-			std::unordered_map<ReplicationKey, mongo::BSONObj, RKeyHash> m_markedObjData;
-			std::unordered_map<int16_t, std::string> m_reverse_name_index;
-			std::unordered_set<ReplicationKey, RKeyHash> m_allArrays;
-			std::unordered_set<ReplicationKey, RKeyHash> m_allObjs;
-			std::unordered_set<ReplicationKey, RKeyHash> m_markedArrays;
-			std::unordered_set<ReplicationKey, RKeyHash> m_markedObjs;
+			ReplicationBSONMap m_objData;
+			ReplicationBSONMap m_markedObjData;
+			KeyToStringMap m_reverse_name_index;
+			ReplicationSet m_allArrays;
+			ReplicationSet m_allObjs;
+			ReplicationSet m_markedArrays;
+			ReplicationSet m_markedObjs;
 			ReplicationKey m_array_tracker;
 		};
 
 		class MongoReplicableDeserializer : public ReplicableDeserializer<MongoDeserializer>
 		{
 		public:
-			virtual void serialize(mongo::OID* var, const std::string& name, bool PersistToDB) override
+			using ReplicableDeserializer<MongoDeserializer>::serialize;
+
+			virtual void serialize(mongo::OID* var, const sprawl::String& name, bool PersistToDB) override
 			{
 				m_serializer->Reset();
 				PushKey(name);
@@ -783,7 +787,7 @@ namespace sprawl
 				PopKey();
 			}
 
-			MongoReplicableDeserializer(const std::string& data)
+			MongoReplicableDeserializer(const sprawl::String& data)
 				: ReplicableDeserializer<MongoDeserializer>(data)
 			{
 				//

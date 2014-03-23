@@ -4,6 +4,12 @@
 #include <string>
 #include "../hash/Murmur3.hpp"
 
+#ifdef _WIN32
+#	define SPRAWL_CONSTEXPR const
+#else
+#	define SPRAWL_CONSTEXPR constexpr
+#endif
+
 namespace sprawl
 {
 	class StringLiteral;
@@ -28,7 +34,7 @@ namespace sprawl
 
 			~Holder();
 
-			static constexpr size_t staticDataSize = 64;
+			static SPRAWL_CONSTEXPR size_t staticDataSize = 64;
 
 			char m_staticData[staticDataSize];
 			char* m_dynamicData;
@@ -49,23 +55,11 @@ namespace sprawl
 
 		String(const std::string& stlString);
 
-		String(const StringLiteral& stringLiteral)
-			: m_holder(Holder::CreateHolder())
-		{
-			new (m_holder) Holder(stringLiteral);
-		}
+		String(const StringLiteral& stringLiteral);
 
 		~String();
 
-		std::string toStdString() const
-		{
-			if(!m_holder)
-			{
-				static std::string emptyStr;
-				return emptyStr;
-			}
-			return std::string(m_holder->m_data, m_holder->m_length);
-		}
+		std::string toStdString() const;
 
 		const char* c_str() const
 		{
@@ -85,21 +79,7 @@ namespace sprawl
 			return m_holder->m_length;
 		}
 
-		String& operator=(const String& other)
-		{
-			if(m_holder && m_holder->DecRef())
-			{
-				Holder::FreeHolder(m_holder);
-			}
-
-			m_holder = other.m_holder;
-
-			if(m_holder)
-			{
-				m_holder->IncRef();
-			}
-			return *this;
-		}
+		String& operator=(const String& other);
 
 		bool operator==(const String& other) const
 		{
@@ -118,31 +98,23 @@ namespace sprawl
 			return false;
 		}
 
-		bool operator<(const String& other) const
+		bool operator!=(const String& other) const
 		{
-			if(m_holder == other.m_holder)
-			{
-				return false;
-			}
-			if(!m_holder)
-			{
-				return false;
-			}
-			if(!other.m_holder)
-			{
-				return true;
-			}
-			size_t length = other.m_holder->m_length < m_holder->m_length ? other.m_holder->m_length : m_holder->m_length;
-			const char* const left = m_holder->m_data;
-			const char* const right = other.m_holder->m_data;
-			for(size_t i = 0; i < length; ++i)
-			{
-				if(left[i] == right[i])
-					continue;
+			return !operator==(other);
+		}
 
-				return left[i] < right[i];
-			}
-			return false;
+		sprawl::String operator+(const sprawl::String& other) const;
+
+		bool empty()
+		{
+			return !m_holder || m_holder->m_length == 0;
+		}
+
+		bool operator<(const String& other) const;
+
+		const char& operator[](size_t index) const
+		{
+			return m_holder->m_data[index];
 		}
 
 	private:
@@ -155,12 +127,15 @@ namespace sprawl
 		template<size_t N>
 		explicit StringLiteral(const char (&ptr)[N])
 			: m_ptr(ptr)
-			, m_length(N)
+			, m_length(N-1)
 		{
 			//
 		}
 
 	protected:
+		StringLiteral& operator=(const StringLiteral& other);
+		StringLiteral(const StringLiteral& other);
+
 		friend class String::Holder;
 		const char* const m_ptr;
 		size_t m_length;

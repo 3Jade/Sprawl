@@ -36,6 +36,7 @@ namespace sprawl
 				//At creation the allocator returns the address of data directly.
 				allocs = 1;
 				next = nullptr;
+				prev = nullptr;
 
 				memset(header, 0, paddedHeaderSize);
 				header[0] = 1;
@@ -58,6 +59,7 @@ namespace sprawl
 			unsigned char* data;
 			unsigned char* end;
 			MemoryBlock* next;
+			MemoryBlock* prev;
 
 			int allocs;
 		};
@@ -149,19 +151,10 @@ namespace sprawl
 				size_t offset = slot / 8;
 				slot %= 8;
 				*(currentBlock->header + offset) &= ~(1 << slot);
-#if SPRAWL_MEMORY__RELEASE_EMPTY_BLOCKS
-				if(--currentBlock->allocs == 0)
-				{
-					currentBlock->prev->next = currentBlock->next;
-					currentBlock->next->prev = currentBlock->prev;
-					if(currentBlock == ms_first_block)
-					{
-						ms_first_block = currentBlock->next;
-					}
-					::free(currentBlock);
-				}
-				else
-#endif
+				--currentBlock->allocs;
+
+				//If this block just went from full to not full, add it back into the list.
+				if(currentBlock->allocs == adjustedBlockSize - 1)
 				{
 					currentBlock->next = ms_first_block;
 					ms_first_block = currentBlock;
@@ -243,9 +236,14 @@ namespace sprawl
 				size_t offset = slot / 8;
 				slot %= 8;
 				*(currentBlock->header + offset) &= ~(1 << slot);
+				--currentBlock->allocs;
 
-				currentBlock->next = ms_first_block;
-				ms_first_block = currentBlock;
+				//If this block just went from full to not full, add it back into the list.
+				if(currentBlock->allocs == adjustedBlockSize - 1)
+				{
+					currentBlock->next = ms_first_block;
+					ms_first_block = currentBlock;
+				}
 			}
 			else
 			{

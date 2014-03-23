@@ -2,6 +2,10 @@
 
 #include "PoolAllocator.hpp"
 
+#ifdef _WIN32
+#	include <xstddef>
+#endif
+
 namespace sprawl
 {
 	namespace memory
@@ -125,7 +129,7 @@ namespace sprawl
 			}
 
 #ifdef _WIN32
-#	define BF_ALLOC_MEMBER_CONSTRUCT( \
+#	define SPRAWL_ALLOC_MEMBER_CONSTRUCT( \
 	TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, CALL_OPT, X2, X3, X4) \
 	template<class _Objty COMMA LIST(_CLASS_TYPE)> \
 	void construct(_Objty *_Ptr COMMA LIST(_TYPE_REFREF_ARG)) \
@@ -133,8 +137,8 @@ namespace sprawl
 	::new ((void *)_Ptr) _Objty(LIST(_FORWARD_ARG)); \
 		}
 
-			_VARIADIC_EXPAND_0X(BF_ALLOC_MEMBER_CONSTRUCT, , , , )
-#	undef BF_ALLOC_MEMBER_CONSTRUCT
+			_VARIADIC_EXPAND_0X(SPRAWL_ALLOC_MEMBER_CONSTRUCT, , , , )
+#	undef SPRAWL_ALLOC_MEMBER_CONSTRUCT
 #else
 			template< typename T2, typename... Args >
 			void construct( T2* ptr, Args&&... args )

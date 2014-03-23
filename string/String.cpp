@@ -1,6 +1,10 @@
 #include "String.hpp"
 #include "../memory/PoolAllocator.hpp"
 
+#ifdef _WIN32
+#	pragma warning(disable: 4351)
+#endif
+
 namespace sprawl
 {
 	String::Holder::Holder(const char* data)
@@ -129,6 +133,12 @@ namespace sprawl
 		: m_holder(Holder::CreateHolder())
 	{
 		new (m_holder) Holder(stlString.c_str(), stlString.length());
+	}	
+
+	String::String(const StringLiteral& stringLiteral)
+		: m_holder(Holder::CreateHolder())
+	{
+		new (m_holder) Holder(stringLiteral);
 	}
 
 	String::~String()
@@ -137,6 +147,82 @@ namespace sprawl
 		{
 			Holder::FreeHolder(m_holder);
 		}
+	}
+	
+	sprawl::String String::operator+(const sprawl::String& other) const
+	{
+		sprawl::String ret;
+		ret.m_holder = Holder::CreateHolder();
+		size_t fullLength = m_holder->m_length + other.m_holder->m_length;
+		if(fullLength < Holder::staticDataSize)
+		{
+			memcpy(ret.m_holder->m_staticData, m_holder->m_data, m_holder->m_length);
+			memcpy(ret.m_holder->m_staticData + m_holder->m_length, other.m_holder->m_data, other.m_holder->m_length);
+			ret.m_holder->m_staticData[fullLength] = '\0';
+			ret.m_holder->m_data = ret.m_holder->m_staticData;
+		}
+		else
+		{
+			ret.m_holder->m_dynamicData = new char[fullLength+1];
+			memcpy(ret.m_holder->m_dynamicData, m_holder->m_data, m_holder->m_length);
+			memcpy(ret.m_holder->m_dynamicData + m_holder->m_length, other.m_holder->m_data, other.m_holder->m_length);
+			ret.m_holder->m_dynamicData[fullLength] = '\0';
+			ret.m_holder->m_data = ret.m_holder->m_dynamicData;
+		}
+		return std::move(ret);
+	}
+	
+	String& String::operator=(const String& other)
+	{
+		if(m_holder && m_holder->DecRef())
+		{
+			Holder::FreeHolder(m_holder);
+		}
+
+		m_holder = other.m_holder;
+
+		if(m_holder)
+		{
+			m_holder->IncRef();
+		}
+		return *this;
+	}
+	
+	bool String::operator<(const String& other) const
+	{
+		if(m_holder == other.m_holder)
+		{
+			return false;
+		}
+		if(!m_holder)
+		{
+			return false;
+		}
+		if(!other.m_holder)
+		{
+			return true;
+		}
+		size_t length = other.m_holder->m_length < m_holder->m_length ? other.m_holder->m_length : m_holder->m_length;
+		const char* const left = m_holder->m_data;
+		const char* const right = other.m_holder->m_data;
+		for(size_t i = 0; i < length; ++i)
+		{
+			if(left[i] == right[i])
+				continue;
+
+			return left[i] < right[i];
+		}
+		return false;
+	}
+
+	std::string String::toStdString() const
+	{
+		if(!m_holder)
+		{
+			static std::string emptyStr;
+			return emptyStr;
+		}
+		return std::string(m_holder->m_data, m_holder->m_length);
 	}
 
 }

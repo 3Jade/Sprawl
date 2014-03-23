@@ -81,7 +81,7 @@ namespace sprawl
 			friend class ReplicableBase;
 			using SerializerBase::serialize;
 			template<typename T>
-			void serialize_impl(T* var, const uint32_t bytes, const std::string& name, bool)
+			void serialize_impl(T* var, const uint32_t bytes, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -203,7 +203,7 @@ namespace sprawl
 				}
 			}
 
-			void serialize_impl(char* var, const int, const std::string& name, bool)
+			void serialize_impl(char* var, const int, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -282,7 +282,7 @@ namespace sprawl
 				}
 			}
 
-			void serialize_impl(std::string* var, const int, const std::string& name, bool)
+			void serialize_impl(std::string* var, const int, const sprawl::String& name, bool)
 			{
 				if(!m_bIsValid)
 				{
@@ -362,81 +362,81 @@ namespace sprawl
 			}
 
 		public:
-			virtual void serialize(int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const uint32_t bytes, const std::string& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
-			virtual uint32_t StartObject(const std::string& str, bool = true) override
+			virtual uint32_t StartObject(const sprawl::String& str, bool = true) override
 			{
 				State LastState = m_stateTracker.empty() ? State::None : m_stateTracker.back();
 				m_stateTracker.push_back(State::Object);
@@ -544,7 +544,7 @@ namespace sprawl
 				m_indent -= 2;
 			}
 
-			virtual void StartArray(const std::string& str, uint32_t& size, bool = true) override
+			virtual void StartArray(const sprawl::String& str, uint32_t& size, bool = true) override
 			{
 				State LastState = m_stateTracker.empty() ? State::None : m_stateTracker.back();
 				m_stateTracker.push_back(State::Array);
@@ -651,7 +651,7 @@ namespace sprawl
 			}
 
 
-			std::string GetNextKey()
+			sprawl::String GetNextKey()
 			{
 				if(IsSaving())
 				{
@@ -691,7 +691,7 @@ namespace sprawl
 				, m_bWithMetadata(true)
 			{}
 			virtual ~YAMLSerializerBase() {}
-			static void ParseYAML(const std::string& str, std::deque<std::pair<std::string, std::string>>& ret)
+			static void ParseYAML(const sprawl::String& str, std::deque<std::pair<std::string, std::string>>& ret)
 			{
 				std::string key, value;
 				bool GotKey = false;
@@ -872,14 +872,14 @@ namespace sprawl
 			}
 			virtual SerializerBase& operator%(SerializationData<Serializer>&& var) override
 			{
-				std::string str = var.val.Str();
+				sprawl::String str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
 				return *this;
 			}
 
 			virtual SerializerBase& operator%(SerializationData<YAMLSerializer>&& var) override
 			{
-				std::string str = var.val.Str();
+				sprawl::String str = var.val.Str();
 				*this % prepare_data(str, var.name, var.PersistToDB);
 				return *this;
 			}
@@ -894,9 +894,9 @@ namespace sprawl
 			{
 				m_bWithMetadata = false;
 			}
-			virtual ~YAMLSerializer() {};
+			virtual ~YAMLSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(const std::string& /*data*/) override { throw std::exception(); }
+			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { throw std::exception(); }
 			virtual SerializerBase* GetAnother() override { return new YAMLSerializer(false); }
 		};
 
@@ -930,20 +930,20 @@ namespace sprawl
 
 			virtual SerializerBase& operator%(SerializationData<Deserializer>&& var) override
 			{
-				std::string str;
+				sprawl::String str;
 				*this % str;
 				var.val.Data(str);
 				return *this;
 			}
 			virtual SerializerBase& operator%(SerializationData<YAMLDeserializer>&& var) override
 			{
-				std::string str;
+				sprawl::String str;
 				*this % str;
 				var.val.Data(str);
 				return *this;
 			}
 
-			virtual void Data(const std::string& str) override
+			virtual void Data(const sprawl::String& str) override
 			{
 				m_dataStr = str;
 				m_serialVect.clear();
@@ -955,7 +955,7 @@ namespace sprawl
 
 			virtual void Data(const char* data, size_t length) override
 			{
-				m_dataStr = std::string(data, length);
+				m_dataStr = sprawl::String(data, length);
 				m_serialVect.clear();
 				ParseYAML(m_dataStr, m_serialVect);
 				m_bIsValid = true;
@@ -963,11 +963,11 @@ namespace sprawl
 					serialize(m_version, sizeof(m_version), "__version__", true);
 			}
 
-			YAMLDeserializer(const std::string& data) : YAMLSerializerBase(), Deserializer()
+			YAMLDeserializer(const sprawl::String& data) : YAMLSerializerBase(), Deserializer()
 			{
 				Data(data);
 			}
-			YAMLDeserializer(const std::string& data, bool) : YAMLSerializerBase(), Deserializer()
+			YAMLDeserializer(const sprawl::String& data, bool) : YAMLSerializerBase(), Deserializer()
 			{
 				m_bWithMetadata = false;
 				Data(data);
@@ -995,10 +995,10 @@ namespace sprawl
 			}
 			virtual ~YAMLDeserializer(){}
 		protected:
-			virtual SerializerBase* GetAnother(const std::string& data) override { return new YAMLDeserializer(data, false); }
+			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new YAMLDeserializer(data, false); }
 			virtual SerializerBase* GetAnother() override { throw std::exception(); }
 		private:
-			std::string m_dataStr;
+			sprawl::String m_dataStr;
 		};
 	}
 }
