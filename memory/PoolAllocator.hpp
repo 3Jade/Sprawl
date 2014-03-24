@@ -10,6 +10,7 @@
 #	define SPRAWL_CONSTEXPR const
 #else
 #	define SPRAWL_CONSTEXPR constexpr
+#	include <pthread.h>
 #endif
 
 #ifndef SPRAWL_MEMORY_NO_FREE
@@ -18,6 +19,56 @@
 
 namespace sprawl
 {
+	//TODO: Put this in separate threading library
+	class Mutex
+	{
+	public:
+		inline void lock()
+		{
+#ifdef _WIN32
+			EnterCriticalSection(&m_mutexImpl);
+#else
+			pthread_mutex_lock(&m_mutexImpl);
+#endif
+		}
+		inline void unlock()
+		{
+#ifdef _WIN32
+			LeaveCriticalSection(&m_mutexImpl);
+#else
+			pthread_mutex_unlock(&m_mutexImpl);
+#endif
+		}
+
+		Mutex()
+#ifdef _WIN32
+			: m_mutexImpl()
+		{
+			InitializeCriticalSection(&m_mutexImpl);
+#else
+			: m_mutexImpl(PTHREAD_MUTEX_INITIALIZER)
+		{
+#endif
+		}
+
+
+		~Mutex()
+#ifdef _WIN32
+		{
+			DeleteCriticalSection(&m_mutexImpl);
+#else
+		{
+			pthread_mutex_destroy(&m_mutexImpl);
+#endif
+		}
+	private:
+#ifdef _WIN32
+		CRITICAL_SECTION m_mutexImpl;
+#else
+		pthread_mutex_t m_mutexImpl;
+#endif
+	};
+
 	namespace memory
 	{
 		template<size_t sizeOfType, size_t blockSize>
@@ -36,8 +87,6 @@ namespace sprawl
 				//At creation the allocator returns the address of data directly.
 				allocs = 1;
 				next = nullptr;
-				prev = nullptr;
-
 				memset(header, 0, paddedHeaderSize);
 				header[0] = 1;
 			}
@@ -59,7 +108,6 @@ namespace sprawl
 			unsigned char* data;
 			unsigned char* end;
 			MemoryBlock* next;
-			MemoryBlock* prev;
 
 			int allocs;
 		};
@@ -87,8 +135,6 @@ namespace sprawl
 			return nullptr;
 		}
 
-
-
 		template<size_t sizeOfType, size_t blockSize = 32>
 		class DynamicPoolAllocator
 		{
@@ -106,10 +152,14 @@ namespace sprawl
 		private:
 			static SPRAWL_CONSTEXPR size_t adjustedBlockSize = (blockSize+7) & ~7;
 			static MemoryBlock<sizeOfType, adjustedBlockSize>* ms_first_block;
+			static sprawl::Mutex ms_allocMutex;
 		};
 
 		template<size_t sizeOfType, size_t blockSize>
 		MemoryBlock<sizeOfType, DynamicPoolAllocator<sizeOfType, blockSize>::adjustedBlockSize>* DynamicPoolAllocator<sizeOfType, blockSize>::ms_first_block = nullptr;
+
+		template<size_t sizeOfType, size_t blockSize>
+		sprawl::Mutex DynamicPoolAllocator<sizeOfType, blockSize>::ms_allocMutex;
 
 		template<size_t sizeOfType, size_t blockSize>
 		void* DynamicPoolAllocator<sizeOfType, blockSize>::alloc(size_t count)
@@ -122,6 +172,8 @@ namespace sprawl
 		template<size_t sizeOfType, size_t blockSize>
 		void* DynamicPoolAllocator<sizeOfType, blockSize>::alloc()
 		{
+			ms_allocMutex.lock();
+
 			MemoryBlock<sizeOfType, adjustedBlockSize>* currentBlock = ms_first_block;
 
 			if(currentBlock)
@@ -132,11 +184,13 @@ namespace sprawl
 					ms_first_block = currentBlock->next;
 					currentBlock->next = nullptr;
 				}
+				ms_allocMutex.unlock();
 				return ret;
 			}
 
 			ms_first_block = (MemoryBlock<sizeOfType, adjustedBlockSize>*)malloc(sizeof(MemoryBlock<sizeOfType, adjustedBlockSize>));
 			ms_first_block->Init();
+			ms_allocMutex.unlock();
 			return ms_first_block->data + sizeof(MemoryBlock<sizeOfType, adjustedBlockSize>*);
 		}
 
@@ -147,6 +201,7 @@ namespace sprawl
 
 			if(currentBlock)
 			{
+				ms_allocMutex.lock();
 				size_t slot = static_cast<size_t>(reinterpret_cast<unsigned char*&>(addr) - currentBlock->data) / MemoryBlock<sizeOfType, adjustedBlockSize>::singleBlockSize;
 				size_t offset = slot / 8;
 				slot %= 8;
@@ -159,6 +214,7 @@ namespace sprawl
 					currentBlock->next = ms_first_block;
 					ms_first_block = currentBlock;
 				}
+				ms_allocMutex.unlock();
 			}
 			else
 			{
@@ -184,6 +240,7 @@ namespace sprawl
 			static MemoryBlock<sizeOfType, adjustedBlockSize>* ms_first_block;
 			static MemoryBlock<sizeOfType, adjustedBlockSize> ms_blockPool[numBlocks];
 			static size_t ms_currentBlock;
+			static sprawl::Mutex ms_allocMutex;
 		};
 
 		template<size_t sizeOfType, size_t blockSize, size_t numBlocks>
@@ -196,6 +253,9 @@ namespace sprawl
 		size_t StaticPoolAllocator<sizeOfType, blockSize, numBlocks>::ms_currentBlock = 0;
 
 		template<size_t sizeOfType, size_t blockSize, size_t numBlocks>
+		sprawl::Mutex StaticPoolAllocator<sizeOfType, blockSize, numBlocks>::ms_allocMutex;
+
+		template<size_t sizeOfType, size_t blockSize, size_t numBlocks>
 		void* StaticPoolAllocator<sizeOfType, blockSize, numBlocks>::alloc(size_t count)
 		{
 			void* ret = malloc(count*sizeOfType + sizeof(intptr_t));
@@ -206,6 +266,7 @@ namespace sprawl
 		template<size_t sizeOfType, size_t blockSize, size_t numBlocks>
 		void* StaticPoolAllocator<sizeOfType, blockSize, numBlocks>::alloc()
 		{
+			ms_allocMutex.lock();
 			MemoryBlock<sizeOfType, adjustedBlockSize>* currentBlock = ms_first_block;
 
 			if(currentBlock)
@@ -216,12 +277,14 @@ namespace sprawl
 					ms_first_block = currentBlock->next;
 					currentBlock->next = nullptr;
 				}
+				ms_allocMutex.unlock();
 				return ret;
 			}
 
 			ms_first_block = ms_blockPool + ms_currentBlock;
 			++ms_currentBlock;
 			ms_first_block->Init();
+			ms_allocMutex.unlock();
 			return ms_first_block->data + sizeof(MemoryBlock<sizeOfType, adjustedBlockSize>*);
 		}
 
@@ -232,6 +295,7 @@ namespace sprawl
 
 			if(currentBlock)
 			{
+				ms_allocMutex.lock();
 				size_t slot = static_cast<size_t>(reinterpret_cast<unsigned char*&>(addr) - currentBlock->data) / MemoryBlock<sizeOfType, adjustedBlockSize>::singleBlockSize;
 				size_t offset = slot / 8;
 				slot %= 8;
@@ -244,6 +308,7 @@ namespace sprawl
 					currentBlock->next = ms_first_block;
 					ms_first_block = currentBlock;
 				}
+				ms_allocMutex.unlock();
 			}
 			else
 			{
