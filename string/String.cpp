@@ -7,6 +7,16 @@
 
 namespace sprawl
 {
+	String::Holder::Holder()
+		: m_staticData()
+		, m_dynamicData(nullptr)
+		, m_data(nullptr)
+		, m_refCount(1)
+		, m_length(0)
+	{
+		//
+	}
+
 	String::Holder::Holder(const char* data)
 		: m_staticData()
 		, m_dynamicData(nullptr)
@@ -153,6 +163,7 @@ namespace sprawl
 	{
 		sprawl::String ret;
 		ret.m_holder = Holder::CreateHolder();
+		new (ret.m_holder) Holder();
 		size_t fullLength = m_holder->m_length + other.m_holder->m_length;
 		if(fullLength < Holder::staticDataSize)
 		{

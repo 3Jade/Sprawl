@@ -22,6 +22,7 @@ namespace sprawl
 		protected:
 			friend class String;
 
+			Holder();
 			Holder(const char* data);
 			Holder(const char* data, size_t length);
 			Holder(const StringLiteral& literal);

@@ -23,7 +23,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
+
 #ifdef _WIN32
 	#pragma warning( push )
 	#pragma warning( disable: 4250 )
@@ -122,7 +122,7 @@ namespace sprawl
 			bool operator<( const ReplicationKey& other ) const
 			{
 				uint32_t size = (m_size < other.m_size ? m_size : other.m_size);
-				
+
 				for(uint32_t i = 0; i < size; ++i)
 				{
 					if( m_data[i] == other.m_data[i] )
@@ -161,7 +161,8 @@ namespace sprawl
 				s.EndArray();
 			}
 
-		private:
+		protected:
+			friend struct RKeyHash;
 			uint32_t m_size;
 			int32_t m_data[SPRAWL_REPLICABLE_MAX_DEPTH];
 		};
@@ -170,16 +171,7 @@ namespace sprawl
 		{
 			std::size_t operator()(const ReplicationKey& key) const
 			{
-				std::size_t ret = 0;
-				uint32_t size = key.size();
-				const int32_t* array = &key[0];
-
-				for(uint32_t i = 0; i < size; ++i)
-				{
-					//Pulled from boost::hash_combine, placed here directly to avoid dependency on boost.
-					ret ^= std::hash<int32_t>()(array[i]) + 0x9e3779b9 + (ret << 6) + (ret >> 2);
-				}
-				return ret;
+				return sprawl::murmur3::Hash(key.m_data, key.m_size * sizeof(int32_t));
 			}
 		};
 
