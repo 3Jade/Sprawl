@@ -10,3 +10,4 @@
 */*.so
 */*/*.so
 Solutions/
+/fixit.sh

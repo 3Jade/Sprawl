@@ -46,7 +46,7 @@
 #endif
 
 #ifdef _WIN32
-#	if SPRAWL_NETWORK_DEBUG_ERRORS		
+#	if SPRAWL_NETWORK_DEBUG_ERRORS
 #		include <WinBase.h>
 #		include <Winsock2.h>
 #	endif
@@ -667,7 +667,9 @@ namespace sprawl
 #ifndef _WIN32
 			setsockopt(m_inSock, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 #else
+			int no = 0;
 			setsockopt(m_inSock, SOL_SOCKET, SO_REUSEADDR, (char*) &yes, sizeof(int));
+			setsockopt(m_inSock, IPPROTO_IPV6, IPV6_V6ONLY, (char*) &no, sizeof(int));
 #endif
 
 			//Bind the port
@@ -798,6 +800,7 @@ namespace sprawl
 					}
 				}
 
+				std::lock_guard<std::mutex> lock(m_mtx);
 
 				if(m_connectionType == ConnectionType::TCP)
 				{
@@ -846,13 +849,16 @@ namespace sprawl
 				SOCKET newcon = -1;
 				SOCKET max = m_inSock;
 
-				for( auto& connection : m_connections )
 				{
-					SOCKET desc = connection->GetDescriptor();
-					if (desc > max)
-						max = desc;
-					FD_SET( desc, &m_inSet );
-					FD_SET( desc, &m_excSet );
+					std::lock_guard<std::mutex> lock(m_mtx);
+					for( auto& connection : m_connections )
+					{
+						SOCKET desc = connection->GetDescriptor();
+						if (desc > max)
+							max = desc;
+						FD_SET( desc, &m_inSet );
+						FD_SET( desc, &m_excSet );
+					}
 				}
 
 				int ret = select((int)(max + 1), &m_inSet, NULL, &m_excSet, nullptr);

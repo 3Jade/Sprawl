@@ -5,12 +5,11 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include "../common/compat.hpp"
 
 #ifdef _WIN32
-#	define SPRAWL_CONSTEXPR const
 #	include <Windows.h>
 #else
-#	define SPRAWL_CONSTEXPR constexpr
 #	include <pthread.h>
 #endif
 

@@ -1,5 +1,6 @@
 #include "String.hpp"
 #include "../memory/PoolAllocator.hpp"
+#include <stdint.h>
 
 #ifdef _WIN32
 #	pragma warning(disable: 4351)
@@ -235,5 +236,4 @@ namespace sprawl
 		}
 		return std::string(m_holder->m_data, m_holder->m_length);
 	}
-
 }
