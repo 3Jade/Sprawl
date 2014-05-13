@@ -1,6 +1,7 @@
 #pragma once
 
 #include "PoolAllocator.hpp"
+#include <memory>
 
 #ifdef _WIN32
 #	include <xstddef>

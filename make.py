@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import csbuild
+import subprocess
+from csbuild import log
 
 csbuild.Toolchain("gcc").Compiler().CppStandard("c++11")
 csbuild.Toolchain("gcc").CppCompiler("clang++")
@@ -10,19 +12,14 @@ csbuild.Toolchain("gcc").Compiler().WarnFlags("all", "extra", "ctor-dtor-privacy
 csbuild.NoPrecompile()
 csbuild.InstallHeaders()
 
-@csbuild.project("multiaccess", "multiaccess")
-def multiaccess():
-	csbuild.Output("libsprawl_multiaccess", csbuild.ProjectType.SharedLibrary)
+csbuild.OutDir("lib")
+csbuild.ObjDir("Intermediate/{project.name}")
 
-	csbuild.InstallSubdir("sprawl/multiaccess")
-	csbuild.InstallOutput()
+@csbuild.project("collections", "collections")
+def collections():
+	csbuild.Output("libsprawl_collections", csbuild.ProjectType.SharedLibrary)
 
-@csbuild.project("multitype", "multitype")
-def multitype():
-	csbuild.Output("libsprawl_multitype", csbuild.ProjectType.SharedLibrary)
-
-	csbuild.InstallSubdir("sprawl/multitype")
-
+	csbuild.InstallSubdir("sprawl/collections")
 	
 @csbuild.project("network", "network")
 def network():
@@ -40,7 +37,7 @@ def serialization():
 	csbuild.InstallOutput()
 
 
-@csbuild.project("memory", "memory", [ "string", "hash" ])
+@csbuild.project("memory", "memory")
 def memory():
 	csbuild.Output("libsprawl_memory", csbuild.ProjectType.SharedLibrary)
 
@@ -68,3 +65,27 @@ def string():
 	csbuild.Output("libsprawl_common", csbuild.ProjectType.SharedLibrary)
 
 	csbuild.InstallSubdir("sprawl/common")
+
+@csbuild.project("UnitTests", "UnitTests", ["collections", "network", "serialization", "memory", "string", "hash", "common"])
+def UnitTests():
+	csbuild.Output("SprawlUnitTest")
+	csbuild.OutDir("bin")
+
+	csbuild.LibDirs( "lib" )
+
+	csbuild.Libraries(
+		# Header only "sprawl_collections",
+		"sprawl_network",
+		# No tests yet, needs to be split up to remove Mongo requirement "sprawl_serialization",
+		"sprawl_memory",
+		"sprawl_string",
+		"sprawl_hash",
+		# Header only "sprawl_common",
+	)
+
+	@csbuild.postMakeStep
+	def postMake(project):
+		log.LOG_BUILD("Running unit tests...")
+		ret = subprocess.call(["bin/SprawlUnitTest", "--all"]);
+		if ret != 0:
+			log.LOG_ERROR("Unit tests failed! Errors reported: {}".format(ret));

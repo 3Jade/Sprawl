@@ -79,7 +79,7 @@ namespace sprawl
 		}
 
 		template<typename T>
-		void AppendElementToBuffer(T const& elem, char const* const modifiers)
+		void AppendElementToBuffer(T const& elem, char const* const modifiers, typename std::enable_if<std::is_pointer<T>::value>::type* = 0)
 		{
 			if(elem != nullptr && strchr(modifiers, 'p') == nullptr)
 			{
