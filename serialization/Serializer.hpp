@@ -38,6 +38,7 @@
 #include "../string/String.hpp"
 #include "../memory/PoolAllocator.hpp"
 #include "../memory/StlWrapper.hpp"
+#include "../common/errors.hpp"
 
 namespace mongo {
 	class OID;
@@ -168,6 +169,7 @@ namespace sprawl
 			virtual void Reset() { }
 
 			virtual bool IsValid() = 0;
+			virtual bool Error() = 0;
 			virtual size_t Size() = 0;
 
 			SerializerBase& operator%(SerializationData<unsigned int>&& var);

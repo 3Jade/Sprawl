@@ -131,16 +131,16 @@ namespace sprawl
 			return *this;
 		}
 
-		SerializerBase& SerializerBase::operator%(SerializationData<class Serializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class Deserializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class BinarySerializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class BinaryDeserializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class JSONSerializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class JSONDeserializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLSerializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLDeserializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class MongoSerializer> &&){ throw std::exception(); return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class MongoDeserializer> &&){ throw std::exception(); return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class Serializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class Deserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class BinarySerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class BinaryDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class JSONSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class JSONDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class MongoSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SerializerBase& SerializerBase::operator%(SerializationData<class MongoDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
 		void SerializerBase::StartArray(const sprawl::String& , uint32_t&, bool){}
 		void SerializerBase::EndArray(){}
 		uint32_t SerializerBase::StartObject(const sprawl::String& , bool){ return 0; }
@@ -151,9 +151,9 @@ namespace sprawl
 
 		SerializerBase::StringSet SerializerBase::GetDeletedKeys(const sprawl::String&){ return StringSet(); }
 
-		SerializerBase* SerializerBase::GetAnother(const sprawl::String&){ throw std::exception(); return this; }
+		SerializerBase* SerializerBase::GetAnother(const sprawl::String&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
-		SerializerBase* SerializerBase::GetAnother(){ throw std::exception(); return this; }
+		SerializerBase* SerializerBase::GetAnother(){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
 		Serializer::~Serializer(){}
 

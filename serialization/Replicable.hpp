@@ -71,7 +71,7 @@ namespace sprawl
 			{
 				if(m_size == SPRAWL_REPLICABLE_MAX_DEPTH)
 				{
-					throw ex_serializer_overflow();
+					SPRAWL_ABORT_MSG("Replicable key depth (%d) exceeded. Redefine SPRAWL_REPLICABLE_MAX_DEPTH", SPRAWL_REPLICABLE_MAX_DEPTH);
 				}
 				m_data[m_size++] = val;
 			}
@@ -151,6 +151,7 @@ namespace sprawl
 		public:
 			virtual uint32_t GetVersion() override { return m_serializer->GetVersion(); }
 			virtual bool IsValid() override { return true; }
+			virtual bool Error() override { return false; }
 			virtual size_t Size() override { return 0; }
 			virtual void SetVersion(uint32_t i) override
 			{
@@ -500,7 +501,7 @@ namespace sprawl
 			}
 		protected:
 			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new T(data, false); }
-			virtual SerializerBase* GetAnother() override { throw std::exception(); }
+			virtual SerializerBase* GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 		};
 
 		class JSONSerializer;

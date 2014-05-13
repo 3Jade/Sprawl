@@ -57,7 +57,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return *this;
 			}
 			if(IsSaving())
 			{
@@ -71,7 +75,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(var.name.c_str()))
 					{
-						throw ex_duplicate_key_error(var.name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", var.name.c_str());
 					}
 					m_objectBuilders.back().second->appendBinData(var.name.c_str(), var.size, mongo::BinDataGeneral, var.val);
 				}
@@ -79,7 +83,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(var.name.c_str()))
 					{
-						throw ex_duplicate_key_error(var.name.c_str());
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", var.name.c_str());
 					}
 					m_builder->appendBinData(var.name.c_str(), var.size, mongo::BinDataGeneral, var.val);
 				}
@@ -103,7 +107,8 @@ namespace sprawl
 				}
 				if(var.size != (uint32_t)size)
 				{
-					throw ex_serializer_overflow();
+					m_bError = true;
+					return *this;
 				}
 				memcpy(var.val, str, size);
 			}
@@ -119,7 +124,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return 0;
 			}
 			if(IsSaving())
 			{
@@ -128,14 +137,14 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(str.c_str()))
 					{
-						throw ex_duplicate_key_error(str);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", str.c_str());
 					}
 				}
 				else if(m_arrayBuilders.empty() || m_stateTracker.empty() || m_stateTracker.back() != State::Array)
 				{
 					if(m_builder->hasField(str.c_str()))
 					{
-						throw ex_duplicate_key_error(str);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", str.c_str());
 					}
 				}
 				m_objectBuilders.push_back(std::make_pair(str, new mongo::BSONObjBuilder()));
@@ -177,7 +186,11 @@ namespace sprawl
 			m_stateTracker.pop_back();
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -214,7 +227,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -223,14 +240,14 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(str.c_str()))
 					{
-						throw ex_duplicate_key_error(str);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", str.c_str());
 					}
 				}
 				else if(m_arrayBuilders.empty() || m_stateTracker.empty() || m_stateTracker.back() != State::Array)
 				{
 					if(m_builder->hasField(str.c_str()))
 					{
-						throw ex_duplicate_key_error(str);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", str.c_str());
 					}
 				}
 				m_arrayBuilders.push_back(std::make_pair(str, new mongo::BSONArrayBuilder()));
@@ -271,7 +288,11 @@ namespace sprawl
 			m_stateTracker.pop_back();
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -317,14 +338,16 @@ namespace sprawl
 					}
 					else
 					{
-						throw ex_serializer_overflow();
+						m_bError = true;
+						return;
 					}
 				}
 				else
 				{
 					if(m_obj.nFields() == 0)
 					{
-						throw ex_serializer_overflow();
+						m_bError = true;
+						return;
 					}
 					return m_obj.firstElementFieldName();
 				}*/
@@ -359,7 +382,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -371,7 +398,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), var->toStdString());
 				}
@@ -379,7 +406,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), var->toStdString());
 				}
@@ -410,7 +437,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -422,7 +453,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -430,7 +461,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -461,7 +492,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -473,7 +508,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -481,7 +516,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -514,7 +549,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -544,7 +583,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -552,7 +591,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -598,7 +637,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -628,7 +671,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), (long long int)*var);
 				}
@@ -636,7 +679,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), (long long int)*var);
 				}
@@ -682,7 +725,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -712,7 +759,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), (long long int)*var);
 				}
@@ -720,7 +767,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), (long long int)*var);
 				}
@@ -766,7 +813,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -796,7 +847,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -804,7 +855,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -850,7 +901,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -880,7 +935,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -888,7 +943,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -934,7 +989,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -964,7 +1023,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -972,7 +1031,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1018,7 +1077,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -1048,7 +1111,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1056,7 +1119,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1102,7 +1165,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -1114,7 +1181,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1122,7 +1189,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1155,7 +1222,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -1185,7 +1256,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1193,7 +1264,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1239,7 +1310,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -1269,7 +1344,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1277,7 +1352,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1323,7 +1398,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -1353,7 +1432,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), (long long int)*var);
 				}
@@ -1361,7 +1440,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), (long long int)*var);
 				}
@@ -1407,7 +1486,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			bool bIsArray = false;
 			uint32_t size = 0;
@@ -1437,7 +1520,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1445,7 +1528,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1491,7 +1574,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -1503,7 +1590,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1511,7 +1598,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1542,7 +1629,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -1554,7 +1645,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1562,7 +1653,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}
@@ -1593,7 +1684,11 @@ namespace sprawl
 			}
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -1605,7 +1700,7 @@ namespace sprawl
 				{
 					if(m_objectBuilders.back().second->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_objectBuilders.back().second->append(name.c_str(), *var);
 				}
@@ -1613,7 +1708,7 @@ namespace sprawl
 				{
 					if(m_builder->hasField(name.c_str()))
 					{
-						throw ex_duplicate_key_error(name);
+						SPRAWL_ABORT_MSG("Mongo serialization does not support duplicate keys: key %s was duplicated.", name.c_str());
 					}
 					m_builder->append(name.c_str(), *var);
 				}

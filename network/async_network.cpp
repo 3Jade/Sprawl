@@ -582,6 +582,8 @@ namespace sprawl
 			}
 		}
 
+#define SOCK_ERROR(errorStr) m_lastError = errorStr; return false
+
 		ServerSocket::ServerSocket(const ConnectionType connectionType)
 			: m_inSock(-1)
 			, m_onConnect(nullptr)
@@ -599,6 +601,7 @@ namespace sprawl
 			, m_mtx()
 			, m_sendLock()
 			, m_connectionType(connectionType)
+			, m_lastError(nullptr)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
 			m_hints.ai_family = AF_UNSPEC;
@@ -633,17 +636,17 @@ namespace sprawl
 			m_packetValidator = c;
 		}
 
-		void ServerSocket::listen(int port)
+		bool ServerSocket::listen(int port)
 		{
 			if( m_inSock != -1 )
 			{
-				throw SockExcept("Socket already open!");
+				SOCK_ERROR("Socket already open!");
 			}
 
 			//Ports lower than 1024 require root access, just not going to support them
 			if( port < 1024 || port > 65535 )
 			{
-				throw SockExcept("Port out of range.");
+				SOCK_ERROR("Port out of range.");
 			}
 
 			//Get the localhost address info for the requested port
@@ -653,14 +656,14 @@ namespace sprawl
 
 			if( status != 0 )
 			{
-				throw SockExcept(gai_strerror(status));
+				SOCK_ERROR(gai_strerror(status));
 			}
 
 			//Open the socket
 			m_inSock = socket(m_servInfo->ai_family, m_servInfo->ai_socktype, m_servInfo->ai_protocol);
 			if( m_inSock == -1 )
 			{
-				throw SockExcept("Could not open socket.");
+				SOCK_ERROR("Could not open socket.");
 			}
 
 			int yes = 1;
@@ -675,7 +678,7 @@ namespace sprawl
 			//Bind the port
 			if( ::bind(m_inSock, m_servInfo->ai_addr, (int)m_servInfo->ai_addrlen) == -1 )
 			{
-				throw SockExcept("Port already in use.");
+				SOCK_ERROR("Port already in use.");
 			}
 
 			//Open the port for incoming connections
@@ -686,6 +689,7 @@ namespace sprawl
 			//And start up the network thread to actually handle them
 			m_sendThread = std::thread(&ServerSocket::SendThread, this );
 			m_recvThread = std::thread(&ServerSocket::RecvThread, this );
+			return true;
 		}
 
 		void ServerSocket::Close()
@@ -867,12 +871,13 @@ namespace sprawl
 
 				if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
 				{
-					throw SockExcept(std::string("HandleIO poll failure: ") + strerror(errno));
+					m_lastError = strerror(errno);
+					break;
 				}
 
 				if( FD_ISSET( m_inSock, &m_excSet ) )
 				{
-					throw SockExcept("Exception on listen port.");
+					continue;
 					FD_CLR( m_inSock, &m_inSet );
 				}
 				else if( FD_ISSET( m_inSock, &m_inSet ) )
@@ -897,7 +902,8 @@ namespace sprawl
 						}
 						else if(errno != EWOULDBLOCK && errno != EAGAIN)
 						{
-							throw SockExcept("Error accepting new connection.");
+							m_lastError = strerror(errno);
+							continue;
 						}
 					}
 					else
@@ -985,6 +991,7 @@ namespace sprawl
 			, m_recvThread()
 			, m_sendLock()
 			, m_connectionType(connectionType)
+			, m_lastError(nullptr)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
 			m_hints.ai_family = AF_UNSPEC;
@@ -1004,18 +1011,18 @@ namespace sprawl
 			freeaddrinfo(m_servInfo);
 		}
 
-		void ClientSocket::Connect(const std::string& addr, int port)
+		bool ClientSocket::Connect(const std::string& addr, int port)
 		{
 			struct addrinfo* p;
 			if(port < 1 || port > 65535)
-				throw SockExcept("Port out of range.");
+				SOCK_ERROR("Port out of range.");
 			std::stringstream s;
 			s << port;
 			getaddrinfo(addr.c_str(), s.str().c_str(), &m_hints, &m_servInfo);
 
 			for(p = m_servInfo; p != nullptr; p = p->ai_next) {
 				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-					throw SockExcept("Could not open socket.");
+					SOCK_ERROR("Could not open socket.");
 
 				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1) {
 					close(m_sock);
@@ -1026,7 +1033,7 @@ namespace sprawl
 			}
 
 			if(p == nullptr)
-				throw SockExcept("Connection failure.");
+				SOCK_ERROR("Connection failure.");
 
 			if(m_connectionType == ConnectionType::TCP)
 			{
@@ -1048,17 +1055,17 @@ namespace sprawl
 			}
 		}
 
-		void ClientSocket::Reconnect()
+		bool ClientSocket::Reconnect()
 		{
 			struct addrinfo* p;
 
 			if(m_con != nullptr)
 			{
-				throw SockExcept("Already connected.");
+				SOCK_ERROR("Already connected.");
 			}
 			for(p = m_servInfo; p != nullptr; p = p->ai_next) {
 				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-					throw SockExcept("Could not open socket.");
+					SOCK_ERROR("Could not open socket.");
 
 				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1) {
 					close(m_sock);
@@ -1069,7 +1076,7 @@ namespace sprawl
 			}
 
 			if(p == nullptr)
-				throw SockExcept("Connection failure.");
+				SOCK_ERROR("Connection failure.");
 
 			if(m_connectionType == ConnectionType::TCP)
 			{
@@ -1168,7 +1175,8 @@ namespace sprawl
 			{
 				if(m_con == nullptr)
 				{
-					throw SockExcept("No active connection.");
+					m_running = false;
+					break;
 				}
 				FD_ZERO(&m_inSet);
 				FD_ZERO(&m_excSet);
@@ -1179,7 +1187,7 @@ namespace sprawl
 
 				if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
 				{
-					throw SockExcept(std::string("HandleIO poll failure: ") + strerror(errno));
+					m_lastError = strerror(errno);
 				}
 
 				if( FD_ISSET( m_sock, &m_inSet ) )

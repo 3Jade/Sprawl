@@ -59,28 +59,6 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		class ex_duplicate_key_error: public std::exception
-		{
-		public:
-			ex_duplicate_key_error(const sprawl::String& key_) throw()
-				: key(key_)
-			{
-				//
-			}
-
-			const char* what() const throw ()
-			{
-				///TODO: sprawl::String
-				std::string str = "MongoSerializer does not support fields with duplicate keys: ";
-				str += key.toStdString();
-				return str.c_str();
-			}
-			~ex_duplicate_key_error() throw ()
-			{
-			}
-		private:
-			sprawl::String key;
-		};
 		class MongoSerializerBase : virtual public SerializerBase
 		{
 		public:
@@ -88,6 +66,8 @@ namespace sprawl
 			typedef class MongoDeserializer deserializer_type;
 			virtual uint32_t GetVersion() override { return m_version; }
 			virtual bool IsValid() override { return m_bIsValid; }
+			virtual bool Error() override { return m_bError; }
+			void ClearError(){ m_bError = false; }
 			virtual bool IsMongoStream() override { return true; }
 			virtual void SetVersion(uint32_t i) override
 			{
@@ -203,7 +183,7 @@ namespace sprawl
 
 			virtual void serialize(long double* /*var*/, const uint32_t /*bytes*/, const sprawl::String& /*name*/, bool /*PersistToDB*/) override
 			{
-				throw std::exception();
+				SPRAWL_ABORT_MSG("Mongo does not support objects of type long double. If you can accept the data loss, cast down to double.");
 			}
 
 			virtual void serialize(bool* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
@@ -249,6 +229,7 @@ namespace sprawl
 				, m_version(0)
 				, m_bIsValid(true)
 				, m_bWithMetadata(true)
+				, m_bError(false)
 			{}
 			virtual ~MongoSerializerBase();
 
@@ -268,6 +249,7 @@ namespace sprawl
 			uint32_t m_version;
 			bool m_bIsValid;
 			bool m_bWithMetadata;
+			bool m_bError;
 		private:
 			MongoSerializerBase(const SerializerBase&);
 			MongoSerializerBase& operator=(const SerializerBase&);
@@ -327,7 +309,7 @@ namespace sprawl
 
 			virtual ~MongoSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { throw std::exception(); }
+			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 			//Anything binary (including BSON) doesn't work here, it makes Mongo freak out if an object is embedded as a key like this. So we'll embed JSON instead.
 			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
 		};
@@ -461,7 +443,7 @@ namespace sprawl
 		protected:
 			//Anything binary (including BSON) doesn't work here, it makes Mongo freak out if an object is embedded as a key like this. So we'll embed JSON instead.
 			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new JSONDeserializer(data, false); }
-			virtual SerializerBase* GetAnother() override { throw std::exception(); }
+			virtual SerializerBase* GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 		};
 
 		SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);

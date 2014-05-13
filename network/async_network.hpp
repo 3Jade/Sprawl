@@ -103,35 +103,6 @@ namespace sprawl
 		typedef std::shared_ptr<Connection> ConnectionPtr;
 		typedef std::weak_ptr<Connection> ConnectionWPtr;
 
-		class SockExcept: public std::exception
-		{
-		public:
-			SockExcept(const std::string& arg)
-				: m_str(arg)
-			{
-			}
-#ifdef _WIN32
-			SockExcept(const wchar_t* arg)
-			{
-				size_t i;
-				char mbBuf[32768];
-				char* pmbBuf = mbBuf;
-				wcstombs_s( &i, pmbBuf, 32768, arg, _TRUNCATE );
-				m_str = pmbBuf;
-			}
-#endif
-
-			~SockExcept() throw ()
-			{
-			}
-			const char* what() const throw ()
-			{
-				return m_str.c_str();
-			}
-		private:
-			std::string m_str;
-		};
-
 		enum class FailType { resend, ignore, notify };
 		enum class ConnectionType { TCP, UDP };
 
@@ -250,7 +221,9 @@ namespace sprawl
 			void SetPacketValidator( PacketValidationCallback c );
 
 			//listen() not only opens the port, but actually starts a network thread to handle connections on it
-			void listen(int port);
+			bool listen(int port);
+
+			const char* GetLastError() { return m_lastError; }
 
 			//Close() stops the network thread and closes the port
 			void Close();
@@ -306,6 +279,8 @@ namespace sprawl
 			std::mutex m_sendLock;
 
 			ConnectionType m_connectionType;
+
+			const char* m_lastError;
 		};
 
 		class ClientSocket
@@ -315,9 +290,9 @@ namespace sprawl
 
 			~ClientSocket();
 
-			void Connect(const std::string& addr, int port);
+			bool Connect(const std::string& addr, int port);
 
-			void Reconnect();
+			bool Reconnect();
 
 			//Set callbacks
 			void SetOnReceive( ReceiveCallback c );
@@ -327,6 +302,8 @@ namespace sprawl
 			void SetOnClose( ConnectionCallback c );
 
 			void SetPacketValidator( PacketValidationCallback c );
+
+			const char* GetLastError() { return m_lastError; }
 
 			std::weak_ptr<Connection> GetConnection()
 			{
@@ -374,6 +351,8 @@ namespace sprawl
 			std::mutex m_sendLock;
 
 			ConnectionType m_connectionType;
+
+			const char* m_lastError;
 		};
 	}
 }

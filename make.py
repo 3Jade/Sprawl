@@ -10,7 +10,6 @@ csbuild.Toolchain("gcc").CppCompiler("clang++")
 csbuild.Toolchain("gcc").Compiler().WarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "switch-enum", "undef")
 
 csbuild.NoPrecompile()
-csbuild.InstallHeaders()
 
 csbuild.OutDir("lib")
 csbuild.ObjDir("Intermediate/{project.name}")
@@ -20,6 +19,7 @@ def collections():
 	csbuild.Output("libsprawl_collections", csbuild.ProjectType.SharedLibrary)
 
 	csbuild.InstallSubdir("sprawl/collections")
+	csbuild.InstallHeaders()
 	
 @csbuild.project("network", "network")
 def network():
@@ -27,21 +27,33 @@ def network():
 	
 	csbuild.InstallSubdir("sprawl/network")
 	csbuild.InstallOutput()
+	csbuild.InstallHeaders()
 
 	
 @csbuild.project("serialization", "serialization")
 def serialization():
 	csbuild.Output("libsprawl_serialization", csbuild.ProjectType.SharedLibrary)
+	csbuild.ExcludeDirs("serialization/mongo")
 
 	csbuild.InstallSubdir("sprawl/serialization")
 	csbuild.InstallOutput()
+	csbuild.InstallHeaders()
 
+@csbuild.project("serialization-mongo", "serialization/mongo")
+def serialization():
+	csbuild.Output("libsprawl_serialization-mongo", csbuild.ProjectType.SharedLibrary)
+	
+	csbuild.IncludeDirs("./serialization")
+
+	csbuild.InstallSubdir("sprawl/serialization")
+	csbuild.InstallOutput()
 
 @csbuild.project("memory", "memory")
 def memory():
 	csbuild.Output("libsprawl_memory", csbuild.ProjectType.SharedLibrary)
 
 	csbuild.InstallSubdir("sprawl/memory")
+	csbuild.InstallHeaders()
 
 
 @csbuild.project("string", "string")
@@ -50,6 +62,7 @@ def string():
 
 	csbuild.InstallSubdir("sprawl/string")
 	csbuild.InstallOutput()
+	csbuild.InstallHeaders()
 
 
 @csbuild.project("hash", "hash")
@@ -58,6 +71,7 @@ def string():
 
 	csbuild.InstallSubdir("sprawl/hash")
 	csbuild.InstallOutput()
+	csbuild.InstallHeaders()
 
 
 @csbuild.project("common", "common")
@@ -65,6 +79,7 @@ def string():
 	csbuild.Output("libsprawl_common", csbuild.ProjectType.SharedLibrary)
 
 	csbuild.InstallSubdir("sprawl/common")
+	csbuild.InstallHeaders()
 
 @csbuild.project("UnitTests", "UnitTests", ["collections", "network", "serialization", "memory", "string", "hash", "common"])
 def UnitTests():

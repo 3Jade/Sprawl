@@ -98,7 +98,11 @@ namespace sprawl
 		{
 			if(!m_bIsValid)
 			{
-				throw ex_invalid_data();
+				m_bError = true;
+			}
+			if(m_bError)
+			{
+				return;
 			}
 			if(IsSaving())
 			{
@@ -128,7 +132,7 @@ namespace sprawl
 			{
 				if(m_bInitialized && m_pos + bytes > m_size)
 				{
-					throw ex_serializer_overflow();
+					m_bError = true;
 				}
 				memcpy( var, m_data + m_pos, bytes );
 			}
@@ -148,6 +152,7 @@ namespace sprawl
 			, m_version(0)
 			, m_bIsValid(true)
 			, m_bWithMetadata(true)
+			, m_bError(false)
 		{}
 
 		BinarySerializerBase::~BinarySerializerBase()

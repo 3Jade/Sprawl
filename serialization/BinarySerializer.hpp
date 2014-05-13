@@ -55,6 +55,7 @@ namespace sprawl
 			virtual const char* Data() override;
 			virtual sprawl::String Str() override;
 			bool More(){ return m_pos < m_size; }
+			virtual bool Error() override { return m_bError; }
 		protected:
 			template<typename T>
 			friend class ReplicableBase;
@@ -70,6 +71,7 @@ namespace sprawl
 			uint32_t m_version;
 			bool m_bIsValid;
 			bool m_bWithMetadata;
+			bool m_bError;
 
 			uint32_t compute_checksum(const char* data, int len);
 
