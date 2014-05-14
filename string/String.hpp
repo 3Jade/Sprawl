@@ -120,6 +120,7 @@ namespace sprawl
 			return m_holder->m_data[index];
 		}
 
+#ifndef _WIN32
 		template<
 			typename T1,
 			typename T2=void*,
@@ -229,8 +230,6 @@ namespace sprawl
 		}
 
 	private:
-		Holder* m_holder;
-
 		template<
 			typename T1,
 			typename T2,
@@ -376,6 +375,9 @@ namespace sprawl
 				builder << c;
 			}
 		}
+#endif
+	private:
+		Holder* m_holder;
 	};
 
 	class StringLiteral
@@ -407,11 +409,12 @@ namespace sprawl
 	typedef StringLiteral StringRef;
 }
 
-
+#if !_WIN32 || _MSC_VER >= 1800
 inline sprawl::String operator""_sprawl(char const* literal, size_t chars)
 {
 	return sprawl::String(sprawl::StringLiteral(literal, chars));
 }
+#endif
 
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
 namespace std

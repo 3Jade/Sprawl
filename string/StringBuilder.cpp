@@ -46,7 +46,11 @@ namespace sprawl
 	{
 		if(m_buffer && m_allowGrowth)
 		{
+#ifndef _WIN32
 			size_t newPos = m_pos + snprintf(nullptr, 0, pattern, elem);
+#else
+			size_t newPos = m_pos + _snprintf(nullptr, 0, pattern, elem);
+#endif
 
 			if(newPos > (m_bufferSize * 0.75))
 			{
@@ -71,7 +75,11 @@ namespace sprawl
 			}
 		}
 
+#ifndef _WIN32
 		m_pos += snprintf(m_bufferPos, m_remainingCapacity, pattern, elem);
+#else
+		m_pos += _snprintf(m_bufferPos, m_remainingCapacity, pattern, elem);
+#endif
 
 		if(m_buffer)
 		{

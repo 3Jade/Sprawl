@@ -116,7 +116,10 @@ namespace sprawl
 	namespace collections
 	{
 		template<typename ValueType>
-		using HashSet = HashMap<ValueType, SelfAccessor<ValueType>>;
+		class HashSet : public HashMap<ValueType, SelfAccessor<ValueType>>
+		{
+			//
+		};
 	}
 }
 
@@ -131,4 +134,13 @@ namespace sprawl
 #undef SPRAWL_INDEX_GETTER
 #else
 #include "hashmap/HashMap_Variadic.hpp"
+
+namespace sprawl
+{
+	namespace collections
+	{
+		template<typename ValueType>
+		using HashSet = HashMap<ValueType, SelfAccessor<ValueType>>;
+	}
+}
 #endif

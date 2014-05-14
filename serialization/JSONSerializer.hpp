@@ -1147,6 +1147,7 @@ namespace sprawl
 					else
 					{
 						SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+						return "";
 					}
 				}
 				else
@@ -1356,7 +1357,7 @@ namespace sprawl
 
 			virtual ~JSONSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { SPRAWL_THROW_EXCEPTION(std::exception()); }
+			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { SPRAWL_THROW_EXCEPTION(std::exception()); return nullptr; }
 			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
 		};
 

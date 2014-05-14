@@ -34,6 +34,8 @@
 #endif
 
 #include "Serializer.hpp"
+#include "BinarySerializer.hpp"
+#include "JSONSerializer.hpp"
 #include <map>
 
 namespace sprawl

@@ -99,12 +99,10 @@ struct MyTinyStruct
 	type##_test_static_##arraySize()
 
 #define ADD_TESTS(type) \
-	ADD_TEST(type, 8, 32); \
-	ADD_TEST(type, 8, 64)
+	ADD_TEST(type, 8, 32); 
 
 #define RUN_TESTS(type) \
-	RUN_TEST(type, 8, 32); \
-	RUN_TEST(type, 8, 64)
+	RUN_TEST(type, 8, 32); 
 
 ADD_TESTS(MyBigStruct)
 ADD_TESTS(MyMediumStruct)

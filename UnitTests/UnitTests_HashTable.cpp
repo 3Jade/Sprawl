@@ -1,5 +1,6 @@
 //#define SPRAWL_NO_VARIADIC_TEMPLATES
 
+#include <string>
 #include "../collections/HashMap.hpp"
 
 class TestType
@@ -14,6 +15,14 @@ public:
 	std::string GetKey3() { return key3; }
 
 	TestType* operator->(){ return this; }
+
+	TestType(int i, int j, std::string const& k)
+		: key1(i)
+		, key2(j)
+		, key3(k)
+	{
+		//
+	}
 };
 
 int TestTypeAccessor(TestType* obj)
@@ -63,35 +72,35 @@ bool test_collections()
 		, sprawl::KeyAccessor<TestType, int>
 	> map6;
 
-	map.insert(std::shared_ptr<TestType>(new TestType({ 1, 5, "str1" })), 1);
-	map.insert(std::shared_ptr<TestType>(new TestType({ 2, 6, "str2" })), 2);
-	map.insert(std::shared_ptr<TestType>(new TestType({ 3, 7, "str3" })), 3);
-	map.insert(std::shared_ptr<TestType>(new TestType({ 3, 8, "str4" })), 4);
+	map.insert(std::shared_ptr<TestType>(new TestType(1, 5, "str1")), 1);
+	map.insert(std::shared_ptr<TestType>(new TestType(2, 6, "str2")), 2);
+	map.insert(std::shared_ptr<TestType>(new TestType(3, 7, "str3")), 3);
+	map.insert(std::shared_ptr<TestType>(new TestType(3, 8, "str4")), 4);
 
-	map2.insert(std::shared_ptr<TestType>(new TestType({ 1, 5, "str1" })), 1);
-	map2.insert(std::shared_ptr<TestType>(new TestType({ 2, 6, "str2" })), 2);
-	map2.insert(std::shared_ptr<TestType>(new TestType({ 3, 7, "str3" })), 3);
-	map2.insert(std::shared_ptr<TestType>(new TestType({ 3, 8, "str4" })), 4);
+	map2.insert(std::shared_ptr<TestType>(new TestType(1, 5, "str1")), 1);
+	map2.insert(std::shared_ptr<TestType>(new TestType(2, 6, "str2")), 2);
+	map2.insert(std::shared_ptr<TestType>(new TestType(3, 7, "str3")), 3);
+	map2.insert(std::shared_ptr<TestType>(new TestType(3, 8, "str4")), 4);
 
-	map3.insert(std::shared_ptr<TestType>(new TestType({ 1, 5, "str1" })), 1);
-	map3.insert(std::shared_ptr<TestType>(new TestType({ 2, 6, "str2" })), 2);
-	map3.insert(std::shared_ptr<TestType>(new TestType({ 3, 7, "str3" })), 3);
-	map3.insert(std::shared_ptr<TestType>(new TestType({ 3, 8, "str4" })), 4);
+	map3.insert(std::shared_ptr<TestType>(new TestType(1, 5, "str1")), 1);
+	map3.insert(std::shared_ptr<TestType>(new TestType(2, 6, "str2")), 2);
+	map3.insert(std::shared_ptr<TestType>(new TestType(3, 7, "str3")), 3);
+	map3.insert(std::shared_ptr<TestType>(new TestType(3, 8, "str4")), 4);
 
-	map4.insert(TestType({ 1, 5, "str1" }), 1);
-	map4.insert(TestType({ 2, 6, "str2" }), 2);
-	map4.insert(TestType({ 3, 7, "str3" }), 3);
-	map4.insert(TestType({ 3, 8, "str4" }), 4);
+	map4.insert(TestType(1, 5, "str1"), 1);
+	map4.insert(TestType(2, 6, "str2"), 2);
+	map4.insert(TestType(3, 7, "str3"), 3);
+	map4.insert(TestType(3, 8, "str4"), 4);
 
-	map5.insert(TestType({ 1, 5, "str1" }), 1);
-	map5.insert(TestType({ 2, 6, "str2" }), 2);
-	map5.insert(TestType({ 3, 7, "str3" }), 3);
-	map5.insert(TestType({ 3, 8, "str4" }), 4);
+	map5.insert(TestType(1, 5, "str1"), 1);
+	map5.insert(TestType(2, 6, "str2"), 2);
+	map5.insert(TestType(3, 7, "str3"), 3);
+	map5.insert(TestType(3, 8, "str4"), 4);
 
-	map6.insert(TestType({ 1, 5, "str1" }), 1);
-	map6.insert(TestType({ 2, 6, "str2" }), 2);
-	map6.insert(TestType({ 3, 7, "str3" }), 3);
-	map6.insert(TestType({ 3, 8, "str4" }), 4);
+	map6.insert(TestType(1, 5, "str1"), 1);
+	map6.insert(TestType(2, 6, "str2"), 2);
+	map6.insert(TestType(3, 7, "str3"), 3);
+	map6.insert(TestType(3, 8, "str4"), 4);
 
 	int testNum = 1;
 
