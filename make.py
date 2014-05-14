@@ -17,8 +17,8 @@ csbuild.NoPrecompile()
 csbuild.OutDir("lib/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
 csbuild.ObjDir("Intermediate/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/{project.name}")
 
-csbuild.add_option("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.")
-csbuild.add_option("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.")
+csbuild.add_option("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr/lib")
+csbuild.add_option("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr/lib")
 
 csbuild.InstallSubdir("sprawl/{project.name}")
 
@@ -44,13 +44,15 @@ def serialization():
 	csbuild.InstallOutput()
 	csbuild.InstallHeaders()
 
-MongoDir = os.path.abspath(csbuild.get_option("with_mongo"))
-BoostDir = os.path.abspath(csbuild.get_option("with_boost"))
+MongoDir = csbuild.get_option("with_mongo")
+BoostDir = csbuild.get_option("with_boost")
 if (not MongoDir) ^ (not BoostDir):
 	log.LOG_ERROR("Both mongo and boost directories must be specified to build MongoSerializer.");
 	csbuild.Exit(1)
 	
 if MongoDir and BoostDir:
+	MongoDir = os.path.abspath(MongoDir)
+	BoostDir = os.path.abspath(BoostDir)
 	@csbuild.project("serialization-mongo", "serialization/mongo")
 	def serialization():
 		csbuild.Output("libsprawl_serialization-mongo", csbuild.ProjectType.StaticLibrary)

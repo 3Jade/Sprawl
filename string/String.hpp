@@ -409,7 +409,7 @@ namespace sprawl
 	typedef StringLiteral StringRef;
 }
 
-#if !_WIN32 || _MSC_VER >= 1800
+#if !defined(_WIN32) || _MSC_VER >= 1800
 inline sprawl::String operator""_sprawl(char const* literal, size_t chars)
 {
 	return sprawl::String(sprawl::StringLiteral(literal, chars));
