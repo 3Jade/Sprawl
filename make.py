@@ -22,6 +22,14 @@ csbuild.add_option("--with-boost", action="store", help="Path to boost include d
 
 csbuild.InstallSubdir("sprawl/{project.name}")
 
+
+csbuild.Toolchain("msvc").CompilerFlags(
+	"/fp:fast",
+	"/wd\"4530\"",
+	"/wd\"4067\"",
+	"/wd\"4351\"",
+)
+
 @csbuild.project("collections", "collections")
 def collections():
 	csbuild.Output("libsprawl_collections", csbuild.ProjectType.StaticLibrary)
@@ -61,6 +69,7 @@ if MongoDir and BoostDir:
 		csbuild.LibDirs(os.path.join(MongoDir, "lib"), os.path.join(BoostDir, "lib"))
 	
 		csbuild.InstallSubdir("sprawl/serialization")
+		csbuild.InstallHeaders()
 		csbuild.InstallOutput()
 
 @csbuild.project("memory", "memory")

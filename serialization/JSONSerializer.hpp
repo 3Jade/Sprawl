@@ -1458,7 +1458,7 @@ namespace sprawl
 			virtual ~JSONDeserializer(){}
 		protected:
 			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new JSONDeserializer(data, false); }
-			virtual SerializerBase* GetAnother() override { SPRAWL_THROW_EXCEPTION(std::exception()); }
+			virtual SerializerBase* GetAnother() override { SPRAWL_THROW_EXCEPTION(std::exception()); return nullptr; }
 		private:
 			sprawl::String m_dataStr;
 		};

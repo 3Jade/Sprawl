@@ -224,6 +224,8 @@ namespace sprawl
 			}
 		};
 			
+		extern template class ReplicableSerializer<MongoSerializer>;
+		extern template class ReplicableDeserializer<MongoDeserializer>;
 	}
 }
 

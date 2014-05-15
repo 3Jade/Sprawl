@@ -604,6 +604,7 @@ namespace sprawl
 			PopKey();
 		}
 
-
+		template class ReplicableSerializer<MongoSerializer>;
+		template class ReplicableDeserializer<MongoDeserializer>;
 	}
 }

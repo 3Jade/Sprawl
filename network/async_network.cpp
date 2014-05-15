@@ -5,6 +5,7 @@
 #endif
 
 #include "async_network.hpp"
+#include <sstream>
 
 #ifdef _WIN32
 #	define close closesocket
@@ -186,9 +187,9 @@ namespace sprawl
 			if(m_onReceive)
 			{
 				//If there's no onReceive callback, what can we do? Nothing.
-				std::string packet = m_partialPacket + std::string(buf, ret);
-				const char* cPacket = packet.c_str();
-				int packetEnd = (int)packet.length();
+				m_partialPacket.append(buf, ret);
+				const char* cPacket = m_partialPacket.c_str();
+				int packetEnd = (int)m_partialPacket.length();
 
 				while(packetEnd > 0)
 				{
@@ -196,20 +197,26 @@ namespace sprawl
 					//if we don't have a validator we'll just give them the full packet.
 					if(m_validatePacket)
 					{
-						newEnd = m_validatePacket(cPacket, packetEnd);
+						int totalLength = -1;
+						newEnd = m_validatePacket(cPacket, packetEnd, totalLength);
+						if(totalLength > 0 && totalLength < (int)m_partialPacket.capacity())
+						{
+							m_partialPacket.reserve(totalLength);
+						}
 					}
 					if(newEnd > 0)
 					{
 						m_onReceive(shared_from_this(), cPacket, newEnd);
 						cPacket += newEnd;
 						packetEnd -= newEnd;
+						m_partialPacket = std::string(cPacket, packetEnd);
+						cPacket = m_partialPacket.c_str();
 					}
 					else
 					{
 						break;
 					}
 				}
-				m_partialPacket = std::string(cPacket, packetEnd);
 			}
 			return ret;
 		}
@@ -419,9 +426,9 @@ namespace sprawl
 				if(m_onReceive)
 				{
 					//If there's no onReceive callback, what can we do? Nothing.
-					std::string packet = m_partialPacket + std::string(buf, ret);
-					const char* cPacket = packet.c_str();
-					int packetEnd = (int)packet.length();
+					m_partialPacket.append(buf, ret);
+					const char* cPacket = m_partialPacket.c_str();
+					int packetEnd = (int)m_partialPacket.length();
 
 					while(packetEnd > 0)
 					{
@@ -429,20 +436,26 @@ namespace sprawl
 						//if we don't have a validator we'll just give them the full packet.
 						if(m_validatePacket)
 						{
-							newEnd = m_validatePacket(cPacket, packetEnd);
+							int totalLength = -1;
+							newEnd = m_validatePacket(cPacket, packetEnd, totalLength);
+							if(totalLength > 0 && totalLength < (int)m_partialPacket.capacity())
+							{
+								m_partialPacket.reserve(totalLength);
+							}
 						}
 						if(newEnd > 0)
 						{
 							m_onReceive(shared_from_this(), cPacket, newEnd);
 							cPacket += newEnd;
 							packetEnd -= newEnd;
+							m_partialPacket = std::string(cPacket, packetEnd);
+							cPacket = m_partialPacket.c_str();
 						}
 						else
 						{
 							break;
 						}
 					}
-					m_partialPacket = std::string(cPacket, packetEnd);
 				}
 				return ret;
 			}

@@ -47,7 +47,6 @@
 #include <string>
 #include <thread>
 #include <mutex>
-#include <sstream>
 #include <vector>
 #include <memory>
 #include <map>
@@ -98,7 +97,7 @@ namespace sprawl
 		typedef std::function<void(const std::shared_ptr<class Connection>, const char*, int)> ReceiveCallback;
 		typedef std::function<void(const std::shared_ptr<class Connection>)> ConnectionCallback;
 		typedef std::function<void(void)> SendCallback;
-		typedef std::function<int(const char*, int)> PacketValidationCallback;
+		typedef std::function<int(const char*, int, int&)> PacketValidationCallback;
 
 		typedef std::shared_ptr<Connection> ConnectionPtr;
 		typedef std::weak_ptr<Connection> ConnectionWPtr;
