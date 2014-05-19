@@ -595,7 +595,7 @@ namespace sprawl
 			}
 		}
 
-#define SOCK_ERROR(errorStr) m_lastError = errorStr; return false
+#define SOCK_ERROR(errorStr) do{ m_lastError = errorStr; return false; }while(false)
 
 		ServerSocket::ServerSocket(const ConnectionType connectionType)
 			: m_inSock(-1)
@@ -1028,7 +1028,9 @@ namespace sprawl
 		{
 			struct addrinfo* p;
 			if(port < 1 || port > 65535)
+			{
 				SOCK_ERROR("Port out of range.");
+			}
 			std::stringstream s;
 			s << port;
 			getaddrinfo(addr.c_str(), s.str().c_str(), &m_hints, &m_servInfo);
@@ -1046,7 +1048,9 @@ namespace sprawl
 			}
 
 			if(p == nullptr)
+			{
 				SOCK_ERROR("Connection failure.");
+			}
 
 			if(m_connectionType == ConnectionType::TCP)
 			{
@@ -1066,6 +1070,7 @@ namespace sprawl
 			{
 				m_onConnect(m_con);
 			}
+			return true;
 		}
 
 		bool ClientSocket::Reconnect()
@@ -1109,6 +1114,7 @@ namespace sprawl
 			{
 				m_onConnect(m_con);
 			}
+			return true;
 		}
 
 		void ClientSocket::SetOnReceive(ReceiveCallback c)

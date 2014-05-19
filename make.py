@@ -64,6 +64,7 @@ if MongoDir and BoostDir:
 	@csbuild.project("serialization-mongo", "serialization/mongo")
 	def serialization():
 		csbuild.Output("libsprawl_serialization-mongo", csbuild.ProjectType.StaticLibrary)
+		csbuild.Define("BOOST_ALL_NO_LIB")
 		
 		csbuild.IncludeDirs("./serialization", os.path.join(MongoDir, "include"), os.path.join(BoostDir, "include"))
 		csbuild.LibDirs(os.path.join(MongoDir, "lib"), os.path.join(BoostDir, "lib"))
