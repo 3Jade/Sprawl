@@ -1,22 +1,22 @@
 //#define SPRAWL_NO_VARIADIC_TEMPLATES
 
-#include <string>
 #include "../collections/HashMap.hpp"
+#include "../string/String.hpp"
 
 class TestType
 {
 public:
 	int key1;
 	int key2;
-	std::string key3;
+	sprawl::String key3;
 
 	int GetKey1() { return key1; }
 	int GetKey2() { return key2; }
-	std::string GetKey3() { return key3; }
+	sprawl::String GetKey3() { return key3; }
 
 	TestType* operator->(){ return this; }
 
-	TestType(int i, int j, std::string const& k)
+	TestType(int i, int j, sprawl::String const& k)
 		: key1(i)
 		, key2(j)
 		, key3(k)
@@ -40,7 +40,7 @@ bool test_collections()
 		std::shared_ptr<TestType>
 		, sprawl::KeyAccessor<std::shared_ptr<TestType>, int>
 		, sprawl::PtrFunctionAccessor<TestType, int, &TestTypeAccessor, std::shared_ptr<TestType>>
-		, sprawl::PtrMemberAccessor<TestType, std::string, &TestType::GetKey3, std::shared_ptr<TestType>>
+		, sprawl::PtrMemberAccessor<TestType, sprawl::String, &TestType::GetKey3, std::shared_ptr<TestType>>
 	> map;
 
 	sprawl::collections::HashMap<
@@ -58,7 +58,7 @@ bool test_collections()
 		TestType
 		, sprawl::KeyAccessor<TestType, int>
 		, sprawl::FunctionAccessor<TestType, int, &TestTypeAccessor>
-		, sprawl::MemberAccessor<TestType, std::string, &TestType::GetKey3>
+		, sprawl::MemberAccessor<TestType, sprawl::String, &TestType::GetKey3>
 	> map4;
 
 	sprawl::collections::HashMap<
@@ -107,7 +107,7 @@ bool test_collections()
 #define RUN_LOOKUP(map, keyIndex, key) \
 	if(!map.has<keyIndex>(key)) \
 	{ \
-		printf("Failed map lookup %d (" #map ".has<" #keyIndex ">(" #key ") ... ", testNum); \
+		printf("Failed map lookup %d (" #map ".has<" #keyIndex ">(" #key ")\n... ", testNum); \
 		success = false; \
 	} \
 	++testNum
@@ -115,7 +115,7 @@ bool test_collections()
 #define RUN_LOOKUP_AUTO(map, key) \
 	if(!map.has(key)) \
 	{ \
-		printf("Failed map lookup %d (" #map ".has(" #key ") ... ", testNum); \
+		printf("Failed map lookup %d (" #map ".has(" #key ")\n... ", testNum); \
 		success = false; \
 	} \
 	++testNum
@@ -185,7 +185,7 @@ bool test_collections()
 #define RUN_FIND(map, keyIndex, key) \
 	if(!map.find<keyIndex>(key) != map.end()) \
 	{ \
-		printf("Failed map erase %d (" #map ".find<" #keyIndex ">(" #key ") ... ", testNum); \
+		printf("Failed map erase %d (" #map ".find<" #keyIndex ">(" #key ")\n... ", testNum); \
 		success = false; \
 	} \
 	++testNum
@@ -211,7 +211,7 @@ bool test_collections()
 #define RUN_GET(map, keyIndex, key, expectedResult) \
 	if(map.get<keyIndex>(key)->key1 != expectedResult ) \
 	{ \
-		printf("Failed map get %d (" #map ".get<" #keyIndex ">(" #key ") ... ", testNum); \
+		printf("Failed map get %d (" #map ".get<" #keyIndex ">(" #key ")\n... ", testNum); \
 		success = false; \
 	} \
 	++testNum
@@ -219,7 +219,7 @@ bool test_collections()
 #define RUN_GET_AUTO(map, key, expectedResult) \
 	if(map.get(key)->key1 != expectedResult ) \
 	{ \
-		printf("Failed map get %d (" #map ".get(" #key ") ... ", testNum); \
+		printf("Failed map get %d (" #map ".get(" #key ")\n... ", testNum); \
 		success = false; \
 	} \
 	++testNum

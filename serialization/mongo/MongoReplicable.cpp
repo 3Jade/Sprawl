@@ -93,7 +93,7 @@ namespace sprawl
 			ReplicableSerializer<MongoSerializer>::PopKey();
 		}
 
-		std::pair<mongo::BSONObj, mongo::BSONObj> MongoReplicableSerializer::BuildDelta(const MongoReplicableSerializer::BuildDeltaParams& params)
+		std::vector<mongo::BSONObj> MongoReplicableSerializer::BuildDelta(const MongoReplicableSerializer::BuildDeltaParams& params)
 		{
 			const ReplicationBSONMap& objs = params.objs;
 			const ReplicationMap& data = params.data;
@@ -103,7 +103,7 @@ namespace sprawl
 			const ReplicationSet& allObjs = params.allObjs;
 			const ReplicationSet& markedObjs = params.markedObjs;
 
-			mongo::BSONObjBuilder b;
+			mongo::BSONObjBuilder updateQuery;
 
 			struct ObjectData
 			{
@@ -201,7 +201,8 @@ namespace sprawl
 			std::list<ObjectData, sprawl::memory::StlWrapper<ObjectData>> allObjects;
 			std::map<ReplicationKey, ObjectData*, std::less<ReplicationKey>, sprawl::memory::StlWrapper<std::pair<ReplicationKey, ObjectData*>>> allKeys;
 			ObjectData* currentObject;
-			std::set<ObjectData*, std::less<ObjectData*>, sprawl::memory::StlWrapper<ObjectData*>> rootObjects;
+			typedef std::set<ObjectData*, std::less<ObjectData*>, sprawl::memory::StlWrapper<ObjectData*>> ObjectSet;
+			ObjectSet rootObjects;
 
 			auto buildObjectData = [
 					this,
@@ -393,7 +394,7 @@ namespace sprawl
 				{
 					getAddQuery(changed, obj);
 				}
-				b.append("$set", changed.obj());
+				updateQuery.append("$set", changed.obj());
 			}
 
 			//Removes get their own special treatment
@@ -484,21 +485,62 @@ namespace sprawl
 					}
 				}
 
-				b.append("$unset", removed.obj());
+				updateQuery.append("$unset", removed.obj());
 			}
 
-			mongo::BSONObjBuilder b2;
+			std::vector<mongo::BSONObj> ret;
+
+			if(changed_something || removed_something)
+			{
+				ret.push_back(updateQuery.obj());
+			}
+
+			//If array members have been removed, we have to generate an arbitrary number of additional queries.
+			//This is one of the most frustrating aspects of Mongo: You can't directly remove an element from an array;
+			//you have to change it to a value that you know doesn't exist anywhere else in the array, then instruct
+			//mongo to remove all elements of that value from the array. Very backward.
+
+			//Worse than that, if you have nested arrays (say, [ [ 1, 2, 3 ], [ 4, 5, 6 ] ]) and you remove an item
+			//from the inner array and also remove an item from the outer array (say, changing it to [ [ 1, 2 ] ]
+			//mongo won't let you perform both removals at the same time. They have to be executed in separate steps.
+
+			//That means that we have to generate N additional queries to mongo to clean up these shrunk arrays. Blech.
 
 			struct
 			{
-				mongo::BSONObj operator()(ObjectData* obj, bool& pulled_something)
+				bool ArrayAlreadyAccountedFor(ObjectData* obj)
+				{
+					while(obj)
+					{
+						if(obj->isArray && objectsAccountedFor.count(obj))
+						{
+							return true;
+						}
+						obj = obj->parentObject;
+					}
+					return false;
+				}
+
+				void AddAccountedArray(ObjectData* obj)
+				{
+					while(obj)
+					{
+						if(obj->isArray)
+						{
+							objectsAccountedFor.insert(obj);
+						}
+						obj = obj->parentObject;
+					}
+				}
+
+				mongo::BSONObj operator()(ObjectData* obj)
 				{
 					if(obj->hasValidChildren)
 					{
 						mongo::BSONObjBuilder removedArrayIndexes;
 						for(auto& kvp : obj->children)
 						{
-							removedArrayIndexes.appendElementsUnique((*this)(kvp.second, pulled_something));
+							removedArrayIndexes.appendElementsUnique((*this)(kvp.second));
 						}
 						return removedArrayIndexes.obj();
 					}
@@ -506,7 +548,18 @@ namespace sprawl
 					{
 						if(obj->parentObject && obj->parentObject->isArray)
 						{
+							if(objectsAlreadyPulled.count(obj->parentObject))
+							{
+								return mongo::BSONObj();
+							}
+							if(ArrayAlreadyAccountedFor(obj->parentObject))
+							{
+								newRootObjects.insert(obj->parentObject);
+								return mongo::BSONObj();
+							}
 							pulled_something = true;
+							AddAccountedArray(obj->parentObject);
+							objectsAlreadyPulled.insert(obj->parentObject);
 							return BSON(obj->parentObject->fullKey << mongo::BSONNULL);
 						}
 						else
@@ -515,26 +568,44 @@ namespace sprawl
 						}
 					}
 				}
+
+				void Reset()
+				{
+					newRootObjects.clear();
+					objectsAccountedFor.clear();
+					pulled_something = false;
+				}
+
+				ObjectSet newRootObjects;
+				ObjectSet objectsAccountedFor;
+				ObjectSet objectsAlreadyPulled;
+				bool pulled_something;
 			} getCorrectRemoveIndex;
 
 			if(removed_something)
 			{
-				bool pulled_something = false;
-				mongo::BSONObjBuilder pulled;
-				for(ObjectData* obj : rootObjects)
+				while(!rootObjects.empty())
 				{
-					if(obj->hasRemovedChildren)
+					mongo::BSONObjBuilder pullQuery;
+					mongo::BSONObjBuilder pulled;
+					getCorrectRemoveIndex.Reset();
+					for(ObjectData* obj : rootObjects)
 					{
-						pulled.appendElementsUnique(getCorrectRemoveIndex(obj, pulled_something));
+						if(obj->hasRemovedChildren)
+						{
+							pulled.appendElementsUnique(getCorrectRemoveIndex(obj));
+						}
 					}
-				}
-				if(pulled_something)
-				{
-					b2.append("$pull", pulled.obj());
+					if(getCorrectRemoveIndex.pulled_something)
+					{
+						pullQuery.append("$pull", pulled.obj());
+						ret.push_back(pullQuery.obj());
+					}
+					rootObjects = std::move(getCorrectRemoveIndex.newRootObjects);
 				}
 			}
 
-			return std::make_pair(b.obj(), b2.obj());
+			return std::move(ret);
 		}
 
 		void MongoReplicableSerializer::serialize(mongo::Date_t* var, const String& name, bool PersistToDB)

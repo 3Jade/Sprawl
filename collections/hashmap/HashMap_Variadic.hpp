@@ -249,12 +249,6 @@ namespace sprawl
 					return get(val, Specialized<i>());
 				}
 
-				template<int i, typename T2>
-				ValueType& get(T2 const& val, Specialized<i> spec)
-				{
-					return Base::get(val, spec);
-				}
-
 				using Base::find;
 				using Base::cfind;
 				iterator find(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
@@ -269,12 +263,6 @@ namespace sprawl
 					return find(val, Specialized<i>());
 				}
 
-				template<int i, typename T2>
-				iterator find(T2 const& val, Specialized<i> spec)
-				{
-					return Base::find(val, spec);
-				}
-
 				const_iterator find(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const
 				{
 					return cfind(key);
@@ -284,12 +272,6 @@ namespace sprawl
 				iterator find(T2 const& val) const
 				{
 					return find(val, Specialized<i>());
-				}
-
-				template<int i, typename T2>
-				iterator find(T2 const& val, Specialized<i> spec) const
-				{
-					return Base::find(val, spec);
 				}
 
 				const_iterator cfind(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const
@@ -304,12 +286,6 @@ namespace sprawl
 					return cfind(val, Specialized<i>());
 				}
 
-				template<int i, typename T2>
-				iterator cfind(T2 const& val, Specialized<i> spec)
-				{
-					return Base::cfind(val, spec);
-				}
-
 				using Base::has;
 				bool has(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
 				{
@@ -320,12 +296,6 @@ namespace sprawl
 				bool has(T2 const& val)
 				{
 					return has(val, Specialized<i>());
-				}
-
-				template<int i, typename T2>
-				bool has(T2 const& val, Specialized<i> spec)
-				{
-					return Base::has(val, spec);
 				}
 
 				void clear()
@@ -386,12 +356,6 @@ namespace sprawl
 				void erase(T2 const& val)
 				{
 					return erase(val, Specialized<i>());
-				}
-
-				template<int i, typename T2>
-				void erase(T2 const& val, Specialized<i> spec)
-				{
-					return Base::erase(val, spec);
 				}
 
 				HashMap_Impl(size_t startingBucketCount = 256)

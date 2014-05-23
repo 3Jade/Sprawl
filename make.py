@@ -2,6 +2,7 @@
 
 import subprocess
 import os
+import time
 import csbuild
 from csbuild import log
 
@@ -17,8 +18,8 @@ csbuild.NoPrecompile()
 csbuild.OutDir("lib/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
 csbuild.ObjDir("Intermediate/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/{project.name}")
 
-csbuild.add_option("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr/lib")
-csbuild.add_option("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr/lib")
+csbuild.add_option("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
+csbuild.add_option("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
 
 csbuild.InstallSubdir("sprawl/{project.name}")
 
@@ -66,8 +67,16 @@ if MongoDir and BoostDir:
 		csbuild.Output("libsprawl_serialization-mongo", csbuild.ProjectType.StaticLibrary)
 		csbuild.Define("BOOST_ALL_NO_LIB")
 		
-		csbuild.IncludeDirs("./serialization", os.path.join(MongoDir, "include"), os.path.join(BoostDir, "include"))
-		csbuild.LibDirs(os.path.join(MongoDir, "lib"), os.path.join(BoostDir, "lib"))
+		csbuild.IncludeDirs(
+			"./serialization",
+			os.path.join(MongoDir, "include"),
+			os.path.join(BoostDir, "include")
+		)
+
+		csbuild.LibDirs(
+			os.path.join(MongoDir, "lib"),
+			os.path.join(BoostDir, "lib")
+		)
 	
 		csbuild.InstallSubdir("sprawl/serialization")
 		csbuild.InstallHeaders()
@@ -102,13 +111,17 @@ def string():
 
 	csbuild.InstallHeaders()
 
-@csbuild.project("UnitTests", "UnitTests", ["collections", "network", "serialization", "memory", "string", "hash", "common"])
+UnitTestDepends = ["collections", "network", "serialization", "memory", "string", "hash", "common"]
+if MongoDir:
+	UnitTestDepends.append("serialization-mongo")
+
+@csbuild.project("UnitTests", "UnitTests", UnitTestDepends)
 def UnitTests():
 	csbuild.Output("SprawlUnitTest")
 	csbuild.OutDir("bin/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
 
 	csbuild.LibDirs( "lib/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}" )
-
+	
 	csbuild.Libraries(
 		# Header only "sprawl_collections",
 		"sprawl_network",
@@ -118,9 +131,43 @@ def UnitTests():
 		# Header only "sprawl_common",
 	)
 
+	if MongoDir:
+		csbuild.IncludeDirs(
+			"./serialization",
+			os.path.join(MongoDir, "include"),
+			os.path.join(BoostDir, "include")
+		)
+
+		csbuild.LibDirs(
+			os.path.join(MongoDir, "lib"),
+			os.path.join(BoostDir, "lib")
+		)
+
+		csbuild.Libraries(
+			"sprawl_serialization-mongo",
+			"mongoclient",
+			"boost_filesystem",
+			"boost_system",
+			"boost_thread",
+			"boost_program_options",
+			"ssl",
+			"crypto",
+		)
+		csbuild.Toolchain("gcc").Libraries("pthread")
+		csbuild.Toolchain("gcc").CompilerFlags("-pthread")
+		csbuild.Define("WITH_MONGO")
+	else:
+		csbuild.ExcludeFiles(
+			"UnitTests/UnitTests_MongoReplicable.cpp",
+		)
+
 	@csbuild.postMakeStep
 	def postMake(project):
+		unitTestExe = "bin/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
+		while not os.access(unitTestExe, os.X_OK):
+			time.sleep(1)
+
 		log.LOG_BUILD("Running unit tests...")
-		ret = subprocess.call(["bin/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project), "--all"]);
+		ret = subprocess.call([unitTestExe, "--all"]);
 		if ret != 0:
 			log.LOG_ERROR("Unit tests failed! Errors reported: {}".format(ret));

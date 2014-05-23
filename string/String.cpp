@@ -14,6 +14,8 @@ namespace sprawl
 		, m_data(nullptr)
 		, m_refCount(1)
 		, m_length(0)
+		, m_hash(0)
+		, m_hashComputed(false)
 	{
 		//
 	}
@@ -24,6 +26,8 @@ namespace sprawl
 		, m_data(nullptr)
 		, m_refCount(1)
 		, m_length(strlen(data))
+		, m_hash(0)
+		, m_hashComputed(false)
 	{
 		if( m_length < staticDataSize )
 		{
@@ -46,6 +50,8 @@ namespace sprawl
 		, m_data(nullptr)
 		, m_refCount(1)
 		, m_length(length)
+		, m_hash(0)
+		, m_hashComputed(false)
 	{
 		if( m_length < staticDataSize )
 		{
@@ -68,6 +74,8 @@ namespace sprawl
 		, m_data(literal.m_ptr)
 		, m_refCount(1)
 		, m_length(literal.m_length)
+		, m_hash(0)
+		, m_hashComputed(false)
 	{
 		//
 	}
@@ -158,6 +166,20 @@ namespace sprawl
 		{
 			Holder::FreeHolder(m_holder);
 		}
+	}
+
+	size_t String::GetHash() const
+	{
+		if(!m_holder)
+		{
+			return 0;
+		}
+		if(!m_holder->m_hashComputed)
+		{
+			m_holder->m_hash = sprawl::murmur3::Hash( m_holder->m_data, m_holder->m_length );
+			m_holder->m_hashComputed = true;
+		}
+		return m_holder->m_hash;
 	}
 	
 	sprawl::String String::operator+(const sprawl::String& other) const

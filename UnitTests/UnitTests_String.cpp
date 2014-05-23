@@ -23,7 +23,7 @@ bool test_string()
 
 	if(str != "030, True, foo, TestStruct, TestStruct")
 	{
-		printf("Failed format test ('%s' != '003, True, foo, TestStruct, TestStruct'')... ", str.c_str());
+		printf("Failed format test ('%s' != '003, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
 		success = false;
 	}
 #endif

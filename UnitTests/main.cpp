@@ -13,6 +13,9 @@ int main(int argc, char* argv[])
 	ADD_TEST(memory);
 	ADD_TEST(collections);
 	ADD_TEST(string);
+#ifdef WITH_MONGO
+	ADD_TEST(mongo_replicable);
+#endif
 
 	char validArguments[512];
 	validArguments[0] = '\0';

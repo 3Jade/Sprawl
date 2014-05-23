@@ -40,6 +40,8 @@ namespace sprawl
 			const char* m_data;
 			int m_refCount;
 			size_t m_length;
+			mutable size_t m_hash;
+			mutable bool m_hashComputed;
 		private:
 			Holder(const Holder& other);
 			Holder& operator=(const Holder& other);
@@ -59,6 +61,8 @@ namespace sprawl
 		String(const StringLiteral& stringLiteral);
 
 		~String();
+
+		size_t GetHash() const;
 
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
 		std::string toStdString() const;
@@ -409,13 +413,6 @@ namespace sprawl
 	typedef StringLiteral StringRef;
 }
 
-#if !defined(_WIN32) || _MSC_VER >= 1800
-inline sprawl::String operator""_sprawl(char const* literal, size_t chars)
-{
-	return sprawl::String(sprawl::StringLiteral(literal, chars));
-}
-#endif
-
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
 namespace std
 {
@@ -427,7 +424,7 @@ namespace std
 
 		value_type operator()(const argument_type& str) const
 		{
-			return sprawl::murmur3::Hash( str.c_str(), str.length() );
+			return str.GetHash();
 		}
 	};
 }

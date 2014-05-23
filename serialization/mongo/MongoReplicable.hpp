@@ -61,13 +61,13 @@ namespace sprawl
 
 			virtual void Reset();
 
-			std::pair<mongo::BSONObj, mongo::BSONObj> generateUpdateQuery()
+			std::vector<mongo::BSONObj> generateUpdateQuery()
 			{
 				BuildDeltaParams params = { m_objData, m_data, m_marked_data, m_allArrays, m_markedArrays, m_allObjs, m_markedObjs };
 				return this->BuildDelta( params );
 			}
 
-			std::pair<mongo::BSONObj, mongo::BSONObj> generateUndoQuery()
+			std::vector<mongo::BSONObj> generateUndoQuery()
 			{
 				BuildDeltaParams params = {m_markedObjData, m_marked_data, m_data, m_markedArrays, m_allArrays, m_markedObjs, m_allObjs};
 				return this->BuildDelta( params );
@@ -192,7 +192,7 @@ namespace sprawl
 				const ReplicationSet& markedObjs;
 			};
 
-			std::pair<mongo::BSONObj, mongo::BSONObj> BuildDelta(const BuildDeltaParams& params);
+			std::vector<mongo::BSONObj> BuildDelta(const BuildDeltaParams& params);
 
 			ReplicationBSONMap m_objData;
 			ReplicationBSONMap m_markedObjData;

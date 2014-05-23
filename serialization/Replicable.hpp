@@ -48,6 +48,8 @@ namespace sprawl
 			ReplicationKey()
 				: m_size(0)
 				, m_data()
+				, m_hash(0)
+				, m_hashComputed(false)
 			{
 				//
 			}
@@ -123,13 +125,20 @@ namespace sprawl
 			friend struct RKeyHash;
 			uint32_t m_size;
 			int32_t m_data[SPRAWL_REPLICABLE_MAX_DEPTH];
+			mutable size_t m_hash;
+			mutable bool m_hashComputed;
 		};
 
 		struct RKeyHash
 		{
 			std::size_t operator()(const ReplicationKey& key) const
 			{
-				return sprawl::murmur3::Hash(key.m_data, key.m_size * sizeof(int32_t));
+				if(!key.m_hashComputed)
+				{
+					key.m_hash = sprawl::murmur3::Hash(key.m_data, key.m_size * sizeof(int32_t));
+					key.m_hashComputed = true;
+				}
+				return key.m_hash;
 			}
 		};
 
