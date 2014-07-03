@@ -8,7 +8,7 @@ namespace sprawl
 	class Hash
 	{
 	public:
-		size_t operator()(T const& value)
+		inline static size_t Compute(T const& value)
 		{
 			return std::hash<T>()(value);
 		}

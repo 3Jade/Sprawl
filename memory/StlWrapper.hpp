@@ -129,7 +129,7 @@ namespace sprawl
 				::new ((void *)ptr) T(other);
 			}
 
-#ifdef _WIN32
+#if (defined(_WIN32) && _MSC_VER < 1800)
 #	define SPRAWL_ALLOC_MEMBER_CONSTRUCT( \
 	TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, CALL_OPT, X2, X3, X4) \
 	template<class _Objty COMMA LIST(_CLASS_TYPE)> \

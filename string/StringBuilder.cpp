@@ -670,4 +670,9 @@ namespace sprawl
 	{
 		return String(m_buffer, m_pos);
 	}
+
+	String StringBuilder::TempStr()
+	{
+		return String(StringRef(m_buffer, m_pos));
+	}
 }

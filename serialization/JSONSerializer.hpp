@@ -188,6 +188,7 @@ namespace sprawl
 				if( m_type != JSONType::Integer )
 				{
 					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+					return 0;
 				}
 #endif
 
@@ -200,6 +201,7 @@ namespace sprawl
 				if( m_type != JSONType::String )
 				{
 					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+					return "";
 				}
 #endif
 
@@ -212,6 +214,7 @@ namespace sprawl
 				if( m_type != JSONType::Boolean )
 				{
 					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+					return false;
 				}
 #endif
 
@@ -224,6 +227,7 @@ namespace sprawl
 				if( m_type != JSONType::Double )
 				{
 					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+					return 0.0;
 				}
 #endif
 
@@ -393,6 +397,7 @@ namespace sprawl
 				if(!m_bIsValid)
 				{
 					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+					return;
 				}
 				bool bIsArray = false;
 				uint32_t size = bytes/sizeof(T);
@@ -446,6 +451,7 @@ namespace sprawl
 							if(!bFound)
 							{
 								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+								return;
 							}
 							std::stringstream converter(strval);
 							converter >> *var;
@@ -454,12 +460,12 @@ namespace sprawl
 					else
 					{
 						bool bFound = false;
-						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
+						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
 						{
 							if(it->first == name.toStdString())
 							{
 								strval = it->second;
-								m_serialVect.erase(it);
+								m_serialVect.erase((it+1).base());
 								bFound = true;
 								break;
 							}
@@ -467,6 +473,7 @@ namespace sprawl
 						if(!bFound)
 						{
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
 						}
 						std::stringstream converter(strval);
 						converter >> *var;
@@ -515,6 +522,7 @@ namespace sprawl
 				if(!m_bIsValid)
 				{
 					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+					return;
 				}
 				if(IsLoading())
 				{
@@ -550,6 +558,7 @@ namespace sprawl
 							if(!bFound)
 							{
 								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+								return;
 							}
 
 							if(strval == "true")
@@ -565,12 +574,12 @@ namespace sprawl
 					else
 					{
 						bool bFound = false;
-						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
+						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
 						{
 							if(it->first == name.toStdString())
 							{
 								strval = it->second;
-								m_serialVect.erase(it);
+								m_serialVect.erase((it+1).base());
 								bFound = true;
 								break;
 							}
@@ -578,6 +587,7 @@ namespace sprawl
 						if(!bFound)
 						{
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
 						}
 
 						if(strval == "true")
@@ -616,6 +626,7 @@ namespace sprawl
 				if(!m_bIsValid)
 				{
 					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+					return;
 				}
 				if(IsLoading())
 				{
@@ -644,6 +655,7 @@ namespace sprawl
 							if(!bFound)
 							{
 								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+								return;
 							}
 							strcpy(var, strval.substr(1, strval.length()-2).c_str());
 						}
@@ -651,12 +663,12 @@ namespace sprawl
 					else
 					{
 						bool bFound = false;
-						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
+						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
 						{
 							if(it->first == name.toStdString())
 							{
 								strval = it->second;
-								m_serialVect.erase(it);
+								m_serialVect.erase((it+1).base());
 								bFound = true;
 								break;
 							}
@@ -664,6 +676,7 @@ namespace sprawl
 						if(!bFound)
 						{
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
 						}
 						strcpy(var, strval.substr(1, strval.length()-2).c_str());
 					}
@@ -695,6 +708,7 @@ namespace sprawl
 				if(!m_bIsValid)
 				{
 					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+					return;
 				}
 				if(IsLoading())
 				{
@@ -723,6 +737,7 @@ namespace sprawl
 							if(!bFound)
 							{
 								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+								return;
 							}
 							*var = strval.substr(1, strval.length()-2);
 						}
@@ -730,12 +745,12 @@ namespace sprawl
 					else
 					{
 						bool bFound = false;
-						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
+						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
 						{
 							if(it->first == name.toStdString())
 							{
 								strval = it->second;
-								m_serialVect.erase(it);
+								m_serialVect.erase((it+1).base());
 								bFound = true;
 								break;
 							}
@@ -743,6 +758,7 @@ namespace sprawl
 						if(!bFound)
 						{
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
 						}
 						*var = strval.substr(1, strval.length()-2);
 					}
@@ -882,7 +898,7 @@ namespace sprawl
 					}
 					else if(!m_thisArray.empty() && LastState == State::Array)
 					{
-						for(auto it = m_thisArray.begin(); it != m_thisArray.end(); it++)
+						for(auto it = m_thisArray.rbegin(); it != m_thisArray.rend(); it++)
 						{
 							if(it->first == str.toStdString())
 							{
@@ -896,12 +912,12 @@ namespace sprawl
 					}
 					else
 					{
-						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
+						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
 						{
 							if(it->first == str.toStdString())
 							{
 								strval = it->second;
-								m_serialVect.erase(it);
+								m_serialVect.erase((it+1).base());
 								bFound = true;
 								break;
 							}
@@ -1023,12 +1039,12 @@ namespace sprawl
 					}
 					else
 					{
-						for(auto it = m_serialVect.begin(); it != m_serialVect.end(); it++)
+						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
 						{
 							if(it->first == str.toStdString())
 							{
 								strval = it->second;
-								m_serialVect.erase(it);
+								m_serialVect.erase((it+1).base());
 								bFound = true;
 								break;
 							}
@@ -1155,6 +1171,7 @@ namespace sprawl
 					if(m_serialVect.empty())
 					{
 						SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+						return "";
 					}
 					return m_serialVect.front().first;
 				}
@@ -1229,7 +1246,10 @@ namespace sprawl
 							if(!in_quotes && TokenLevel == 1)
 							{
 								GotKey = false;
-								ret.push_back(std::make_pair(key, value));
+								if(!key.empty())
+								{
+									ret.push_back(std::make_pair(key, value));
+								}
 								key = "";
 								value = "";
 								break;
@@ -1272,7 +1292,10 @@ namespace sprawl
 							break;
 					}
 				}
-				ret.push_back(std::make_pair(key, value));
+				if(!key.empty())
+				{
+					ret.push_back(std::make_pair(key, value));
+				}
 			}
 
 			enum class State { None, Array, Object };

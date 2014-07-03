@@ -114,8 +114,10 @@ namespace sprawl
 		}
 	}
 
+	/*static*/ String::Holder String::ms_emptyHolder(StringLiteral(""));
+
 	String::String()
-		: m_holder(nullptr)
+		: m_holder(&ms_emptyHolder)
 	{
 
 	}
@@ -135,7 +137,7 @@ namespace sprawl
 	String::String(const String& other)
 		: m_holder(other.m_holder)
 	{
-		if(m_holder)
+		if(m_holder != &ms_emptyHolder)
 		{
 			m_holder->IncRef();
 		}
@@ -145,7 +147,7 @@ namespace sprawl
 		: m_holder(other.m_holder)
 	{
 		//Don't change ref count here, it's staying the same because it's being *moved*
-		other.m_holder = nullptr;
+		other.m_holder = &ms_emptyHolder;
 	}
 
 	String::String(const std::string& stlString)
@@ -162,24 +164,10 @@ namespace sprawl
 
 	String::~String()
 	{
-		if(m_holder && m_holder->DecRef())
+		if(m_holder != &ms_emptyHolder && m_holder->DecRef())
 		{
 			Holder::FreeHolder(m_holder);
 		}
-	}
-
-	size_t String::GetHash() const
-	{
-		if(!m_holder)
-		{
-			return 0;
-		}
-		if(!m_holder->m_hashComputed)
-		{
-			m_holder->m_hash = sprawl::murmur3::Hash( m_holder->m_data, m_holder->m_length );
-			m_holder->m_hashComputed = true;
-		}
-		return m_holder->m_hash;
 	}
 	
 	sprawl::String String::operator+(const sprawl::String& other) const
@@ -208,14 +196,14 @@ namespace sprawl
 	
 	String& String::operator=(const String& other)
 	{
-		if(m_holder && m_holder->DecRef())
+		if(m_holder != &ms_emptyHolder && m_holder->DecRef())
 		{
 			Holder::FreeHolder(m_holder);
 		}
 
 		m_holder = other.m_holder;
 
-		if(m_holder)
+		if(m_holder != &ms_emptyHolder)
 		{
 			m_holder->IncRef();
 		}
@@ -228,11 +216,11 @@ namespace sprawl
 		{
 			return false;
 		}
-		if(!m_holder)
+		if(m_holder == &ms_emptyHolder)
 		{
 			return false;
 		}
-		if(!other.m_holder)
+		if(other.m_holder == &ms_emptyHolder)
 		{
 			return true;
 		}
@@ -251,7 +239,7 @@ namespace sprawl
 
 	std::string String::toStdString() const
 	{
-		if(!m_holder)
+		if(m_holder == &ms_emptyHolder)
 		{
 			static std::string emptyStr;
 			return emptyStr;

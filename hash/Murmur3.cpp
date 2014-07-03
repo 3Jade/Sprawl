@@ -131,11 +131,11 @@ namespace sprawl
 			}
 
 			outputHash ^= uint64_t(size);
-			outputHash ^= (outputHash >> 16);
+			outputHash ^= (outputHash >> 33);
 			outputHash *= 0xff51afd7ed558ccdULL;
-			outputHash ^= (outputHash >> 13);
+			outputHash ^= (outputHash >> 33);
 			outputHash *= 0xc4ceb9fe1a85ec53ULL;
-			outputHash ^= (outputHash >> 16);
+			outputHash ^= (outputHash >> 33);
 
 			return outputHash;
 		}

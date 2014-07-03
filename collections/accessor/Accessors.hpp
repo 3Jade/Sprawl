@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../../common/compat.hpp"
+
 namespace sprawl
 {
 	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)()>
@@ -15,7 +17,7 @@ namespace sprawl
 			//
 		}
 
-		KeyType const GetKey()
+		inline KeyType const GetKey()
 		{
 			return (m_value.*function)();
 		}
@@ -36,7 +38,7 @@ namespace sprawl
 			//
 		}
 
-		KeyType const GetKey()
+		inline KeyType const GetKey()
 		{
 			return ((*m_value).*function)();
 		}
@@ -57,7 +59,7 @@ namespace sprawl
 			//
 		}
 
-		KeyType const GetKey()
+		inline KeyType const GetKey()
 		{
 			return (*function)(&m_value);
 		}
@@ -78,7 +80,7 @@ namespace sprawl
 			//
 		}
 
-		KeyType const GetKey()
+		inline KeyType const GetKey()
 		{
 			return (*function)(&(*m_value));
 		}
@@ -100,7 +102,7 @@ namespace sprawl
 			//
 		}
 
-		KeyType const& GetKey()
+		inline KeyType const& GetKey()
 		{
 			return m_key;
 		}
@@ -122,7 +124,7 @@ namespace sprawl
 			//
 		}
 
-		ValueType const& GetKey()
+		inline ValueType const& GetKey()
 		{
 			return m_value;
 		}
@@ -136,7 +138,7 @@ namespace sprawl
 		typedef void* key_type;
 		struct arg_type {};
 
-		void* GetKey()
+		inline void* GetKey()
 		{
 			return nullptr;
 		}

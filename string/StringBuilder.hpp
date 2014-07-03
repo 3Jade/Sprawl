@@ -94,6 +94,7 @@ namespace sprawl
 		}
 
 		String Str();
+		String TempStr();
 
 		~StringBuilder();
 

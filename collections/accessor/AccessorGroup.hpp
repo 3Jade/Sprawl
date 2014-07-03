@@ -1,329 +1,254 @@
 #pragma once
 
+#include "../../common/specialized.hpp"
+#include <xtr1common>
+
+using std::_Nil;
+
 namespace sprawl
 {
 	namespace collections
 	{
-		template<typename ValueType, typename Accessor1, typename Accessor2 = NullAccessor, typename Accessor3 = NullAccessor>
-		class AccessorGroup
+		namespace detail
 		{
-		public:
-			AccessorGroup(ValueType const& value)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, m_accessor2(m_value)
-				, m_accessor3(m_value)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
+			template<typename ValueType, typename MostInheritedType, size_t index, typename ThisAccessor = _Nil, _MAX_CLASS_LIST>
+			class AccessorGroup_Impl;
+
+			template<typename ValueType, typename MostInheritedType, size_t index>
+			class AccessorGroup_Impl<ValueType, MostInheritedType, index, _Nil, _MAX_NIL_LIST>
 			{
-				//
-			}
+			public:
+				AccessorGroup_Impl(ValueType const& value)
+					: next(nullptr)
+					, prev(nullptr)
+					, m_value(value)
+				{
+					//
+				}
 
-			struct VerifyFirstKeyUnique {};
-			struct VerifySecondKeyUnique {};
-			struct VerifyThirdKeyUnique {};
+				inline MostInheritedType* Next(Specialized<index>)
+				{
+					return nullptr;
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key, VerifyFirstKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value, key)
-				, m_accessor2(m_value)
-				, m_accessor3(m_value)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline MostInheritedType* Prev(Specialized<index>)
+				{
+					return nullptr;
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor2::arg_type const& key, VerifySecondKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, m_accessor2(m_value, key)
-				, m_accessor3(m_value)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline void SetNext(Specialized<index>, MostInheritedType*)
+				{
+					//
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor3::arg_type const& key, VerifyThirdKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, m_accessor2(m_value)
-				, m_accessor3(m_value, key)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline void SetPrev(Specialized<index>, MostInheritedType*)
+				{
+					//
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key1, typename Accessor2::arg_type const& key2, VerifyFirstKeyUnique* = 0, VerifySecondKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value, key1)
-				, m_accessor2(m_value, key2)
-				, m_accessor3(m_value)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline size_t Idx(Specialized<index>)
+				{
+					return -1;
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key1, typename Accessor3::arg_type const& key2, VerifyFirstKeyUnique* = 0, VerifyThirdKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value, key1)
-				, m_accessor2(m_value)
-				, m_accessor3(m_value, key2)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline void SetIndex(Specialized<index>, size_t)
+				{
+					//
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor2::arg_type const& key1, typename Accessor3::arg_type const& key2, VerifySecondKeyUnique* = 0, VerifyThirdKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, m_accessor2(m_value, key1)
-				, m_accessor3(m_value, key2)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline size_t GetHash(Specialized<index>)
+				{
+					return -1;
+				}
 
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key1, typename Accessor2::arg_type const& key2, typename Accessor3::arg_type const& key3)
-				: m_value(value)
-				, m_accessor1(m_value, key1)
-				, m_accessor2(m_value, key2)
-				, m_accessor3(m_value, key3)
-				, next1(nullptr)
-				, next2(nullptr)
-				, next3(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, prev3(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-				, idx3(0)
-			{
-				//
-			}
+				inline void SetHash(Specialized<index>, size_t)
+				{
+					//
+				}
 
-			ValueType m_value;
-			Accessor1 m_accessor1;
-			Accessor2 m_accessor2;
-			Accessor3 m_accessor3;
+				inline NullAccessor& Accessor(Specialized<index>)
+				{
+					static NullAccessor accessor;
+					return accessor;
+				}
 
-			AccessorGroup* next1;
-			AccessorGroup* next2;
-			AccessorGroup* next3;
+				MostInheritedType* next;
+				MostInheritedType* prev;
+				ValueType m_value;
+			private:
+				AccessorGroup_Impl(AccessorGroup_Impl& other);
+				AccessorGroup_Impl(MostInheritedType& other);
+			};
+			
+#define _CLASS_ACCESSORGROUP_IMPL( \
+			TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
+			template< typename ValueType, typename MostInheritedType, size_t index, typename AccessorType COMMA LIST(_CLASS_TYPEX)> \
+			class AccessorGroup_Impl<ValueType, MostInheritedType, index, AccessorType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
+				: public AccessorGroup_Impl< ValueType, MostInheritedType, index + 1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD) > \
+			{ \
+			public: \
+				typedef AccessorGroup_Impl<ValueType, MostInheritedType, index+1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> Base; \
+				 \
+				AccessorGroup_Impl(ValueType const& value) \
+					: Base(value) \
+					, m_thisAccessor(this->m_value) \
+					, m_nextThisAccessor(nullptr) \
+					, m_prevThisAccessor(nullptr) \
+					, m_thisIdx(0) \
+				{ \
+					\
+				} \
+				 \
+				AccessorGroup_Impl(ValueType const& value, typename AccessorType::arg_type const& key) \
+					: Base(value) \
+					, m_thisAccessor(this->m_value, key) \
+					, m_nextThisAccessor(nullptr) \
+					, m_prevThisAccessor(nullptr) \
+					, m_thisIdx(0) \
+				{ \
+					\
+				} \
+				 \
+				_ACCESSORGROUP_IMPL_VARIADICS( TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
+				 \
+				using Base::Next; \
+				inline MostInheritedType* Next(Specialized<index>) \
+				{ \
+					return m_nextThisAccessor; \
+				} \
+				 \
+				using Base::Prev; \
+				inline MostInheritedType* Prev(Specialized<index>) \
+				{ \
+					return m_prevThisAccessor; \
+				} \
+				 \
+				using Base::SetNext; \
+				inline void SetNext(Specialized<index>, MostInheritedType* next) \
+				{ \
+					m_nextThisAccessor = next; \
+				} \
+				 \
+				using Base::SetPrev; \
+				inline void SetPrev(Specialized<index>, MostInheritedType* prev) \
+				{ \
+					m_prevThisAccessor = prev; \
+				} \
+				 \
+				using Base::Idx; \
+				inline size_t Idx(Specialized<index>) \
+				{ \
+					return m_thisIdx; \
+				} \
+				 \
+				using Base::SetIndex; \
+				inline void SetIndex(Specialized<index>, size_t idx) \
+				{ \
+					m_thisIdx = idx; \
+				} \
+				 \
+				using Base::GetHash; \
+				inline size_t GetHash(Specialized<index>) \
+				{ \
+					return m_thisHash; \
+				} \
+				 \
+				using Base::SetHash; \
+				inline void SetHash(Specialized<index>, size_t hash) \
+				{ \
+					m_thisHash = hash; \
+				} \
+				 \
+				using Base::Accessor; \
+				inline AccessorType& Accessor(Specialized<index>) \
+				{ \
+					return m_thisAccessor; \
+				} \
+				 \
+				AccessorType m_thisAccessor; \
+				 \
+				MostInheritedType* m_nextThisAccessor; \
+				MostInheritedType* m_prevThisAccessor; \
+				 \
+				size_t m_thisIdx; \
+				size_t m_thisHash; \
+			};
 
-			AccessorGroup* prev1;
-			AccessorGroup* prev2;
-			AccessorGroup* prev3;
 
-			AccessorGroup* next;
-			AccessorGroup* prev;
+#define _ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, CLASS_TEMPLATE_LIST, CLASS_PADDING_LIST, CLASS_LIST, CLASS_COMMA) \
+				template<typename FirstArg COMMA LIST(_CLASS_TYPE)> \
+				AccessorGroup_Impl(ValueType const& value, typename AccessorType::arg_type const& key, FirstArg const& arg COMMA LIST(_TYPE_REFREF_ARG)) \
+					: Base(value, arg, LIST(_FORWARD_ARG)) \
+					, m_thisAccessor(this->m_value, key) \
+					, m_nextThisAccessor(nullptr) \
+					, m_prevThisAccessor(nullptr) \
+					, m_thisIdx(0) \
+				{ \
+					\
+				} \
+				 \
+				template<typename FirstArg COMMA LIST(_CLASS_TYPE)> \
+				AccessorGroup_Impl(ValueType const& value, FirstArg const& arg COMMA LIST(_TYPE_REFREF_ARG)) \
+					: Base(value, arg, LIST(_FORWARD_ARG)) \
+					, m_thisAccessor(this->m_value) \
+					, m_nextThisAccessor(nullptr) \
+					, m_prevThisAccessor(nullptr) \
+					, m_thisIdx(0) \
+				{ \
+					\
+				} \
+				
+#define _ACCESSORGROUP_IMPL_VARIADICS(TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
+			_ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(_TEM_LIST0, _PAD_LIST0, _RAW_LIST0, , TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(_TEM_LIST1, _PAD_LIST1, _RAW_LIST1, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(_TEM_LIST2, _PAD_LIST2, _RAW_LIST2, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(_TEM_LIST3, _PAD_LIST3, _RAW_LIST3, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(_TEM_LIST4, _PAD_LIST4, _RAW_LIST4, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_IMPL_VARIADIC_VARIADICSS(_TEM_LIST5, _PAD_LIST5, _RAW_LIST5, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA)
 
-			size_t idx1;
-			size_t idx2;
-			size_t idx3;
-		private:
-			AccessorGroup(AccessorGroup& other);
-		};
+			_VARIADIC_EXPAND_0X(_CLASS_ACCESSORGROUP_IMPL, , , , )
+				
+			template<typename ValueType, typename ThisAccessor = _Nil, _MAX_CLASS_LIST>
+			class AccessorGroup;
 
-		template<typename ValueType, typename Accessor1, typename Accessor2>
-		class AccessorGroup<ValueType, Accessor1, Accessor2, NullAccessor>
-		{
-		public:
-			AccessorGroup(ValueType const& value)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, m_accessor2(m_value)
-				, next1(nullptr)
-				, next2(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-			{
-				//
-			}
+#define _CLASS_ACCESSORGROUP( \
+			TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
+			template<typename ValueType COMMA LIST(_CLASS_TYPEX)> \
+			class AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
+				: public AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, 1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
+			{ \
+			public: \
+				typedef AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, 1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> Base; \
+				AccessorGroup(ValueType const& value) \
+					: Base(value) \
+				{ \
+					\
+				} \
+				 \
+				_ACCESSORGROUP_VARIADICS( TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
+				 \
+			private: \
+				AccessorGroup(AccessorGroup& other); \
+			};
 
-			struct VerifyFirstKeyUnique {};
-			struct VerifySecondKeyUnique {};
 
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key, VerifyFirstKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value, key)
-				, m_accessor2(m_value)
-				, next1(nullptr)
-				, next2(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-			{
-				//
-			}
+#define _ACCESSORGROUP_VARIADIC_VARIADICSS(TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, CLASS_TEMPLATE_LIST, CLASS_PADDING_LIST, CLASS_LIST, CLASS_COMMA) \
+				template<typename FirstAccessor COMMA LIST(_CLASS_TYPE)> \
+				AccessorGroup(ValueType const& value, FirstAccessor const& accessor COMMA LIST(_TYPE_REFREF_ARG)) \
+					: Base(value, accessor COMMA LIST(_FORWARD_ARG)) \
+				{ \
+					\
+				}
+				
+#define _ACCESSORGROUP_VARIADICS(TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
+			_ACCESSORGROUP_VARIADIC_VARIADICSS(_TEM_LIST0, _PAD_LIST0, _RAW_LIST0, , TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_VARIADIC_VARIADICSS(_TEM_LIST1, _PAD_LIST1, _RAW_LIST1, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_VARIADIC_VARIADICSS(_TEM_LIST2, _PAD_LIST2, _RAW_LIST2, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_VARIADIC_VARIADICSS(_TEM_LIST3, _PAD_LIST3, _RAW_LIST3, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_VARIADIC_VARIADICSS(_TEM_LIST4, _PAD_LIST4, _RAW_LIST4, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA) \
+			_ACCESSORGROUP_VARIADIC_VARIADICSS(_TEM_LIST5, _PAD_LIST5, _RAW_LIST5, _COMMA, TEMPLATE_LIST, PADDING_LIST, LIST, COMMA)
 
-			AccessorGroup(ValueType const& value, typename Accessor2::arg_type const& key, VerifySecondKeyUnique* = 0)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, m_accessor2(m_value, key)
-				, next1(nullptr)
-				, next2(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-			{
-				//
-			}
-
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key1, typename Accessor2::arg_type const& key2)
-				: m_value(value)
-				, m_accessor1(m_value, key1)
-				, m_accessor2(m_value, key2)
-				, next1(nullptr)
-				, next2(nullptr)
-				, prev1(nullptr)
-				, prev2(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-				, idx2(0)
-			{
-				//
-			}
-
-			ValueType m_value;
-			Accessor1 m_accessor1;
-			Accessor2 m_accessor2;
-
-			AccessorGroup* next1;
-			AccessorGroup* next2;
-
-			AccessorGroup* prev1;
-			AccessorGroup* prev2;
-
-			AccessorGroup* next;
-			AccessorGroup* prev;
-
-			size_t idx1;
-			size_t idx2;
-		private:
-			AccessorGroup(AccessorGroup& other);
-		};
-		template<typename ValueType, typename Accessor1>
-		class AccessorGroup<ValueType, Accessor1, NullAccessor, NullAccessor>
-		{
-		public:
-			AccessorGroup(ValueType const& value)
-				: m_value(value)
-				, m_accessor1(m_value)
-				, next1(nullptr)
-				, prev1(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-			{
-				//
-			}
-
-			AccessorGroup(ValueType const& value, typename Accessor1::arg_type const& key)
-				: m_value(value)
-				, m_accessor1(m_value, key)
-				, next1(nullptr)
-				, prev1(nullptr)
-				, next(nullptr)
-				, prev(nullptr)
-				, idx1(0)
-			{
-				//
-			}
-
-			ValueType m_value;
-			Accessor1 m_accessor1;
-
-			AccessorGroup* next1;
-			AccessorGroup* prev1;
-
-			AccessorGroup* next;
-			AccessorGroup* prev;
-
-			size_t idx1;
-		private:
-			AccessorGroup(AccessorGroup& other);
-		};
+			_VARIADIC_EXPAND_0X(_CLASS_ACCESSORGROUP, , , , )
+		}
 	}
 }

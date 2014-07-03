@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../common/specialized.hpp"
+#include "../../common/compat.hpp"
 
 namespace sprawl
 {
@@ -23,37 +24,47 @@ namespace sprawl
 					//
 				}
 
-				MostInheritedType* Next(Specialized<index>)
+				inline MostInheritedType* Next(Specialized<index>)
 				{
 					return nullptr;
 				}
 
-				MostInheritedType* Prev(Specialized<index>)
+				inline MostInheritedType* Prev(Specialized<index>)
 				{
 					return nullptr;
 				}
 
-				void SetNext(Specialized<index>, MostInheritedType*)
+				inline void SetNext(Specialized<index>, MostInheritedType*)
 				{
 					//
 				}
 
-				void SetPrev(Specialized<index>, MostInheritedType*)
+				inline void SetPrev(Specialized<index>, MostInheritedType*)
 				{
 					//
 				}
 
-				size_t Idx(Specialized<index>)
+				inline size_t Idx(Specialized<index>)
 				{
 					return -1;
 				}
 
-				void SetIndex(Specialized<index>, size_t)
+				inline void SetIndex(Specialized<index>, size_t)
 				{
 					//
 				}
 
-				NullAccessor& Accessor(Specialized<index>)
+				inline size_t GetHash(Specialized<index>)
+				{
+					return -1;
+				}
+
+				inline void SetHash(Specialized<index>, size_t)
+				{
+					//
+				}
+
+				inline NullAccessor& Accessor(Specialized<index>)
 				{
 					static NullAccessor accessor;
 					return accessor;
@@ -106,43 +117,55 @@ namespace sprawl
 				}
 
 				using Base::Next;
-				MostInheritedType* Next(Specialized<index>)
+				inline MostInheritedType* Next(Specialized<index>)
 				{
 					return m_nextThisAccessor;
 				}
 
 				using Base::Prev;
-				MostInheritedType* Prev(Specialized<index>)
+				inline MostInheritedType* Prev(Specialized<index>)
 				{
 					return m_prevThisAccessor;
 				}
 
 				using Base::SetNext;
-				void SetNext(Specialized<index>, MostInheritedType* next)
+				inline void SetNext(Specialized<index>, MostInheritedType* next)
 				{
 					m_nextThisAccessor = next;
 				}
 
 				using Base::SetPrev;
-				void SetPrev(Specialized<index>, MostInheritedType* prev)
+				inline void SetPrev(Specialized<index>, MostInheritedType* prev)
 				{
 					m_prevThisAccessor = prev;
 				}
 
 				using Base::Idx;
-				size_t Idx(Specialized<index>)
+				inline size_t Idx(Specialized<index>)
 				{
 					return m_thisIdx;
 				}
 
 				using Base::SetIndex;
-				void SetIndex(Specialized<index>, size_t idx)
+				inline void SetIndex(Specialized<index>, size_t idx)
 				{
 					m_thisIdx = idx;
 				}
 
+				using Base::GetHash;
+				inline size_t GetHash(Specialized<index>)
+				{
+					return m_thisHash;
+				}
+
+				using Base::SetHash;
+				inline void SetHash(Specialized<index>, size_t hash)
+				{
+					m_thisHash = hash;
+				}
+
 				using Base::Accessor;
-				AccessorType& Accessor(Specialized<index>)
+				inline AccessorType& Accessor(Specialized<index>)
 				{
 					return m_thisAccessor;
 				}
@@ -153,6 +176,7 @@ namespace sprawl
 				MostInheritedType* m_prevThisAccessor;
 
 				size_t m_thisIdx;
+				size_t m_thisHash;
 			};
 
 			template<typename ValueType, typename... Accessors>

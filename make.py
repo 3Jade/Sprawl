@@ -3,6 +3,7 @@
 import subprocess
 import os
 import time
+import platform
 import csbuild
 from csbuild import log
 
@@ -28,7 +29,7 @@ csbuild.Toolchain("msvc").CompilerFlags(
 	"/fp:fast",
 	"/wd\"4530\"",
 	"/wd\"4067\"",
-	"/wd\"4351\"",
+	"/wd\"4351\""
 )
 
 @csbuild.project("collections", "collections")
@@ -164,8 +165,11 @@ def UnitTests():
 	@csbuild.postMakeStep
 	def postMake(project):
 		unitTestExe = "bin/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
-		while not os.access(unitTestExe, os.X_OK):
-			time.sleep(1)
+		if platform.system() == "Windows":
+			time.sleep(2)
+		else:
+			while not os.access(unitTestExe, os.X_OK):
+				time.sleep(1)
 
 		log.LOG_BUILD("Running unit tests...")
 		ret = subprocess.call([unitTestExe, "--all"]);

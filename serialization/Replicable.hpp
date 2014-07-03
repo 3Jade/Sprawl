@@ -30,7 +30,7 @@
 #endif
 
 #ifndef SPRAWL_REPLICABLE_MAX_DEPTH
-#		define SPRAWL_REPLICABLE_MAX_DEPTH 64
+#		define SPRAWL_REPLICABLE_MAX_DEPTH 256
 #endif
 
 #include "Serializer.hpp"
@@ -48,8 +48,6 @@ namespace sprawl
 			ReplicationKey()
 				: m_size(0)
 				, m_data()
-				, m_hash(0)
-				, m_hashComputed(false)
 			{
 				//
 			}
@@ -125,20 +123,13 @@ namespace sprawl
 			friend struct RKeyHash;
 			uint32_t m_size;
 			int32_t m_data[SPRAWL_REPLICABLE_MAX_DEPTH];
-			mutable size_t m_hash;
-			mutable bool m_hashComputed;
 		};
 
 		struct RKeyHash
 		{
 			std::size_t operator()(const ReplicationKey& key) const
 			{
-				if(!key.m_hashComputed)
-				{
-					key.m_hash = sprawl::murmur3::Hash(key.m_data, key.m_size * sizeof(int32_t));
-					key.m_hashComputed = true;
-				}
-				return key.m_hash;
+				return sprawl::murmur3::Hash(key.m_data, key.m_size * sizeof(int32_t));
 			}
 		};
 
@@ -593,6 +584,16 @@ namespace sprawl
 				this->m_keyindex.clear();
 				this->m_marked = true;
 			}
+
+			void Discard()
+			{
+				this->m_depth_tracker.clear();
+				this->m_diffs.clear();
+				this->m_removed.clear();
+				this->m_keyindex.clear();
+				this->m_data.clear();
+			}
+
 			const char* Data() override
 			{
 				return Str().c_str();

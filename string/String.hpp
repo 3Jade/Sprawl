@@ -33,6 +33,18 @@ namespace sprawl
 
 			~Holder();
 
+			inline size_t GetHash() const
+			{
+				if(m_hashComputed)
+				{
+					return m_hash;
+				}
+
+				m_hash = sprawl::murmur3::Hash( m_data, m_length );
+				m_hashComputed = true;
+				return m_hash;
+			}
+
 			static SPRAWL_CONSTEXPR size_t staticDataSize = SPRAWL_STATIC_STRING_SIZE;
 
 			char m_staticData[staticDataSize];
@@ -62,7 +74,10 @@ namespace sprawl
 
 		~String();
 
-		size_t GetHash() const;
+		inline size_t GetHash() const
+		{
+			return m_holder->GetHash();
+		}
 
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
 		std::string toStdString() const;
@@ -70,39 +85,19 @@ namespace sprawl
 
 		const char* c_str() const
 		{
-			if(!m_holder)
-			{
-				return "";
-			}
 			return m_holder->m_data;
 		}
 
 		size_t length() const
 		{
-			if(!m_holder)
-			{
-				return 0;
-			}
 			return m_holder->m_length;
 		}
 
 		String& operator=(const String& other);
 
-		bool operator==(const String& other) const
+		inline bool operator==(const String& other) const
 		{
-			if(m_holder == other.m_holder)
-			{
-				return true;
-			}
-			if(m_holder && other.m_holder)
-			{
-				if(m_holder->m_length != other.m_holder->m_length)
-				{
-					return false;
-				}
-				return ( memcmp(m_holder->m_data, other.m_holder->m_data, m_holder->m_length) == 0);
-			}
-			return false;
+			return (m_holder == other.m_holder) || ((m_holder->m_length == other.m_holder->m_length) && (SPRAWL_MEMCMP(m_holder->m_data, other.m_holder->m_data, m_holder->m_length) == 0));
 		}
 
 		bool operator!=(const String& other) const
@@ -114,7 +109,7 @@ namespace sprawl
 
 		bool empty()
 		{
-			return !m_holder || m_holder->m_length == 0;
+			return m_holder->m_length == 0;
 		}
 
 		bool operator<(const String& other) const;
@@ -382,6 +377,7 @@ namespace sprawl
 #endif
 	private:
 		Holder* m_holder;
+		static Holder ms_emptyHolder;
 	};
 
 	class StringLiteral
@@ -422,7 +418,7 @@ namespace std
 		typedef sprawl::String argument_type;
 		typedef std::size_t value_type;
 
-		value_type operator()(const argument_type& str) const
+		inline value_type operator()(const argument_type& str) const
 		{
 			return str.GetHash();
 		}
