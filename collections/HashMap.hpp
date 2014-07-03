@@ -20,16 +20,6 @@ namespace sprawl
 		};
 	}
 }
-
-/*#undef SPRAWL_GETTER
-#undef SPRAWL_HASCHECK
-#undef SPRAWL_ERASER
-#undef SPRAWL_FINDER
-#undef SPRAWL_INDEXED_RESERVE
-#undef SPRAWL_INDEXED_CLEAR
-#undef SPRAWL_INDEXED_REHASH
-#undef SPRAWL_INDEX_INSERTER
-#undef SPRAWL_INDEX_GETTER*/
 #else
 #include "hashmap/HashMap_Variadic.hpp"
 
