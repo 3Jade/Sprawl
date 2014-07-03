@@ -13,11 +13,11 @@ namespace sprawl
 {
 	namespace collections
 	{
-		template<typename ValueType>
-		class BinarySet : public BinaryTree<ValueType, SelfAccessor<ValueType>, _MAX_NIL_LIST>
-		{
+		//template<typename ValueType>
+		//class BinarySet : public BinaryTree<ValueType, SelfAccessor<ValueType>, _MAX_NIL_LIST>
+		//{
 			//
-		};
+		//};
 	}
 }
 #else
@@ -27,8 +27,8 @@ namespace sprawl
 {
 	namespace collections
 	{
-		template<typename ValueType>
-		using BinarySet = BinaryTree<ValueType, SelfAccessor<ValueType>>;
+		//template<typename ValueType>
+		//using BinarySet = BinaryTree<ValueType, SelfAccessor<ValueType>>;
 	}
 }
 #endif
