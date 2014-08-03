@@ -1,6 +1,8 @@
 #include "JSONSerializer.hpp"
 #include <cmath>
 
+//#define SPRAWL_STRICT_JSON
+
 namespace sprawl
 {
 	namespace serialization
@@ -533,18 +535,33 @@ namespace sprawl
 			}
 		}
 
-		enum class ParseState
-		{
-			GetKey = 0,
-			GetColon = 1,
-			GetData = 2,
-			GetComma = 3,
-		};
+		/// TODO PERFORMANCE: Replace sprawl::String here with a non-ref-counted string class that will simply store a pointer and a length with no allocations
 
-		void JSONToken::ParseString(const char* const data, int& outPosition)
+		void JSONToken::SkipWhitespace(const char*& data)
 		{
-			++outPosition;
-			int startPoint = outPosition;
+			for(;;)
+			{
+				switch(*data)
+				{
+				case ' ':
+				case '\t':
+				case '\n':
+				case '\r':
+				{
+					++data;
+					break;
+				}
+				default:
+				{
+					return;
+				}
+				}
+			}
+		}
+
+		void JSONToken::CollectString(const char*& data)
+		{
+			++data;
 
 			bool isEscaped = false;
 			bool nextIsEscaped = false;
@@ -553,38 +570,37 @@ namespace sprawl
 			{
 				isEscaped = nextIsEscaped;
 				nextIsEscaped = false;
-				char c = data[outPosition];
-
-				if(c == '\"' && !isEscaped)
+				if(!isEscaped)
 				{
-					break;
+					switch(*data)
+					{
+					case '\"':
+						++data;
+						return;
+					case '\\':
+						nextIsEscaped = true;
+					}
 				}
-				if(c == '\\' && !isEscaped)
-				{
-					nextIsEscaped = true;
-				}
-				++outPosition;
+				++data;
 			}
-
-			m_holder->m_data = sprawl::String( sprawl::StringRef(&data[startPoint], outPosition - startPoint));
 		}
 
-		void JSONToken::ParseNumber(const char* const data, int& outPosition)
+		void JSONToken::ParseString(const char*& data)
 		{
-			int startPoint = outPosition;
+			char const* startPoint = data;
 
-			bool continuing = true;
+			CollectString(data);
 
-			if( data[startPoint] == '-' )
+			m_holder->m_data = sprawl::String( sprawl::StringRef(data, data - startPoint - 1));
+		}
+
+		void JSONToken::ParseNumber(const char*& data)
+		{
+			char const* startPoint = data;
+
+			for(;;)
 			{
-				++outPosition;
-			}
-
-			while(continuing)
-			{
-				char c = data[outPosition];
-
-				switch( c )
+				switch( *data )
 				{
 				case '-':
 				case '+':
@@ -599,7 +615,7 @@ namespace sprawl
 				case '8':
 				case '9':
 				{
-					++outPosition;
+					++data;
 					break;
 				}
 				case '.':
@@ -610,56 +626,43 @@ namespace sprawl
 					{
 						m_holder->m_type = JSONType::Double;
 					}
-#ifdef SPRAWL_STRICT_JSON
-					else
-					{
-						SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-					}
-#endif
-					++outPosition;
-					break;
+					++data;
+				break;
 				}
 				default:
 				{
-					continuing = false;
+					goto Done;
 				}
 				}
 			}
 
-			m_holder->m_data = sprawl::String( sprawl::StringRef(&data[startPoint], outPosition - startPoint));
+			Done:
 
-			--outPosition;
+			m_holder->m_data = sprawl::String( sprawl::StringRef(data, data - startPoint));
 		}
 
-		void JSONToken::ParseBool(const char* const data, int& outPosition)
+		void JSONToken::ParseBool(const char*& data)
 		{
-			char c = data[outPosition];
-			while( c == ' ' || c == '\n' || c == '\r' || c == '\t' )
-			{
-				++outPosition;
-				c = data[outPosition];
-			}
-
 			if(
-				data[outPosition] == 't' &&
-				data[outPosition + 1] == 'r' &&
-				data[outPosition + 2] == 'u' &&
-				data[outPosition + 3] == 'e'
+				*data == 't' &&
+				*(data + 1) == 'r' &&
+				*(data + 2) == 'u' &&
+				*(data + 3) == 'e'
 			)
 			{
-				m_holder->m_data = sprawl::String( sprawl::StringRef(&data[outPosition], 4) );
-				outPosition += 3;
+				m_holder->m_data = sprawl::String( sprawl::StringRef(data, 4) );
+				data += 4;
 			}
 			else if(
-				data[outPosition] == 'f' &&
-				data[outPosition + 1] == 'a' &&
-				data[outPosition + 2] == 'l' &&
-				data[outPosition + 3] == 's' &&
-				data[outPosition + 4] == 'e'
+				*data == 'f' &&
+				*(data + 1) == 'a' &&
+				*(data + 2) == 'l' &&
+				*(data + 3) == 's' &&
+				*(data + 4) == 'e'
 			)
 			{
-				m_holder->m_data = sprawl::String( sprawl::StringRef(&data[outPosition], 5) );
-				outPosition += 4;
+				m_holder->m_data = sprawl::String( sprawl::StringRef(data, 5) );
+				data += 5;
 			}
 #ifdef SPRAWL_STRICT_JSON
 			else
@@ -670,46 +673,23 @@ namespace sprawl
 			return;
 		}
 
-		void JSONToken::ParseArray(const char* const data, int& outPosition)
+		void JSONToken::ParseArray(const char*& data)
 		{
-			++outPosition;
-			int startPoint = outPosition;
+			++data;
 
-			bool done = false;
-
-			ParseState state = ParseState::GetData;
-
-			while(!done)
+			for(;;)
 			{
-				char c = data[outPosition];
-
-				switch( c )
+				SkipWhitespace(data);
+				switch(*data)
 				{
 				case '{':
 				{
-					state = ParseState::GetComma;
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, outPosition, JSONType::Object ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Object ) );
 					break;
 				}
 				case '[':
 				{
-					state = ParseState::GetComma;
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, outPosition, JSONType::Array ) );
-					break;
-				}
-				case ']':
-				{
-					done = true;
-					break;
-				}
-				case ',':
-				{
-					state = ParseState::GetData;
-					break;
-				}
-				case '\"':
-				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, outPosition, JSONType::String ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Array ) );
 					break;
 				}
 				case '-':
@@ -724,126 +704,106 @@ namespace sprawl
 				case '8':
 				case '9':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, outPosition, JSONType::Integer ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Integer ) );
+					break;
+				}
+				case '\"':
+				{
+					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::String ) );
 					break;
 				}
 				case 't':
 				case 'f':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, outPosition, JSONType::Boolean ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Boolean ) );
 					break;
 				}
 				case 'n':
+				{
 					m_holder->m_arrayChildren->push_back( JSONToken( JSONType::Null ) );
-					outPosition += 3;
+					data += 4;
 					break;
+				}
+#ifdef SPRAWL_STRICT_JSON
 				default:
 				{
+					abort();
+				}
+#endif
+				}
+
+				SkipWhitespace(data);
+
+#ifdef SPRAWL_STRICT_JSON
+				if(*data != ',' && *data != ']')
+				{
+					abort();
+				}
+#endif
+
+				if(*data == ']')
+				{
+					++data;
 					break;
 				}
-				}
-				if(!done)
-					++outPosition;
+				++data;
 			}
-
-			m_holder->m_data = sprawl::String( sprawl::StringRef(&data[startPoint], outPosition - startPoint));
 		}
 
-		void JSONToken::ParseObject(const char* const data, int& outPosition)
+		void JSONToken::ParseObject(const char*& data)
 		{
-			++outPosition;
-			int startPoint = outPosition;
+			++data;
 
-			char const* keyStart = nullptr;
-			char const* keyEnd = nullptr;
 			sprawl::String key;
 
-			bool done = false;
-			bool isEscaped = false;
-			bool nextIsEscaped = false;
-			bool inQuotes = false;
-
-			ParseState state = ParseState::GetKey;
-
-			while(!done)
+			for(;;)
 			{
-				isEscaped = nextIsEscaped;
-				nextIsEscaped = false;
-				char c = data[outPosition];
+				SkipWhitespace(data);
 
-				if(inQuotes && (c != '\"' || isEscaped))
+#ifdef SPRAWL_STRICT_JSON
+				if(*data != '\"')
 				{
-					if(c == '\\' && !isEscaped)
-					{
-						nextIsEscaped = true;
-					}
-					++outPosition;
-					continue;
+					abort();
 				}
+#endif
 
-				switch( c )
+				char const* keyStart = nullptr;
+				char const* keyEnd = nullptr;
+
+				keyStart = data + 1;
+
+				CollectString(data);
+
+				keyEnd = data - 1;
+				key = sprawl::String( sprawl::StringRef( keyStart, keyEnd - keyStart ) );
+
+				SkipWhitespace(data);
+
+#ifdef SPRAWL_STRICT_JSON
+				if(*data != ':')
+				{
+					abort();
+				}
+#endif
+
+				++data;
+
+				SkipWhitespace(data);
+
+				switch(*data)
 				{
 				case '{':
 				{
-					state = ParseState::GetComma;
 					JSONToken* newToken = JSONToken::Create();
-					new (newToken) JSONToken( key, data, outPosition, JSONType::Object );
+					new (newToken) JSONToken( key, data, JSONType::Object );
 					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 					break;
 				}
 				case '[':
 				{
-					state = ParseState::GetComma;
 					JSONToken* newToken = JSONToken::Create();
-					new (newToken) JSONToken( key, data, outPosition, JSONType::Array );
+					new (newToken) JSONToken( key, data, JSONType::Array );
 					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
-					break;
-				}
-				case '}':
-				{
-					done = true;
-					break;
-				}
-				case ':':
-				{
-					state = ParseState::GetData;
-					break;
-				}
-				case ',':
-				{
-					state = ParseState::GetKey;
-					keyStart = nullptr;
-					keyEnd = nullptr;
-					break;
-				}
-				case '\"':
-				{
-					if( state == ParseState::GetKey )
-					{
-						if( keyStart == nullptr )
-						{
-							inQuotes = true;
-							keyStart = &data[outPosition + 1];
-						}
-						else if( keyEnd == nullptr )
-						{
-							inQuotes = false;
-							keyEnd = &data[outPosition];
-							key = sprawl::String( sprawl::StringRef(keyStart, keyEnd - keyStart) );
-						}
-#ifdef SPRAWL_STRICT_JSON
-						else
-						{
-							SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-						}
-#endif
-					}
-					else
-					{
-						JSONToken* newToken = JSONToken::Create();
-						new (newToken) JSONToken( key, data, outPosition, JSONType::String );
-						newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
-					}
 					break;
 				}
 				case '-':
@@ -859,7 +819,14 @@ namespace sprawl
 				case '9':
 				{
 					JSONToken* newToken = JSONToken::Create();
-					new (newToken) JSONToken( key, data, outPosition, JSONType::Integer );
+					new (newToken) JSONToken( key, data, JSONType::Integer );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					break;
+				}
+				case '\"':
+				{
+					JSONToken* newToken = JSONToken::Create();
+					new (newToken) JSONToken( key, data, JSONType::String );
 					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 					break;
 				}
@@ -867,7 +834,7 @@ namespace sprawl
 				case 'f':
 				{
 					JSONToken* newToken = JSONToken::Create();
-					new (newToken) JSONToken( key, data, outPosition, JSONType::Boolean );
+					new (newToken) JSONToken( key, data, JSONType::Boolean );
 					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 					break;
 				}
@@ -876,23 +843,36 @@ namespace sprawl
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( JSONType::Null );
 					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
-					outPosition += 3;
+					data += 4;
 					break;
 				}
+#ifdef SPRAWL_STRICT_JSON
 				default:
 				{
+					abort();
+				}
+#endif
+				}
+
+				SkipWhitespace(data);
+
+#ifdef SPRAWL_STRICT_JSON
+				if(*data != ',' && *data != '}')
+				{
+					abort();
+				}
+#endif
+
+				if(*data == '}')
+				{
+					++data;
 					break;
 				}
-				}
-				if(!done)
-					++outPosition;
+				++data;
 			}
-
-			m_holder->m_data = sprawl::String( sprawl::StringRef(&data[startPoint], outPosition - startPoint));
 		}
 
-		/// TODO: Performance of parsing could be improved (possibly significantly so) by writing separate parsers for each type instead of having this much branching.
-		JSONToken::JSONToken(sprawl::String const& myKey, const char* const data, int& outPosition, JSONToken::JSONType expectedType)
+		JSONToken::JSONToken(sprawl::String const& myKey, const char*& data, JSONToken::JSONType expectedType)
 			: m_holder(Holder::Create())
 			, m_key(myKey)
 		{
@@ -900,11 +880,11 @@ namespace sprawl
 
 			switch(expectedType)
 			{
-			case JSONType::Boolean: ParseBool(data, outPosition); break;
-			case JSONType::Integer: ParseNumber(data, outPosition); break;
-			case JSONType::String: ParseString(data, outPosition); break;
-			case JSONType::Array: ParseArray(data, outPosition); break;
-			case JSONType::Object: ParseObject(data, outPosition); break;
+			case JSONType::Boolean: ParseBool(data); break;
+			case JSONType::Integer: ParseNumber(data); break;
+			case JSONType::String: ParseString(data); break;
+			case JSONType::Array: ParseArray(data); break;
+			case JSONType::Object: ParseObject(data); break;
 			default: break;
 			}
 		}

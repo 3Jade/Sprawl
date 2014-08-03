@@ -352,8 +352,8 @@ namespace sprawl
 
 			static JSONToken fromString(sprawl::String const& jsonStr)
 			{
-				int position = 0;
-				return JSONToken("", jsonStr.c_str(), position, JSONType::Object);
+				const char* data = jsonStr.c_str();
+				return JSONToken("", data, JSONType::Object);
 			}
 
 			~JSONToken();
@@ -372,7 +372,7 @@ namespace sprawl
 			}
 
 		protected:
-			JSONToken( sprawl::String const& myKey, char const* const data, int& outPosition, JSONType expectedType );
+			JSONToken( sprawl::String const& myKey, char const*& data, JSONType expectedType );
 			JSONToken( JSONType statedType, sprawl::String const& data );
 			JSONToken( JSONType statedType, bool data );
 			JSONToken( JSONType statedType, long long data );
@@ -395,11 +395,13 @@ namespace sprawl
 				}
 			}
 
-			void ParseString(char const* const data, int& outPosition);
-			void ParseNumber(char const* const data, int& outPosition);
-			void ParseBool(char const* const data, int& outPosition);
-			void ParseArray(char const* const data, int& outPosition);
-			void ParseObject(char const* const data, int& outPosition);
+			void SkipWhitespace(const char*& data);
+			void CollectString(char const*& data);
+			void ParseString(char const*& data);
+			void ParseNumber(char const*& data);
+			void ParseBool(char const*& data);
+			void ParseArray(char const*& data);
+			void ParseObject(char const*& data);
 
 			typedef sprawl::collections::HashMap<JSONToken*, sprawl::PtrConstMemberAccessor<JSONToken, const sprawl::String&, &JSONToken::GetKey>> TokenMap;
 			typedef TokenMap::iterator iterator;
