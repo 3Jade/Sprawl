@@ -1008,21 +1008,22 @@ namespace sprawl
 #ifdef _WIN32
 #pragma warning(pop)
 #endif
-			///TODO sprawl::string
 			template<typename T>
-			std::string to_string( T& val, std::true_type)
+			sprawl::String to_string( T& val, std::true_type)
 			{
-				return std::move( std::to_string(val) );
+				sprawl::StringBuilder b;
+				b << val;
+				return b.Str();
 			}
 
 			template<typename T>
-			std::string to_string( T& val, std::false_type)
+			sprawl::String to_string( T& val, std::false_type)
 			{
 				SerializerBase* s = this->GetAnother();
 				*s % prepare_data( val, "key", false );
 				sprawl::String data = s->Str();
 				delete s;
-				return data.toStdString();
+				return std::move(data);
 			}
 
 			template<typename T>

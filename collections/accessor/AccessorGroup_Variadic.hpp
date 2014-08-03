@@ -24,6 +24,14 @@ namespace sprawl
 					//
 				}
 
+				AccessorGroup_Impl(AccessorGroup_Impl const& other)
+					: next(nullptr)
+					, prev(nullptr)
+					, m_value(other.m_value)
+				{
+					//
+				}
+
 				inline MostInheritedType* Next(Specialized<index>)
 				{
 					return nullptr;
@@ -73,9 +81,6 @@ namespace sprawl
 				MostInheritedType* next;
 				MostInheritedType* prev;
 				ValueType m_value;
-			private:
-				AccessorGroup_Impl(AccessorGroup_Impl& other);
-				AccessorGroup_Impl(MostInheritedType& other);
 			};
 
 			template<typename ValueType, typename MostInheritedType, size_t index, typename AccessorType, typename... AdditionalAccessors>
@@ -86,6 +91,16 @@ namespace sprawl
 
 				AccessorGroup_Impl(ValueType const& value)
 					: Base(value)
+					, m_thisAccessor(this->m_value)
+					, m_nextThisAccessor(nullptr)
+					, m_prevThisAccessor(nullptr)
+					, m_thisIdx(0)
+				{
+					//
+				}
+
+				AccessorGroup_Impl(AccessorGroup_Impl const& other)
+					: Base(other)
 					, m_thisAccessor(this->m_value)
 					, m_nextThisAccessor(nullptr)
 					, m_prevThisAccessor(nullptr)
@@ -180,10 +195,10 @@ namespace sprawl
 			};
 
 			template<typename ValueType, typename... Accessors>
-			class AccessorGroup : public AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, Accessors...>, 1, Accessors...>
+			class AccessorGroup : public AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, Accessors...>, 0, Accessors...>
 			{
 			public:
-				typedef AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, Accessors...>, 1, Accessors...> Base;
+				typedef AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, Accessors...>, 0, Accessors...> Base;
 				AccessorGroup(ValueType const& value)
 					: Base(value)
 				{
@@ -196,8 +211,6 @@ namespace sprawl
 				{
 					//
 				}
-			private:
-				AccessorGroup(AccessorGroup& other);
 			};
 		}
 	}

@@ -199,7 +199,7 @@ namespace sprawl
 					}
 				}
 
-				HashMap_Impl(size_t startingBucketCount, bool /*inherited*/)
+				HashMap_Impl(size_t startingBucketCount)
 					: m_first(nullptr)
 					, m_last(nullptr)
 					, m_size(0)
@@ -208,7 +208,7 @@ namespace sprawl
 					//
 				}
 
-				HashMap_Impl(HashMap_Impl const& other, bool /*inherited*/)
+				HashMap_Impl(HashMap_Impl const& other)
 					: m_first(nullptr)
 					, m_last(nullptr)
 					, m_size(other.m_size)
@@ -217,7 +217,7 @@ namespace sprawl
 					//
 				}
 
-				HashMap_Impl(HashMap_Impl&& other, bool /*inherited*/)
+				HashMap_Impl(HashMap_Impl&& other)
 					: m_first(other.m_first)
 					, m_last(other.m_last)
 					, m_size(other.m_size)
@@ -270,7 +270,7 @@ namespace sprawl
 				 \
 				inline const_iterator cfind(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const \
 				{ \
-					mapped_type* ret = get_(key); \
+					mapped_type* ret = const_cast<mapped_type*>(get_(key)); \
 					return const_iterator(ret); \
 				} \
 				 \
@@ -302,7 +302,7 @@ namespace sprawl
 					Base::clear(); \
 				} \
 				 \
-				bool insert(ValueType const& val) \
+				inline iterator insert(ValueType const& val) \
 				{ \
 					mapped_type* newItem = (mapped_type*)allocator::alloc(); \
 					::new((void*)newItem) mapped_type(val); \
@@ -311,7 +311,7 @@ namespace sprawl
 					{ \
 						newItem->~mapped_type(); \
 						allocator::free(newItem); \
-						return false; \
+						return iterator(nullptr); \
 					} \
 					 \
 					if(this->m_size > (this->m_bucketCount*0.5)) \
@@ -319,7 +319,7 @@ namespace sprawl
 						reserve(this->m_bucketCount * 2 + 1); \
 					} \
 					\
-					return true; \
+					return iterator(newItem); \
 				} \
 				 \
 				_HASHMAP_VARIADICS( TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
@@ -347,59 +347,34 @@ namespace sprawl
 					erase_(get_(key)); \
 				} \
 				 \
-				HashMap_Impl(size_t startingBucketCount = 256) \
-					: Base(startingBucketCount, true) \
-					, m_thisKeyTable(nullptr) \
+				virtual ~HashMap_Impl() \
 				{ \
-					reserve(startingBucketCount); \
-				} \
-				 \
-				HashMap_Impl(HashMap_Impl const& other) \
-					: Base(other, true) \
-					, m_thisKeyTable(nullptr) \
-				{ \
-					reserve(this->m_bucketCount); \
-					for (mapped_type* ptr = other.m_first; ptr; ptr = ptr->next) \
+					if(m_thisKeyTable) \
 					{ \
-						mapped_type* newPtr = (mapped_type*)allocator::alloc(); \
-						::new((void*)newPtr) mapped_type(*ptr); \
-						insert_(newPtr); \
+						allocator::free(m_thisKeyTable); \
 					} \
 				} \
 				 \
+			protected: \
+				HashMap_Impl(size_t startingBucketCount) \
+					: Base(startingBucketCount) \
+					, m_thisKeyTable(nullptr) \
+				{ \
+					 \
+				} \
+				 \
+				HashMap_Impl(HashMap_Impl const& other) \
+					: Base(other) \
+					, m_thisKeyTable(nullptr) \
+				{ \
+					 \
+				} \
+				 \
 				HashMap_Impl(HashMap_Impl&& other) \
-					: Base(other, true) \
+					: Base(other) \
 					, m_thisKeyTable(other.m_thisKeyTable) \
 				{ \
 					other.m_thisKeyTable = nullptr; \
-					other.reserve(other.m_bucketCount); \
-				} \
-				 \
-				virtual ~HashMap_Impl() \
-				{ \
-					allocator::free(m_thisKeyTable); \
-				} \
-				 \
-			protected: \
-				HashMap_Impl(size_t startingBucketCount, bool /*inherited*/) \
-					: Base(startingBucketCount, true) \
-					, m_thisKeyTable(nullptr) \
-				{ \
-					 \
-				} \
-				 \
-				HashMap_Impl(HashMap_Impl const& other, bool /*inherited*/) \
-					: Base(other, true) \
-					, m_thisKeyTable(nullptr) \
-				{ \
-					 \
-				} \
-				 \
-				HashMap_Impl(HashMap_Impl&& other, bool /*inherited*/) \
-					: Base(other, true) \
-					, m_thisKeyTable(other.m_thisKeyTable) \
-				{ \
-					 \
 				} \
 				 \
 				void reserve_(size_t newBucketCount) \
@@ -520,6 +495,21 @@ namespace sprawl
 					newItem->SetIndex(spec, idx); \
 				} \
 				 \
+				inline const mapped_type* get_(typename Accessor::key_type const& key) const \
+				{ \
+					Specialized<Idx> spec; \
+					size_t hash = hash_(key); \
+					size_t idx = hash % this->m_bucketCount; \
+					mapped_type* hashMatch = m_thisKeyTable[idx]; \
+					while(hashMatch) \
+					{ \
+						if(hashMatch->GetHash(spec) == hash && hashMatch->Accessor(spec).GetKey() == key) \
+							return hashMatch; \
+						hashMatch = hashMatch->Next(spec); \
+					} \
+					return nullptr; \
+				} \
+				 \
 				inline mapped_type* get_(typename Accessor::key_type const& key) \
 				{ \
 					Specialized<Idx> spec; \
@@ -604,7 +594,7 @@ namespace sprawl
 			: public detail::HashMap_Impl< \
 				ValueType, \
 				detail::AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, \
-				1, \
+				0, \
 				LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD) \
 			> \
 		{ \
@@ -612,9 +602,10 @@ namespace sprawl
 			typedef detail::HashMap_Impl< \
 				ValueType, \
 				detail::AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, \
-				1, \
+				0, \
 				LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD) \
 			> Base; \
+			typedef detail::AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> mapped_type; \
 			 \
 			using Base::get; \
 			template<int i, typename T2> \
@@ -655,6 +646,45 @@ namespace sprawl
 			inline bool has(T2 const& val) \
 			{ \
 				return Base::has(val, Specialized<i>()); \
+			} \
+			 \
+			HashMap(size_t startingBucketCount = 256) \
+				: Base(startingBucketCount) \
+			{ \
+				Base::reserve(startingBucketCount); \
+			} \
+			 \
+			HashMap(HashMap const& other) \
+				: Base(other) \
+			{ \
+				Base::reserve(this->m_bucketCount); \
+				for (mapped_type* ptr = other.m_first; ptr; ptr = ptr->next) \
+				{ \
+					mapped_type* newPtr = (mapped_type*)Base::allocator::alloc(); \
+					::new((void*)newPtr) mapped_type(*ptr); \
+					Base::insert_(newPtr); \
+				} \
+			} \
+			 \
+			HashMap(HashMap&& other) \
+				: Base(other) \
+			{ \
+				other.reserve(other.m_bucketCount); \
+			} \
+			 \
+			HashMap& operator=(HashMap const& other) \
+			{ \
+				Base::clear(); \
+				this->m_bucketCount = other.m_bucketCount; \
+				this->m_size = other.m_size; \
+				Base::reserve(this->m_bucketCount); \
+				for (mapped_type* ptr = other.m_first; ptr; ptr = ptr->next) \
+				{ \
+					mapped_type* newPtr = (mapped_type*)Base::allocator::alloc(); \
+					::new((void*)newPtr) mapped_type(*ptr); \
+					Base::insert_(newPtr); \
+				} \
+				return *this; \
 			} \
 			\
 		};

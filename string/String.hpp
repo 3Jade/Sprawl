@@ -107,6 +107,12 @@ namespace sprawl
 
 		sprawl::String operator+(const sprawl::String& other) const;
 
+		sprawl::String operator+(const char* other) const;
+
+		sprawl::String& operator+=(const sprawl::String& other);
+
+		sprawl::String& operator+=(const char* other);
+
 		bool empty()
 		{
 			return m_holder->m_length == 0;

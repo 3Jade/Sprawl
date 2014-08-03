@@ -103,10 +103,10 @@ namespace sprawl
 			return m_pos;
 		}
 
-	private:
 		template<typename T>
 		void checked_snprintf(char const* const pattern, T elem);
 
+	private:
 		static SPRAWL_CONSTEXPR size_t staticBufferSize = SPRAWL_STATIC_STRING_SIZE;
 
 		char m_staticBuffer[staticBufferSize];

@@ -24,6 +24,26 @@ namespace sprawl
 
 		ValueType& m_value;
 	};
+	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)() const>
+	class ConstMemberAccessor
+	{
+	public:
+		typedef KeyType key_type;
+		struct arg_type {};
+
+		ConstMemberAccessor(ValueType& value)
+			: m_value(value)
+		{
+			//
+		}
+
+		inline KeyType const GetKey()
+		{
+			return (m_value.*function)();
+		}
+
+		ValueType& m_value;
+	};
 
 	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)(), typename PointerType = ValueType*>
 	class PtrMemberAccessor
@@ -33,6 +53,28 @@ namespace sprawl
 		struct arg_type {};
 
 		PtrMemberAccessor(PointerType& value)
+			: m_value(value)
+		{
+			//
+		}
+
+		inline KeyType const GetKey()
+		{
+			return ((*m_value).*function)();
+		}
+
+		PointerType& m_value;
+	};
+
+
+	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)() const, typename PointerType = ValueType*>
+	class PtrConstMemberAccessor
+	{
+	public:
+		typedef KeyType key_type;
+		struct arg_type {};
+
+		PtrConstMemberAccessor(PointerType& value)
 			: m_value(value)
 		{
 			//

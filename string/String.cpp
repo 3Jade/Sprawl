@@ -191,7 +191,89 @@ namespace sprawl
 			ret.m_holder->m_dynamicData[fullLength] = '\0';
 			ret.m_holder->m_data = ret.m_holder->m_dynamicData;
 		}
+		ret.m_holder->m_length = fullLength;
 		return std::move(ret);
+	}
+
+	sprawl::String String::operator+(const char* other) const
+	{
+		sprawl::String ret;
+		ret.m_holder = Holder::CreateHolder();
+		new (ret.m_holder) Holder();
+		size_t length = strlen(other);
+		size_t fullLength = m_holder->m_length + length;
+		if(fullLength < Holder::staticDataSize)
+		{
+			memcpy(ret.m_holder->m_staticData, m_holder->m_data, m_holder->m_length);
+			memcpy(ret.m_holder->m_staticData + m_holder->m_length, other, length);
+			ret.m_holder->m_staticData[fullLength] = '\0';
+			ret.m_holder->m_data = ret.m_holder->m_staticData;
+		}
+		else
+		{
+			ret.m_holder->m_dynamicData = new char[fullLength+1];
+			memcpy(ret.m_holder->m_dynamicData, m_holder->m_data, m_holder->m_length);
+			memcpy(ret.m_holder->m_dynamicData + m_holder->m_length, other, length);
+			ret.m_holder->m_dynamicData[fullLength] = '\0';
+			ret.m_holder->m_data = ret.m_holder->m_dynamicData;
+		}
+		ret.m_holder->m_length = fullLength;
+		return std::move(ret);
+	}
+
+	sprawl::String& String::operator+=(const sprawl::String& other)
+	{
+		Holder* newHolder = Holder::CreateHolder();
+		new (newHolder) Holder();
+
+		size_t fullLength = m_holder->m_length + other.m_holder->m_length;
+		if(fullLength < Holder::staticDataSize)
+		{
+			memcpy(newHolder->m_staticData, m_holder->m_data, m_holder->m_length);
+			memcpy(newHolder->m_staticData + m_holder->m_length, other.m_holder->m_data, other.m_holder->m_length);
+			newHolder->m_staticData[fullLength] = '\0';
+			newHolder->m_data = newHolder->m_staticData;
+		}
+		else
+		{
+			newHolder->m_dynamicData = new char[fullLength+1];
+			memcpy(newHolder->m_dynamicData, m_holder->m_data, m_holder->m_length);
+			memcpy(newHolder->m_dynamicData + m_holder->m_length, other.m_holder->m_data, other.m_holder->m_length);
+			newHolder->m_dynamicData[fullLength] = '\0';
+			newHolder->m_data = newHolder->m_dynamicData;
+		}
+		newHolder->m_length = fullLength;
+		Holder::FreeHolder(m_holder);
+		m_holder = newHolder;
+		return *this;
+	}
+
+	sprawl::String& String::operator+=(const char* other)
+	{
+		Holder* newHolder = Holder::CreateHolder();
+		new (newHolder) Holder();
+		size_t length = strlen(other);
+		size_t fullLength = m_holder->m_length + length;
+
+		if(fullLength < Holder::staticDataSize)
+		{
+			memcpy(newHolder->m_staticData, m_holder->m_data, m_holder->m_length);
+			memcpy(newHolder->m_staticData + m_holder->m_length, other, length);
+			newHolder->m_staticData[fullLength] = '\0';
+			newHolder->m_data = newHolder->m_staticData;
+		}
+		else
+		{
+			newHolder->m_dynamicData = new char[fullLength+1];
+			memcpy(newHolder->m_dynamicData, m_holder->m_data, m_holder->m_length);
+			memcpy(newHolder->m_dynamicData + m_holder->m_length, other, length);
+			newHolder->m_dynamicData[fullLength] = '\0';
+			newHolder->m_data = newHolder->m_dynamicData;
+		}
+		newHolder->m_length = fullLength;
+		Holder::FreeHolder(m_holder);
+		m_holder = newHolder;
+		return *this;
 	}
 	
 	String& String::operator=(const String& other)

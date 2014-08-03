@@ -57,9 +57,11 @@ namespace sprawl
 				return m_baseline->tempObj();
 			}
 
-			virtual void Mark();
+			virtual void Mark() override;
 
-			virtual void Reset();
+			virtual void Discard() override;
+
+			virtual void Reset() override;
 
 			std::vector<mongo::BSONObj> generateUpdateQuery()
 			{

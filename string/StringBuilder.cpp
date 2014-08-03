@@ -198,13 +198,25 @@ namespace sprawl
 
 	StringBuilder& StringBuilder::operator<<(String const& elem)
 	{
-		checked_snprintf("%s", elem.c_str());
+		char buf[8];
+#if _WIN32
+		_snprintf(buf, 8, "%%.%Ius", elem.length());
+#else
+		snprintf(buf, 8, "%%.%zus", elem.length());
+#endif
+		checked_snprintf(buf, elem.c_str());
 		return *this;
 	}
 
 	StringBuilder& StringBuilder::operator<<(std::string const& elem)
 	{
-		checked_snprintf("%s", elem.c_str());
+		char buf[8];
+#if _WIN32
+		_snprintf(buf, 8, "%%.%Ius", elem.length());
+#else
+		snprintf(buf, 8, "%%.%zus", elem.length());
+#endif
+		checked_snprintf(buf, elem.c_str());
 		return *this;
 	}
 

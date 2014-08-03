@@ -33,6 +33,15 @@ namespace sprawl
 			m_array_tracker.clear();
 		}
 
+		void MongoReplicableSerializer::Discard()
+		{
+			ReplicableSerializer<MongoSerializer>::Discard();
+			m_allArrays.clear();
+			m_allObjs.clear();
+			m_objData.clear();
+			m_array_tracker.clear();
+		}
+
 		void MongoReplicableSerializer::Reset()
 		{
 			ReplicableSerializer<MongoSerializer>::Reset();
@@ -187,9 +196,7 @@ namespace sprawl
 				mongo::BSONElement data;
 				mongo::BSONObj objData;
 				sprawl::String shortKey;
-
-				///TODO: sprawl::String here
-				std::string fullKey;
+				sprawl::String fullKey;
 				ReplicationKey intKey;
 				bool isArray;
 				bool isNew;
@@ -262,14 +269,14 @@ namespace sprawl
 								currentObject->shortKey = this->m_reverse_name_index[key];
 							}
 
-							currentObject->fullKey = parentObject->fullKey + "." + currentObject->shortKey.toStdString();
+							currentObject->fullKey = parentObject->fullKey + "." + currentObject->shortKey;
 
 							parentObject->children.insert(std::make_pair(currentKey, currentObject));
 						}
 						else
 						{
 							currentObject->shortKey = this->m_reverse_name_index[key];
-							currentObject->fullKey = currentObject->shortKey.toStdString();
+							currentObject->fullKey = currentObject->shortKey;
 							rootObjects.insert(currentObject);
 						}
 
@@ -375,7 +382,7 @@ namespace sprawl
 				{
 					if(obj->isNew || obj->children.empty())
 					{
-						b.appendAs(obj->BuildData(), obj->fullKey);
+						b.appendAs(obj->BuildData(), obj->fullKey.c_str());
 					}
 					else
 					{
@@ -424,7 +431,7 @@ namespace sprawl
 					buildObjectData(kvp.first, false, true);
 					if(currentObject)
 					{
-						currentObject->removeQuery.append(currentObject->fullKey, "");
+						currentObject->removeQuery.append(currentObject->fullKey.c_str(), "");
 					}
 					removed_something = true;
 				}
@@ -437,7 +444,7 @@ namespace sprawl
 					buildObjectData(key, false, true);
 					if(currentObject)
 					{
-						currentObject->removeQuery.append(currentObject->fullKey, "");
+						currentObject->removeQuery.append(currentObject->fullKey.c_str(), "");
 					}
 					removed_something = true;
 				}
@@ -450,7 +457,7 @@ namespace sprawl
 					buildObjectData(key, false, true);
 					if(currentObject)
 					{
-						currentObject->removeQuery.append(currentObject->fullKey, "");
+						currentObject->removeQuery.append(currentObject->fullKey.c_str(), "");
 					}
 					removed_something = true;
 				}
@@ -470,7 +477,7 @@ namespace sprawl
 					}
 					else
 					{
-						return BSON(obj->fullKey << "");
+						return BSON(obj->fullKey.c_str() << "");
 					}
 				}
 			} getRemoveQuery;
@@ -560,7 +567,7 @@ namespace sprawl
 							pulled_something = true;
 							AddAccountedArray(obj->parentObject);
 							objectsAlreadyPulled.insert(obj->parentObject);
-							return BSON(obj->parentObject->fullKey << mongo::BSONNULL);
+							return BSON(obj->parentObject->fullKey.c_str() << mongo::BSONNULL);
 						}
 						else
 						{

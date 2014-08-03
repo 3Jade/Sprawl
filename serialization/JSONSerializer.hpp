@@ -30,159 +30,41 @@
 #endif
 
 #include "Serializer.hpp"
-#include <deque>
-#include <sstream>
-#include <iostream>
+#include "../collections/HashMap.hpp"
+#include <vector>
 
 namespace sprawl
 {
 	namespace serialization
 	{
-		//TODO: Replace StringData with sprawl::String
 		class JSONToken
 		{
 		public:
-			class StringData
-			{
-			public:
-				StringData( char const* const data, size_t length )
-					: m_data( data )
-					, m_length( length )
-					, m_commitData( nullptr )
-				{
-					//
-				}
-
-
-				StringData( char const* const data )
-					: m_data( data )
-					, m_length( strlen( data ) )
-					, m_commitData( nullptr )
-				{
-					//
-				}
-
-				void CommitStorage()
-				{
-					m_commitData = new char[m_length+1];
-					memcpy(m_commitData, m_data, m_length);
-					m_data = m_commitData;
-				}
-
-				~StringData()
-				{
-					if( m_commitData )
-					{
-						delete[] m_commitData;
-					}
-				}
-
-				StringData( const StringData& other )
-					: m_data( other.m_data )
-					, m_length( other.m_length )
-					, m_commitData( other.m_commitData )
-				{
-					if( m_commitData )
-					{
-						CommitStorage(); // Get our own copy of it, there's no refcounting
-					}
-				}
-
-				StringData& operator=( const StringData& other )
-				{
-					if( m_commitData )
-					{
-						delete[] m_commitData;
-					}
-					m_data = other.m_data;
-					m_length = other.m_length;
-					if( other.m_commitData )
-					{
-						CommitStorage();
-					}
-					return *this;
-				}
-
-				bool operator==( StringData const& other ) const
-				{
-					if( m_length != other.m_length )
-						return false;
-					return !memcmp( m_data, other.m_data, m_length );
-				}
-
-				size_t Length() const
-				{
-					return m_length;
-				}
-
-				char const* Data() const
-				{
-					return m_data;
-				}
-
-				char operator[](size_t index) const
-				{
-					return m_data[index];
-				}
-
-				std::string ToString() const
-				{
-					return std::string(m_data, m_length);
-				}
-
-				int ToInt() const;
-
-				double ToDouble() const;
-
-				bool ToBool() const;
-
-			private:
-				char const* m_data;
-				size_t m_length;
-				char* m_commitData;
-			};
-
-			struct StringDataHash
-			{
-				std::size_t operator()( StringData const& str ) const
-				{
-					return sprawl::murmur3::Hash( str.Data(), str.Length() );
-				}
-			};
-
-			struct StringDataCmp
-			{
-				bool operator()(const StringData& x, const StringData& y) const
-				{
-					size_t xlen = x.Length();
-					size_t ylen = y.Length();
-
-					if( xlen != ylen )
-					{
-						return xlen < ylen;
-					}
-					return memcmp( x.Data(), y.Data(), xlen ) < 0;
-				}
-			};
+			static long long ToInt(sprawl::String const& str);
+			static unsigned long long ToUInt(sprawl::String const& str);
+			static long double ToDouble(sprawl::String const& str);
+			static bool ToBool(sprawl::String const& str);
+			static sprawl::String EscapeString(sprawl::String const& str);
+			static sprawl::String UnescapeString(sprawl::String const& str);
 
 			enum class JSONType
 			{
-				Unknown = 0,
+				Empty = 0,
 				Integer = 1,
 				String = 2,
 				Boolean = 3,
 				Array = 4,
 				Object = 5,
 				Double = 6,
-				None = 7,
+				Null = 7,
 			};
 
-			StringData const& GetKey() const
+			sprawl::String const& GetKey() const
 			{
 				return m_key;
 			}
 
-			int Int() const
+			long long Int() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Integer )
@@ -192,10 +74,106 @@ namespace sprawl
 				}
 #endif
 
-				return m_data.ToInt();
+				return ToInt(m_holder->m_data);
 			}
 
-			std::string String() const
+			unsigned long long Unsigned() const
+			{
+#ifdef SPRAWL_STRICT_JSON
+				if( m_type != JSONType::Integer )
+				{
+					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+					return 0;
+				}
+#endif
+
+				return ToUInt(m_holder->m_data);
+			}
+
+			void Val(signed char& value)
+			{
+				value = (signed char)(Int());
+			}
+
+			void Val(short& value)
+			{
+				value = short(Int());
+			}
+
+			void Val(int& value)
+			{
+				value = int(Int());
+			}
+
+			void Val(long& value)
+			{
+				value = long(Int());
+			}
+
+			void Val(long long& value)
+			{
+				value = (long long)(Int());
+			}
+
+			void Val(unsigned char& value)
+			{
+				value = (unsigned char)(Int());
+			}
+
+			void Val(unsigned short& value)
+			{
+				value = (unsigned short)(Int());
+			}
+
+			void Val(unsigned int& value)
+			{
+				value = (unsigned int)(Int());
+			}
+
+			void Val(unsigned long& value)
+			{
+				value = (unsigned long)(Int());
+			}
+
+			void Val(unsigned long long& value)
+			{
+				value = (unsigned long long)(Int());
+			}
+
+			void Val(bool& value)
+			{
+				value = Bool();
+			}
+
+			void Val(double& value)
+			{
+				value = (double)Double();
+			}
+
+			void Val(float& value)
+			{
+				value = float(Double());
+			}
+
+			void Val(long double& value)
+			{
+				value = Double();
+			}
+
+			void Val(sprawl::String& value)
+			{
+				value = String();
+			}
+
+			void Val(char* value, size_t length)
+			{
+				sprawl::String data = String();
+				size_t copyLength = length < data.length() ? length : data.length();
+				memcpy(value, data.c_str(), copyLength);
+				value[copyLength] = '\0';
+			}
+
+			sprawl::String String() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::String )
@@ -205,7 +183,7 @@ namespace sprawl
 				}
 #endif
 
-				return m_data.ToString();
+				return UnescapeString(m_holder->m_data);
 			}
 
 			bool Bool() const
@@ -218,10 +196,10 @@ namespace sprawl
 				}
 #endif
 
-				return m_data.ToBool();
+				return ToBool(m_holder->m_data);
 			}
 
-			double Double() const
+			long double Double() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Double )
@@ -231,56 +209,128 @@ namespace sprawl
 				}
 #endif
 
-				return m_data.ToDouble();
+				return ToDouble(m_holder->m_data);
 			}
 
-			JSONToken const& operator[]( StringData const& key ) const;
+			JSONToken& NextSibling();
+
+			JSONToken const& NextSibling() const;
+
+			JSONToken const& operator[]( sprawl::String const& key ) const;
 
 			JSONToken const& operator[]( size_t index ) const;
 
-			JSONToken& operator[]( StringData const& key );
+			JSONToken& operator[]( sprawl::String const& key );
 
 			JSONToken& operator[]( size_t index );
 
 			JSONType Type()
 			{
-				return m_type;
+				return m_holder->m_type;
 			}
 
-			bool Null()
+			bool IsNull()
 			{
-				return (m_type == JSONType::None);
+				return (m_holder->m_type == JSONType::Null);
+			}
+
+			bool IsEmpty()
+			{
+				return (m_holder->m_type == JSONType::Empty);
+			}
+
+			bool HasKey(sprawl::String const& key)
+			{
+				return m_holder->m_objectChildren->has(key);
 			}
 
 			size_t Size();
 
-			std::string ToJSONString( bool pretty = false, int tabDepth = 1 );
+			sprawl::String ToJSONString( bool pretty = false );
 
-			void PushBack( JSONToken& token );
+			JSONToken& PushBack( JSONToken const& token );
+			JSONToken& PushBack( signed char value ) { return PushBack((long long)(value)); }
+			JSONToken& PushBack( short value ) { return PushBack((long long)(value)); }
+			JSONToken& PushBack( int value ) { return PushBack((long long)(value)); }
+			JSONToken& PushBack( long value ) { return PushBack((long long)(value)); }
+			JSONToken& PushBack( unsigned char value ) { return PushBack((unsigned long long)(value)); }
+			JSONToken& PushBack( unsigned short value ) { return PushBack((unsigned long long)(value)); }
+			JSONToken& PushBack( unsigned int value ) { return PushBack((unsigned long long)(value)); }
+			JSONToken& PushBack( unsigned long value ) { return PushBack((unsigned long long)(value)); }
+			JSONToken& PushBack( unsigned long long value );
+			JSONToken& PushBack( long long value );
+			JSONToken& PushBack( float value ) { return PushBack((long double)(value)); }
+			JSONToken& PushBack( double value ) { return PushBack((long double)(value)); }
+			JSONToken& PushBack( long double value );
+			JSONToken& PushBack( bool value );
+			JSONToken& PushBack( const char* const value );
+			JSONToken& PushBack( const char* const value, size_t length );
+			JSONToken& PushBack( sprawl::String const& value );
 
-			void Insert( StringData name, JSONToken& token );
+			JSONToken& Insert( sprawl::String const& name, JSONToken const& token );
+			JSONToken& Insert( sprawl::String const& name, signed char value ) { return Insert(name, (long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, short value ) { return Insert(name, (long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, int value ) { return Insert(name, (long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, long value ) { return Insert(name, (long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, unsigned char value ) { return Insert(name, (unsigned long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, unsigned short value ) { return Insert(name, (unsigned long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, unsigned int value ) { return Insert(name, (unsigned long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, unsigned long value ) { return Insert(name, (unsigned long long)(value)); }
+			JSONToken& Insert( sprawl::String const& name, unsigned long long value );
+			JSONToken& Insert( sprawl::String const& name, long long value );
+			JSONToken& Insert( sprawl::String const& name, float value ) { return Insert(name, (long double)(value)); }
+			JSONToken& Insert( sprawl::String const& name, double value ) { return Insert(name, (long double)(value)); }
+			JSONToken& Insert( sprawl::String const& name, long double value );
+			JSONToken& Insert( sprawl::String const& name, bool value );
+			JSONToken& Insert( sprawl::String const& name, const char* const value );
+			JSONToken& Insert( sprawl::String const& name, const char* const value, size_t length );
+			JSONToken& Insert( sprawl::String const& name, sprawl::String const& value );
 
 			static JSONToken array()
 			{
-				return JSONToken( JSONType::Array, StringData( nullptr, 0 ) );
+				return JSONToken( JSONType::Array, sprawl::String() );
 			}
 
 			static JSONToken object()
 			{
-				return JSONToken( JSONType::Object, StringData( nullptr, 0 ) );
+				return JSONToken( JSONType::Object, sprawl::String() );
 			}
 
 			static JSONToken string( char const* const data )
 			{
-				return JSONToken( JSONType::String, StringData( data ) );
+				return JSONToken( JSONType::String, sprawl::String( data ) );
 			}
 
-			static JSONToken number( int data )
+			static JSONToken string( char const* const data, size_t length )
+			{
+				return JSONToken( JSONType::String, sprawl::String( data, length ) );
+			}
+
+			static JSONToken string( sprawl::String const& data )
+			{
+				return JSONToken( JSONType::String, data );
+			}
+
+			static JSONToken number( signed char value ) { return number((long long)(value)); }
+			static JSONToken number( short value ) { return number((long long)(value)); }
+			static JSONToken number( int value ) { return number((long long)(value)); }
+			static JSONToken number( long value ) { return number((long long)(value)); }
+			static JSONToken number( unsigned char value ) { return number((unsigned long long)(value)); }
+			static JSONToken number( unsigned short value ) { return number((unsigned long long)(value)); }
+			static JSONToken number( unsigned int value ) { return number((unsigned long long)(value)); }
+			static JSONToken number( unsigned long value ) { return number((unsigned long long)(value)); }
+
+			static JSONToken number( long long data )
 			{
 				return JSONToken( JSONType::Integer, data );
 			}
 
-			static JSONToken number( double data )
+			static JSONToken number( unsigned long long data )
+			{
+				return JSONToken( JSONType::Integer, data );
+			}
+
+			static JSONToken number( long double data )
 			{
 				return JSONToken( JSONType::Double, data );
 			}
@@ -290,22 +340,91 @@ namespace sprawl
 				return JSONToken( JSONType::Boolean, data );
 			}
 
-			JSONToken( StringData myKey, char const* const data, int& outPosition, JSONType expectedType );
+			static JSONToken null()
+			{
+				return JSONToken( JSONType::Null );
+			}
+
+			static JSONToken empty()
+			{
+				return JSONToken( JSONType::Empty );
+			}
+
+			static JSONToken fromString(sprawl::String const& jsonStr)
+			{
+				int position = 0;
+				return JSONToken("", jsonStr.c_str(), position, JSONType::Object);
+			}
+
+			~JSONToken();
+
+			JSONToken(JSONToken const& other);
+			JSONToken& operator=(JSONToken const& other);
+
+			JSONToken& FirstChild()
+			{
+				auto it = m_holder->m_objectChildren->begin();
+				if(it)
+				{
+					return *it.Value();
+				}
+				return staticEmpty;
+			}
 
 		protected:
-			JSONToken( JSONType statedType, StringData data );
+			JSONToken( sprawl::String const& myKey, char const* const data, int& outPosition, JSONType expectedType );
+			JSONToken( JSONType statedType, sprawl::String const& data );
 			JSONToken( JSONType statedType, bool data );
-			JSONToken( JSONType statedType, int data );
+			JSONToken( JSONType statedType, long long data );
+			JSONToken( JSONType statedType, unsigned long long data );
 			JSONToken( JSONType statedType );
-			JSONToken( JSONType statedType, double data );
+			JSONToken( JSONType statedType, long double data );
+
+			static JSONToken* Create();
+			static void Free(JSONToken* token);
 
 		private:
-			StringData m_data;
-			StringData m_key;
-			JSONType m_type;
-			std::map<StringData, JSONToken, StringDataCmp> m_objectChildren;
-			std::vector<JSONToken> m_arrayChildren;
-			static JSONToken none;
+			void BuildJSONString(sprawl::StringBuilder& outString, bool pretty, int tabDepth);
+			void EnsureOwnership();
+			void IncRef() { ++m_holder->refCount; }
+			void DecRef()
+			{
+				if(--m_holder->refCount == 0)
+				{
+					Holder::Free(m_holder);
+				}
+			}
+
+			void ParseString(char const* const data, int& outPosition);
+			void ParseNumber(char const* const data, int& outPosition);
+			void ParseBool(char const* const data, int& outPosition);
+			void ParseArray(char const* const data, int& outPosition);
+			void ParseObject(char const* const data, int& outPosition);
+
+			typedef sprawl::collections::HashMap<JSONToken*, sprawl::PtrConstMemberAccessor<JSONToken, const sprawl::String&, &JSONToken::GetKey>> TokenMap;
+			typedef TokenMap::iterator iterator;
+
+			struct Holder
+			{
+				sprawl::String m_data;
+				JSONType m_type;
+				TokenMap *m_objectChildren;
+				TokenMap::iterator m_iter;
+				std::vector<JSONToken> *m_arrayChildren;
+				int refCount;
+
+				bool Unique() { return refCount == 1; }
+				static Holder* Create();
+				static void Free(Holder* holder);
+
+				Holder(JSONType forType);
+
+				~Holder();
+			};
+
+			Holder* m_holder;
+			sprawl::String m_key;
+			static JSONToken staticEmpty;
 		};
 
 		class JSONSerializerBase : virtual public SerializerBase
@@ -322,9 +441,7 @@ namespace sprawl
 				if(IsSaving() && m_bWithMetadata)
 				{
 					//Update version metadata
-					std::stringstream strval;
-					strval << i;
-					m_serialVect.front().second = strval.str();
+					m_rootToken["__version__"] = JSONToken::number(i);
 				}
 			}
 			virtual void Reset() override { }
@@ -332,456 +449,113 @@ namespace sprawl
 			virtual const char* Data() override { return Str().c_str(); }
 			virtual sprawl::String Str() override
 			{
-				std::stringstream datastream;
-				datastream << "{";
-				if( m_prettyPrint )
-				{
-					datastream << "\n\t";
-				}
-				else
-				{
-					datastream << " ";
-				}
-				for(size_t i =0; i < m_serialVect.size(); i++)
-				{
-					auto& kvp = m_serialVect[i];
-					datastream << "\"" << kvp.first.c_str() << "\" : " << kvp.second.c_str();
-					if(i != m_serialVect.size() - 1)
-					{
-						datastream << ",";
-						if( m_prettyPrint )
-						{
-							datastream << "\n\t";
-						}
-						else
-						{
-							datastream << " ";
-						}
-					}
-					else if( m_prettyPrint )
-					{
-						datastream << "\n";
-					}
-				}
-				if( !m_prettyPrint )
-				{
-					datastream << " ";
-				}
-				datastream << "}";
-				return datastream.str();
+				return m_rootToken.ToJSONString(m_prettyPrint);
 			}
+			
 			virtual size_t Size() override
 			{
 				return Str().length();
 			}
-			bool More(){ return !m_serialVect.empty() || !m_thisArray.empty() || !m_thisObject.empty(); }
-		protected:
-			char const* GetSeparator()
+
+			bool More()
 			{
-				if(m_prettyPrint)
-				{
-					return "\n\t";
-				}
-				else
-				{
-					return " ";
-				}
+				return !m_currentObjectIndex.front()->IsEmpty();
 			}
+		protected:
 
 			template<typename T>
 			friend class ReplicableBase;
 			using SerializerBase::serialize;
+
 			template<typename T>
-			void serialize_impl(T* var, const uint32_t bytes, const sprawl::String& name, bool)
+			void serialize_impl(T* var, const uint32_t /*bytes*/, const sprawl::String& name, bool)
 			{
-				if(!m_bIsValid)
+				JSONToken* currentToken = m_currentToken.back();
+				if(IsSaving())
 				{
-					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-					return;
-				}
-				bool bIsArray = false;
-				uint32_t size = bytes/sizeof(T);
-				if(bytes > sizeof(T))
-				{
-					StartArray(name, size, true);
-					bIsArray = true;
-				}
-				if(IsLoading())
-				{
-					std::string strval;
-					if(!m_stateTracker.empty())
+					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							if(bIsArray)
-							{
-								int i = 0;
-								while(!m_thisArray.back().second.empty())
-								{
-									strval = m_thisArray.back().second.front().toStdString();
-									std::stringstream converter(strval);
-									T newvar;
-									converter >> newvar;
-									var[i] = newvar;
-									i++;
-									m_thisArray.back().second.erase(m_thisArray.back().second.begin());
-								}
-							}
-							else
-							{
-								strval = m_thisArray.back().second.front().toStdString();
-								m_thisArray.back().second.erase(m_thisArray.back().second.begin());
-								std::stringstream converter(strval);
-								converter >> *var;
-							}
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							bool bFound = false;
-							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
-							{
-								if(it->first == name.toStdString())
-								{
-									strval = it->second;
-									m_thisObject.back().second.erase(it);
-									bFound = true;
-									break;
-								}
-							}
-							if(!bFound)
-							{
-								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-								return;
-							}
-							std::stringstream converter(strval);
-							converter >> *var;
-						}
+						currentToken->PushBack(*var);
 					}
 					else
 					{
-						bool bFound = false;
-						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
-						{
-							if(it->first == name.toStdString())
-							{
-								strval = it->second;
-								m_serialVect.erase((it+1).base());
-								bFound = true;
-								break;
-							}
-						}
-						if(!bFound)
-						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
-						}
-						std::stringstream converter(strval);
-						converter >> *var;
+						currentToken->Insert(name, *var);
 					}
 				}
 				else
 				{
-					std::stringstream converter;
-					if(bIsArray)
+					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						for(uint32_t i = 0; i < size; i++)
-						{
-							converter.str("");
-							converter << var[i];
-							m_thisArray.back().second.push_back(converter.str());
-						}
+						currentToken->operator[](m_currentArrayIndex.back()++).Val(*var);
 					}
 					else
 					{
-						converter << *var;
-						if(!m_stateTracker.empty())
-						{
-							if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-							{
-								m_thisArray.back().second.push_back(converter.str());
-							}
-							else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-							{
-								m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), converter.str()));
-							}
-						}
-						else
-						{
-							m_serialVect.push_back(std::make_pair(name.toStdString(), converter.str()));
-						}
-					}
-				}
-				if(bIsArray)
-				{
-					EndArray();
-				}
-			}
-
-			void serialize_impl(bool* var, const uint32_t, const sprawl::String& name, bool)
-			{
-				if(!m_bIsValid)
-				{
-					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-					return;
-				}
-				if(IsLoading())
-				{
-					std::string strval;
-					if(!m_stateTracker.empty())
-					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							strval = m_thisArray.back().second.front().toStdString();
-							m_thisArray.back().second.erase(m_thisArray.back().second.begin());
-							if(strval == "true")
-							{
-								*var = true;
-							}
-							else
-							{
-								*var = false;
-							}
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							bool bFound = false;
-							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
-							{
-								if(it->first == name.toStdString())
-								{
-									strval = it->second;
-									m_thisObject.back().second.erase(it);
-									bFound = true;
-									break;
-								}
-							}
-							if(!bFound)
-							{
-								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-								return;
-							}
-
-							if(strval == "true")
-							{
-								*var = true;
-							}
-							else
-							{
-								*var = false;
-							}
-						}
-					}
-					else
-					{
-						bool bFound = false;
-						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
-						{
-							if(it->first == name.toStdString())
-							{
-								strval = it->second;
-								m_serialVect.erase((it+1).base());
-								bFound = true;
-								break;
-							}
-						}
-						if(!bFound)
-						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
-						}
-
-						if(strval == "true")
-						{
-							*var = true;
-						}
-						else
-						{
-							*var = false;
-						}
-					}
-				}
-				else
-				{
-					std::string strval( *var ? "true" : "false" );
-					if(!m_stateTracker.empty())
-					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							m_thisArray.back().second.push_back(strval);
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), strval));
-						}
-					}
-					else
-					{
-						m_serialVect.push_back(std::make_pair(name.toStdString(), strval));
+						JSONToken& token = currentToken->operator[](name);
+						token.Val(*var);
+						m_currentObjectIndex.back() = &token.NextSibling();
 					}
 				}
 			}
 
-			void serialize_impl(char* var, const uint32_t, const sprawl::String& name, bool)
+			void serialize_impl(char* var, const uint32_t bytes, const sprawl::String& name, bool)
 			{
-				if(!m_bIsValid)
+				JSONToken* currentToken = m_currentToken.back();
+				if(IsSaving())
 				{
-					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-					return;
-				}
-				if(IsLoading())
-				{
-					std::string strval;
-					if(!m_stateTracker.empty())
+					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							strval = m_thisArray.back().second.front().toStdString();
-							m_thisArray.back().second.erase(m_thisArray.back().second.begin());
-							strcpy(var, strval.substr(1, strval.length()-2).c_str());
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							bool bFound = false;
-							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
-							{
-								if(it->first == name.toStdString())
-								{
-									strval = it->second;
-									m_thisObject.back().second.erase(it);
-									bFound = true;
-									break;
-								}
-							}
-							if(!bFound)
-							{
-								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-								return;
-							}
-							strcpy(var, strval.substr(1, strval.length()-2).c_str());
-						}
+						currentToken->PushBack(var, bytes);
 					}
 					else
 					{
-						bool bFound = false;
-						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
-						{
-							if(it->first == name.toStdString())
-							{
-								strval = it->second;
-								m_serialVect.erase((it+1).base());
-								bFound = true;
-								break;
-							}
-						}
-						if(!bFound)
-						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
-						}
-						strcpy(var, strval.substr(1, strval.length()-2).c_str());
+						currentToken->Insert(name, var, bytes);
 					}
 				}
 				else
 				{
-					std::stringstream converter;
-					converter << "\"" << var << "\"";
-					if(!m_stateTracker.empty())
+					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							m_thisArray.back().second.push_back(converter.str());
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), converter.str()));
-						}
+						currentToken->operator[](m_currentArrayIndex.back()++).Val(var, bytes);
 					}
 					else
 					{
-						m_serialVect.push_back(std::make_pair(name.toStdString(), converter.str()));
+						JSONToken& token = currentToken->operator[](name);
+						token.Val(var, bytes);
+						m_currentObjectIndex.back() = &token.NextSibling();
 					}
 				}
 			}
 
-			void serialize_impl(std::string* var, const uint32_t, const sprawl::String& name, bool)
+			void serialize_impl(std::string* var, const uint32_t /*bytes*/, const sprawl::String& name, bool)
 			{
-				if(!m_bIsValid)
+				JSONToken* currentToken = m_currentToken.back();
+				if(IsSaving())
 				{
-					SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-					return;
-				}
-				if(IsLoading())
-				{
-					std::string strval;
-					if(!m_stateTracker.empty())
+					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							strval = m_thisArray.back().second.front().toStdString();
-							m_thisArray.back().second.erase(m_thisArray.back().second.begin());
-							*var = strval.substr(1, strval.length()-2);
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							bool bFound = false;
-							for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
-							{
-								if(it->first == name.toStdString())
-								{
-									strval = it->second;
-									m_thisObject.back().second.erase(it);
-									bFound = true;
-									break;
-								}
-							}
-							if(!bFound)
-							{
-								SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-								return;
-							}
-							*var = strval.substr(1, strval.length()-2);
-						}
+						currentToken->PushBack(var->c_str(), var->length());
 					}
 					else
 					{
-						bool bFound = false;
-						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
-						{
-							if(it->first == name.toStdString())
-							{
-								strval = it->second;
-								m_serialVect.erase((it+1).base());
-								bFound = true;
-								break;
-							}
-						}
-						if(!bFound)
-						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
-						}
-						*var = strval.substr(1, strval.length()-2);
+						currentToken->Insert(name, var->c_str(), var->length());
 					}
 				}
 				else
 				{
-					std::stringstream converter;
-					converter << "\"" << *var << "\"";
-					if(!m_stateTracker.empty())
+					sprawl::String str;
+
+					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-						{
-							m_thisArray.back().second.push_back(converter.str());
-						}
-						else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-						{
-							m_thisObject.back().second.push_back(std::make_pair(name.toStdString(), converter.str()));
-						}
+						currentToken->operator[](m_currentArrayIndex.back()++).Val(str);
 					}
 					else
 					{
-						m_serialVect.push_back(std::make_pair(name.toStdString(), converter.str()));
+						JSONToken& token = currentToken->operator[](name);
+						token.Val(str);
+						m_currentObjectIndex.back() = &token.NextSibling();
 					}
+
+					var->assign(str.c_str(), str.length());
 				}
 			}
 
@@ -855,461 +629,131 @@ namespace sprawl
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
+
 			virtual void serialize(std::string* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
 				serialize_impl(var, bytes, name, PersistToDB);
 			}
+
 			virtual void serialize(sprawl::String* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
-				std::string str = var->toStdString();
-				serialize_impl(&str, bytes, name, PersistToDB);
-				if(IsLoading())
-				{
-					*var = sprawl::String(str);
-				}
+				serialize_impl(var, bytes, name, PersistToDB);
 			}
 
 			virtual uint32_t StartObject(const sprawl::String& str, bool = true) override
 			{
-				++m_tabDepth;
-				State LastState = m_stateTracker.empty() ? State::None : m_stateTracker.back();
-				m_stateTracker.push_back(State::Object);
-				if(IsSaving())
+				JSONToken& token = *m_currentToken.back();
+				if(IsLoading())
 				{
-					m_thisObject.push_back(std::make_pair(str, std::deque<std::pair<std::string, std::string>>()));
-					return 0; //doesn't matter.
-				}
-				else
-				{
-					bool bFound = false;
-					std::string strval;
-					if(!m_thisObject.empty() && LastState == State::Object)
+					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
-						{
-							if(it->first == str.toStdString())
-							{
-								strval = it->second;
-								m_thisObject.back().second.erase(it);
-								bFound = true;
-								break;
-							}
-						}
-					}
-					else if(!m_thisArray.empty() && LastState == State::Array)
-					{
-						for(auto it = m_thisArray.rbegin(); it != m_thisArray.rend(); it++)
-						{
-							if(it->first == str.toStdString())
-							{
-								strval = it->second.front().toStdString();
-								it->second.erase(it->second.begin());
-								bFound = true;
-								break;
-
-							}
-						}
+						m_currentToken.push_back(&token[m_currentArrayIndex.back()++]);
 					}
 					else
 					{
-						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
-						{
-							if(it->first == str.toStdString())
-							{
-								strval = it->second;
-								m_serialVect.erase((it+1).base());
-								bFound = true;
-								break;
-							}
-						}
+						m_currentToken.push_back(&token[str]);
 					}
-					std::deque<std::pair<std::string, std::string>> jsondata;
-					ParseJSON(strval, jsondata);
-					m_thisObject.push_back(std::make_pair(str, jsondata));
-					return (uint32_t)jsondata.size();
+					m_currentObjectIndex.push_back(&m_currentToken.back()->FirstChild());
+					return m_currentToken.back()->Size();
+				}
+				else
+				{
+					if(token.Type() == JSONToken::JSONType::Array)
+					{
+						m_currentToken.push_back(&token.PushBack(JSONToken::object()));
+					}
+					else
+					{
+						m_currentToken.push_back(&token.Insert(str, JSONToken::object()));
+					}
+					return 0;
 				}
 			}
+
 			virtual void EndObject() override
 			{
-				m_stateTracker.pop_back();
-				if(IsSaving())
+				m_currentToken.pop_back();
+				if(IsLoading())
 				{
-					auto& kvp = m_thisObject.back();
-					std::string key = kvp.first.toStdString();
-					std::string objstr = "{";
-					if(m_prettyPrint)
-					{
-						objstr += "\n";
-					}
-					else
-					{
-						objstr += " ";
-					}
-					for(size_t i=0; i<kvp.second.size(); i++)
-					{
-						if( m_prettyPrint )
-						{
-							for( int i = 0; i < m_tabDepth; ++i )
-							{
-								objstr += "\t";
-							}
-						}
-						objstr += "\"" +  kvp.second[i].first + "\" : " + kvp.second[i].second;
-						if(i != kvp.second.size() - 1)
-						{
-							objstr += ",";
-							if( m_prettyPrint )
-							{
-								objstr += "\n";
-							}
-							else
-							{
-								objstr += " ";
-							}
-						}
-						else if( m_prettyPrint )
-						{
-							objstr += "\n";
-						}
-					}
-					--m_tabDepth;
-					if( m_prettyPrint )
-					{
-						for( int i = 0; i < m_tabDepth; ++i )
-						{
-							objstr += "\t";
-						}
-					}
-					else
-					{
-						objstr += " ";
-					}
-					objstr += "}";
-					m_thisObject.pop_back();
-					if(!m_thisArray.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array)
-					{
-						m_thisArray.back().second.push_back(objstr);
-					}
-					else if(!m_thisObject.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Object)
-					{
-						m_thisObject.back().second.push_back(std::make_pair(key, objstr));
-					}
-					else
-					{
-						m_serialVect.push_back(std::make_pair(key, objstr));
-					}
-				}
-				else
-				{
-					m_thisObject.pop_back();
+					m_currentObjectIndex.pop_back();
 				}
 			}
 
 			virtual void StartArray(const sprawl::String& str, uint32_t& size, bool = true) override
 			{
-				++m_tabDepth;
-				State LastState = m_stateTracker.empty() ? State::None : m_stateTracker.back();
-				m_stateTracker.push_back(State::Array);
-				if(IsSaving())
+				JSONToken& token = *m_currentToken.back();
+				if(IsLoading())
 				{
-					m_thisArray.push_back(std::make_pair(str, std::deque<sprawl::String>()));
-				}
-				else
-				{
-					bool bFound = false;
-					std::string strval;
-					size = 0;
-					if(!m_thisArray.empty() && LastState == State::Array)
+					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						strval = m_thisArray.back().second.front().toStdString();
-						m_thisArray.back().second.erase(m_thisArray.back().second.begin());
-					}
-					else if(!m_thisObject.empty() && LastState == State::Object)
-					{
-						for(auto it = m_thisObject.back().second.begin(); it != m_thisObject.back().second.end(); it++)
-						{
-							if(it->first == str.toStdString())
-							{
-								strval = it->second;
-								m_thisObject.back().second.erase(it);
-								bFound = true;
-								break;
-							}
-						}
+						m_currentToken.push_back(&token[m_currentArrayIndex.back()++]);
 					}
 					else
 					{
-						for(auto it = m_serialVect.rbegin(); it != m_serialVect.rend(); it++)
-						{
-							if(it->first == str.toStdString())
-							{
-								strval = it->second;
-								m_serialVect.erase((it+1).base());
-								bFound = true;
-								break;
-							}
-						}
+						m_currentToken.push_back(&token[str]);
 					}
-					std::deque<std::pair<std::string, std::string>> jsondata;
-					ParseJSON(strval, jsondata);
-					std::deque<sprawl::String> jsondata_nokeys;
-					//Because arrays aren't in kvp format, the keys here will be in first, and second will be empty
-					for(auto& kvp : jsondata)
+					m_currentArrayIndex.push_back(0);
+					size = m_currentToken.back()->Size();
+				}
+				else
+				{
+					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						size++;
-						jsondata_nokeys.push_back(kvp.first);
+						m_currentToken.push_back(&token.PushBack(JSONToken::array()));
 					}
-					m_thisArray.push_back(std::make_pair(str, jsondata_nokeys));
+					else
+					{
+						m_currentToken.push_back(&token.Insert(str, JSONToken::array()));
+					}
 				}
 			}
 
 			virtual void EndArray() override
 			{
-				m_stateTracker.pop_back();
-				if(IsSaving())
+				m_currentToken.pop_back();
+				if(IsLoading())
 				{
-					auto& kvp = m_thisArray.back();
-					std::string key = kvp.first.toStdString();
-					std::string arrstr = "[";
-					if( m_prettyPrint )
-					{
-						arrstr += "\n";
-					}
-					else
-					{
-						arrstr += " ";
-					}
-					for(size_t i=0; i<kvp.second.size(); i++)
-					{
-						if( m_prettyPrint )
-						{
-							for( int i = 0; i < m_tabDepth; ++i )
-							{
-								arrstr += "\t";
-							}
-						}
-						arrstr += kvp.second[i].c_str();
-						if(i != kvp.second.size() - 1)
-						{
-							arrstr += ",";
-
-							if( m_prettyPrint )
-							{
-								arrstr += "\n";
-							}
-							else
-							{
-								arrstr += " ";
-							}
-						}
-						else if( m_prettyPrint )
-						{
-							arrstr += "\n";
-						}
-					}
-					--m_tabDepth;
-					if( m_prettyPrint )
-					{
-						for( int i = 0; i < m_tabDepth; ++i )
-						{
-							arrstr += "\t";
-						}
-					}
-					else
-					{
-						arrstr += " ";
-					}
-					arrstr += "]";
-					m_thisArray.pop_back();
-					if(!m_thisObject.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Object)
-					{
-						m_thisObject.back().second.push_back(std::make_pair(key, arrstr));
-					}
-					else if(!m_thisArray.empty() && !m_stateTracker.empty() && m_stateTracker.back() == State::Array)
-					{
-						if(key != m_thisArray.back().first.toStdString())
-						{
-							arrstr = "\"" + key + "\" : " + arrstr;
-						}
-						m_thisArray.back().second.push_back(arrstr);
-					}
-					else
-					{
-						m_serialVect.push_back(std::make_pair(key, arrstr));
-					}
-				}
-				else
-				{
-					m_thisArray.pop_back();
+					m_currentArrayIndex.pop_back();
 				}
 			}
 
 			sprawl::String GetNextKey()
 			{
-				if(IsSaving())
-				{
-					return "";
-				}
-				if(!m_stateTracker.empty())
-				{
-					if(!m_thisArray.empty() && m_stateTracker.back() == State::Array)
-					{
-						return "";
-					}
-					else if(!m_thisObject.empty() && m_stateTracker.back() == State::Object)
-					{
-						return m_thisObject.back().second.front().first;
-					}
-					else
-					{
-						SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-						return "";
-					}
-				}
-				else
-				{
-					if(m_serialVect.empty())
-					{
-						SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-						return "";
-					}
-					return m_serialVect.front().first;
-				}
+				return m_currentObjectIndex.back()->GetKey();
 			}
 
 		protected:
 			JSONSerializerBase()
 				: SerializerBase()
+				, m_rootToken(JSONToken::object())
+				, m_currentToken()
+				, m_currentArrayIndex()
+				, m_currentObjectIndex()
+				, m_prettyPrint(false)
 				, m_version(0)
 				, m_bIsValid(true)
 				, m_bWithMetadata(true)
-				, m_tabDepth(1)
-				, m_prettyPrint(false)
-			{}
-			virtual ~JSONSerializerBase() {}
-
-			static void ParseJSON(const sprawl::String& str, std::deque<std::pair<std::string, std::string>>& ret)
 			{
-				int TokenLevel = 0;
-				std::string key, value;
-				bool GotKey = false;
-				bool in_quotes = false;
-				for(size_t i=0; i < str.length(); i++)
-				{
-					switch(str[i])
-					{
-						case '{':
-						case '[':
-							if(!in_quotes)
-							{
-								TokenLevel++;
-								if(TokenLevel == 1)
-								{
-									break;
-								}
-							}
-							if(GotKey)
-							{
-								value += str[i];
-							}
-							else
-							{
-								key += str[i];
-							}
-							break;
-						case '}':
-						case ']':
-							if(!in_quotes)
-							{
-								TokenLevel--;
-								if(TokenLevel == 0)
-								{
-									break;
-								}
-							}
-							if(GotKey)
-							{
-								value += str[i];
-							}
-							else
-							{
-								key += str[i];
-							}
-							break;
-						case ':':
-							if(!in_quotes && TokenLevel == 1)
-							{
-								GotKey = true;
-								break;
-							}
-						case ',':
-							if(!in_quotes && TokenLevel == 1)
-							{
-								GotKey = false;
-								if(!key.empty())
-								{
-									ret.push_back(std::make_pair(key, value));
-								}
-								key = "";
-								value = "";
-								break;
-							}
-						case ' ':
-						case '\t':
-						case '\n':
-						case '\r':
-							if(!in_quotes && TokenLevel == 1)
-							{
-								break;
-							}
-						default:
-							if(GotKey)
-							{
-								value += str[i];
-							}
-							else
-							{
-								key += str[i];
-							}
-							break;
-						case '\"':
-							if( TokenLevel == 1 && (i == 0 || str[i-1] != '\\'))
-							{
-								in_quotes = !in_quotes;
-								if(!GotKey)
-								{
-									break;
-								}
-							}
-							if(GotKey)
-							{
-								value += str[i];
-							}
-							else
-							{
-								key += str[i];
-							}
-							break;
-					}
-				}
-				if(!key.empty())
-				{
-					ret.push_back(std::make_pair(key, value));
-				}
+				m_currentToken.push_back(&m_rootToken);
+				m_currentObjectIndex.push_back(&m_rootToken.FirstChild());
 			}
 
-			enum class State { None, Array, Object };
-			std::deque<State> m_stateTracker;
-			std::deque<std::pair<sprawl::String, std::deque<sprawl::String>>> m_thisArray;
-			std::deque<std::pair<sprawl::String, std::deque<std::pair<std::string, std::string>>>> m_thisObject;
-			std::deque<std::pair<std::string, std::string>> m_serialVect;
+			virtual ~JSONSerializerBase()
+			{
+				//
+			}
+
+			JSONToken m_rootToken;
+			std::vector<JSONToken*> m_currentToken;
+			std::vector<int> m_currentArrayIndex;
+			std::vector<JSONToken*> m_currentObjectIndex;
+
+			bool m_prettyPrint;
 
 			//Copied and pasted to avoid indirection with virtual inheritance
 			uint32_t m_version;
 			bool m_bIsValid;
 			bool m_bWithMetadata;
-			int m_tabDepth;
-			bool m_prettyPrint;
 		private:
 			JSONSerializerBase(const SerializerBase&);
 			JSONSerializerBase& operator=(const SerializerBase&);
@@ -1343,11 +787,10 @@ namespace sprawl
 
 			virtual void Reset() override
 			{
-				m_thisArray.clear();
-				m_thisObject.clear();
-				m_serialVect.clear();
-				m_stateTracker.clear();
-				serialize(m_version, sizeof(m_version), "__version__", true);
+				m_currentToken.clear();
+				m_currentArrayIndex.clear();
+				m_rootToken = JSONToken::object();
+				m_version = 0;
 			}
 			virtual SerializerBase& operator%(SerializationData<Serializer>&& var) override
 			{
@@ -1430,21 +873,13 @@ namespace sprawl
 			virtual void Data(const sprawl::String& str) override
 			{
 				m_dataStr = str;
-				m_serialVect.clear();
-				ParseJSON(str.toStdString(), m_serialVect);
-				m_bIsValid = true;
-				if(m_bWithMetadata)
-					serialize(m_version, sizeof(m_version), "__version__", true);
+				m_rootToken = JSONToken::fromString(m_dataStr);
 			}
 
 			virtual void Data(const char* data, size_t length) override
 			{
 				m_dataStr = sprawl::String(data, length);
-				m_serialVect.clear();
-				ParseJSON(m_dataStr.toStdString(), m_serialVect);
-				m_bIsValid = true;
-				if(m_bWithMetadata)
-					serialize(m_version, sizeof(m_version), "__version__", true);
+				m_rootToken = JSONToken::fromString(m_dataStr);
 			}
 
 

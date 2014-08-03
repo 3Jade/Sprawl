@@ -13,6 +13,7 @@ int main(int argc, char* argv[])
 	ADD_TEST(memory);
 	ADD_TEST(collections);
 	ADD_TEST(string);
+	ADD_TEST(json);
 #ifdef WITH_MONGO
 	ADD_TEST(mongo_replicable);
 #endif

@@ -574,7 +574,7 @@ namespace sprawl
 				this->m_marked = false;
 			}
 
-			void Mark()
+			virtual void Mark()
 			{
 				//Save what we just serialized to reference the next time we serialize, and return the serializer to a blank state.
 				this->m_marked_data = std::move( this->m_data );
@@ -585,7 +585,7 @@ namespace sprawl
 				this->m_marked = true;
 			}
 
-			void Discard()
+			virtual void Discard()
 			{
 				this->m_depth_tracker.clear();
 				this->m_diffs.clear();
