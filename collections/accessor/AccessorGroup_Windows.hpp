@@ -26,6 +26,14 @@ namespace sprawl
 					//
 				}
 
+				AccessorGroup_Impl(AccessorGroup_Impl const& other)
+					: next(nullptr)
+					, prev(nullptr)
+					, m_value(other.m_value)
+				{
+					//
+				}
+
 				inline MostInheritedType* Next(Specialized<index>)
 				{
 					return nullptr;
@@ -75,9 +83,6 @@ namespace sprawl
 				MostInheritedType* next;
 				MostInheritedType* prev;
 				ValueType m_value;
-			private:
-				AccessorGroup_Impl(AccessorGroup_Impl& other);
-				AccessorGroup_Impl(MostInheritedType& other);
 			};
 			
 #define _CLASS_ACCESSORGROUP_IMPL( \
@@ -97,6 +102,16 @@ namespace sprawl
 					, m_thisIdx(0) \
 				{ \
 					\
+				} \
+				 \
+				AccessorGroup_Impl(AccessorGroup_Impl const& other) \
+					: Base(other) \
+					, m_thisAccessor(this->m_value) \
+					, m_nextThisAccessor(nullptr) \
+					, m_prevThisAccessor(nullptr) \
+					, m_thisIdx(0) \
+				{ \
+					 \
 				} \
 				 \
 				AccessorGroup_Impl(ValueType const& value, typename AccessorType::arg_type const& key) \
@@ -215,10 +230,10 @@ namespace sprawl
 			TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
 			template<typename ValueType COMMA LIST(_CLASS_TYPEX)> \
 			class AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
-				: public AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, 1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
+				: public AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, 0, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
 			{ \
 			public: \
-				typedef AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, 1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> Base; \
+				typedef AccessorGroup_Impl<ValueType, AccessorGroup<ValueType, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)>, 0, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> Base; \
 				AccessorGroup(ValueType const& value) \
 					: Base(value) \
 				{ \
@@ -227,8 +242,6 @@ namespace sprawl
 				 \
 				_ACCESSORGROUP_VARIADICS( TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
 				 \
-			private: \
-				AccessorGroup(AccessorGroup& other); \
 			};
 
 
