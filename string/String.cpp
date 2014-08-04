@@ -291,6 +291,19 @@ namespace sprawl
 		}
 		return *this;
 	}
+
+	String& String::operator=(String&& other)
+	{
+		if(m_holder != &ms_emptyHolder && m_holder->DecRef())
+		{
+			Holder::FreeHolder(m_holder);
+		}
+
+		m_holder = other.m_holder;
+		other.m_holder = &ms_emptyHolder;
+
+		return *this;
+	}
 	
 	bool String::operator<(const String& other) const
 	{

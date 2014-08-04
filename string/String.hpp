@@ -94,6 +94,7 @@ namespace sprawl
 		}
 
 		String& operator=(const String& other);
+		String& operator=(String&& other);
 
 		inline bool operator==(const String& other) const
 		{

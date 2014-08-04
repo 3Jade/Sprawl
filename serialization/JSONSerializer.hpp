@@ -37,15 +37,131 @@ namespace sprawl
 {
 	namespace serialization
 	{
+		class StringData
+		{
+		public:
+			StringData( char const* const data, size_t length )
+			: m_data( data )
+			, m_length( length )
+			, m_commitData( nullptr )
+			{
+				//
+			}
+
+
+			StringData( char const* const data )
+			: m_data( data )
+			, m_length( strlen( data ) )
+			, m_commitData( nullptr )
+			{
+				//
+			}
+
+			void CommitStorage()
+			{
+				m_commitData = new char[m_length+1];
+				memcpy(m_commitData, m_data, m_length);
+				m_data = m_commitData;
+			}
+
+			~StringData()
+			{
+				if( m_commitData )
+				{
+					delete[] m_commitData;
+				}
+			}
+
+			StringData( const StringData& other )
+			: m_data( other.m_data )
+			, m_length( other.m_length )
+			, m_commitData( other.m_commitData )
+			{
+				if( m_commitData )
+				{
+					CommitStorage(); // Get our own copy of it, there's no refcounting
+				}
+			}
+
+			StringData& operator=( const StringData& other )
+			{
+				if( m_commitData )
+				{
+					delete[] m_commitData;
+				}
+				m_data = other.m_data;
+				m_length = other.m_length;
+				if( other.m_commitData )
+				{
+					CommitStorage();
+				}
+				return *this;
+			}
+
+			bool operator==( StringData const& other ) const
+			{
+				if( m_length != other.m_length )
+				return false;
+				return !memcmp( m_data, other.m_data, m_length );
+			}
+
+			size_t length() const
+			{
+				return m_length;
+			}
+
+			char const* c_str() const
+			{
+				return m_data;
+			}
+
+			char operator[](size_t index) const
+			{
+				return m_data[index];
+			}
+
+			sprawl::String toString() const
+			{
+				return sprawl::String( m_data, m_length );
+			}
+
+			private:
+			char const* m_data;
+			size_t m_length;
+			char* m_commitData;
+		};
+	}
+}
+
+namespace std
+{
+	template<>
+	struct hash<sprawl::serialization::StringData>
+	{
+		typedef sprawl::serialization::StringData argument_type;
+		typedef std::size_t value_type;
+
+		inline value_type operator()(const argument_type& str) const
+		{
+			return sprawl::murmur3::Hash( str.c_str(), str.length() );
+		}
+	};
+}
+
+namespace sprawl
+{
+	namespace serialization
+	{
 		class JSONToken
 		{
 		public:
-			static long long ToInt(sprawl::String const& str);
-			static unsigned long long ToUInt(sprawl::String const& str);
-			static long double ToDouble(sprawl::String const& str);
-			static bool ToBool(sprawl::String const& str);
-			static sprawl::String EscapeString(sprawl::String const& str);
-			static sprawl::String UnescapeString(sprawl::String const& str);
+
+			static long long ToInt(StringData const& str);
+			static unsigned long long ToUInt(StringData const& str);
+			static long double ToDouble(StringData const& str);
+			static bool ToBool(StringData const& str);
+			static sprawl::String EscapeString(StringData const& str);
+			static sprawl::String UnescapeString(StringData const& str);
 
 			enum class JSONType
 			{
@@ -59,7 +175,7 @@ namespace sprawl
 				Null = 7,
 			};
 
-			sprawl::String const& GetKey() const
+			StringData const& GetKey() const
 			{
 				return m_key;
 			}
@@ -241,7 +357,7 @@ namespace sprawl
 
 			bool HasKey(sprawl::String const& key)
 			{
-				return m_holder->m_objectChildren->has(key);
+				return m_holder->m_objectChildren->has(StringData(key.c_str(), key.length()));
 			}
 
 			size_t Size();
@@ -353,11 +469,12 @@ namespace sprawl
 			static JSONToken fromString(sprawl::String const& jsonStr)
 			{
 				const char* data = jsonStr.c_str();
-				return JSONToken("", data, JSONType::Object);
+				return JSONToken(StringData(nullptr, 0), data, JSONType::Object);
 			}
 
 			~JSONToken();
 
+			JSONToken();
 			JSONToken(JSONToken const& other);
 			JSONToken& operator=(JSONToken const& other);
 
@@ -372,7 +489,7 @@ namespace sprawl
 			}
 
 		protected:
-			JSONToken( sprawl::String const& myKey, char const*& data, JSONType expectedType );
+			JSONToken( StringData const& myKey, char const*& data, JSONType expectedType );
 			JSONToken( JSONType statedType, sprawl::String const& data );
 			JSONToken( JSONType statedType, bool data );
 			JSONToken( JSONType statedType, long long data );
@@ -403,12 +520,12 @@ namespace sprawl
 			void ParseArray(char const*& data);
 			void ParseObject(char const*& data);
 
-			typedef sprawl::collections::HashMap<JSONToken*, sprawl::PtrConstMemberAccessor<JSONToken, const sprawl::String&, &JSONToken::GetKey>> TokenMap;
+			typedef sprawl::collections::HashMap<JSONToken*, sprawl::PtrConstMemberAccessor<JSONToken, StringData const&, &JSONToken::GetKey>> TokenMap;
 			typedef TokenMap::iterator iterator;
 
 			struct Holder
 			{
-				sprawl::String m_data;
+				StringData m_data;
 				JSONType m_type;
 				TokenMap *m_objectChildren;
 				TokenMap::iterator m_iter;
@@ -425,7 +542,7 @@ namespace sprawl
 			};
 
 			Holder* m_holder;
-			sprawl::String m_key;
+			StringData m_key;
 			static JSONToken staticEmpty;
 		};
 
@@ -721,7 +838,7 @@ namespace sprawl
 
 			sprawl::String GetNextKey()
 			{
-				return m_currentObjectIndex.back()->GetKey();
+				return m_currentObjectIndex.back()->GetKey().toString();
 			}
 
 		protected:

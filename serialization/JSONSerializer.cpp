@@ -1,7 +1,8 @@
 #include "JSONSerializer.hpp"
+#include "../common/compat.hpp"
 #include <cmath>
 
-//#define SPRAWL_STRICT_JSON
+#define SPRAWL_STRICT_JSON
 
 namespace sprawl
 {
@@ -16,7 +17,8 @@ namespace sprawl
 				return staticEmpty;
 			}
 
-			auto it = m_holder->m_objectChildren->find( key );
+			StringData keyData(key.c_str(), key.length());
+			auto it = m_holder->m_objectChildren->find( keyData );
 			if( it == m_holder->m_objectChildren->end() )
 			{
 				return staticEmpty;
@@ -38,18 +40,20 @@ namespace sprawl
 		JSONToken& JSONToken::operator[](sprawl::String const& key)
 		{
 			EnsureOwnership();
+			StringData keyData(key.c_str(), key.length());
 			if( m_holder->m_type != JSONType::Object )
 			{
 				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
 				return staticEmpty;
 			}
 
-			auto it = m_holder->m_objectChildren->find( key );
+			auto it = m_holder->m_objectChildren->find( keyData );
 			if( it == m_holder->m_objectChildren->end() )
 			{
 				JSONToken* newToken = JSONToken::Create();
 				new (newToken) JSONToken(JSONType::Empty);
-				newToken->m_key = key;
+				newToken->m_key = StringData( key.c_str(), key.length() );
+				newToken->m_key.CommitStorage();
 				newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 				return *newToken;
 			}
@@ -202,7 +206,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(token);
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -217,7 +222,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::Integer, value);
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -232,7 +238,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::Integer, value);
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -247,7 +254,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::Double, value);
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -262,7 +270,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::Boolean, value);
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -277,7 +286,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::String, sprawl::String(value));
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -292,7 +302,8 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::String, sprawl::String(value, length) );
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
@@ -307,44 +318,46 @@ namespace sprawl
 
 			JSONToken* newToken = JSONToken::Create();
 			new (newToken) JSONToken(JSONType::String, value );
-			newToken->m_key = name;
+			newToken->m_key = StringData(name.c_str(), name.length());
+			newToken->m_key.CommitStorage();
 			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
 			return *newToken;
 		}
 
 		JSONToken::JSONToken(JSONToken::JSONType statedType, sprawl::String const& data)
 			: m_holder(Holder::Create())
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			::new(m_holder) Holder(statedType);
-			m_holder->m_data = data;
+			m_holder->m_data = StringData(data.c_str(), data.length());
+			m_holder->m_data.CommitStorage();
 		}
 
 		JSONToken::JSONToken(JSONToken::JSONType statedType, bool data)
 			: m_holder(Holder::Create())
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			::new(m_holder) Holder(statedType);
 			if(data)
 			{
-				m_holder->m_data = sprawl::StringLiteral( "true" );
+				m_holder->m_data = StringData( "true", 4 );
 			}
 			else
 			{
-				m_holder->m_data = sprawl::StringLiteral( "false" );
+				m_holder->m_data = StringData( "false", 5 );
 			}
 		}
 
 		JSONToken::JSONToken(JSONToken::JSONType statedType)
 			: m_holder(Holder::Create())
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			::new(m_holder) Holder(statedType);
 		}
 
 		JSONToken::JSONToken(JSONToken::JSONType statedType, long long data)
 			: m_holder(Holder::Create())
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			::new(m_holder) Holder(statedType);
 			char buf[128];
@@ -353,12 +366,13 @@ namespace sprawl
 #else
 			snprintf( buf, 128, "%lld", data );
 #endif
-			m_holder->m_data = sprawl::String( buf, strlen( buf ) );
+			m_holder->m_data = StringData( buf, strlen( buf ) );
+			m_holder->m_data.CommitStorage();
 		}
 
 		JSONToken::JSONToken(JSONToken::JSONType statedType, unsigned long long data)
 			: m_holder(Holder::Create())
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			::new(m_holder) Holder(statedType);
 			char buf[128];
@@ -367,12 +381,13 @@ namespace sprawl
 #else
 			snprintf( buf, 128, "%llu", data );
 #endif
-			m_holder->m_data = sprawl::String( buf, strlen( buf ) );
+			m_holder->m_data = StringData( buf, strlen( buf ) );
+			m_holder->m_data.CommitStorage();
 		}
 
 		JSONToken::JSONToken(JSONToken::JSONType statedType, long double data)
 			: m_holder(Holder::Create())
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			::new(m_holder) Holder(statedType);
 			char buf[128];
@@ -381,7 +396,8 @@ namespace sprawl
 #else
 			snprintf( buf, 128, "%.20Lg", data );
 #endif
-			m_holder->m_data = sprawl::String( buf, strlen( buf ) );
+			m_holder->m_data = StringData( buf, strlen( buf ) );
+			m_holder->m_data.CommitStorage();
 		}
 
 		JSONToken* JSONToken::Create()
@@ -441,7 +457,7 @@ namespace sprawl
 						}
 					}
 					outString << "\"";
-					outString <<kvp.Key();
+					outString << sprawl::String( sprawl::StringRef( kvp.Key().c_str(), kvp.Key().length() ) );
 					outString << "\" : ";
 					kvp.Value()->BuildJSONString( outString, pretty, tabDepth + 1 );
 					first = false;
@@ -531,7 +547,7 @@ namespace sprawl
 			}
 			else
 			{
-				outString << m_holder->m_data;
+				outString << sprawl::String( sprawl::StringRef( m_holder->m_data.c_str(), m_holder->m_data.length() ) );
 			}
 		}
 
@@ -539,59 +555,32 @@ namespace sprawl
 
 		void JSONToken::SkipWhitespace(const char*& data)
 		{
-			for(;;)
-			{
-				switch(*data)
-				{
-				case ' ':
-				case '\t':
-				case '\n':
-				case '\r':
-				{
-					++data;
-					break;
-				}
-				default:
-				{
-					return;
-				}
-				}
-			}
+			while(*data == ' ' || *data == '\t' || *data == '\n' || *data == '\r')
+				++data;
 		}
 
 		void JSONToken::CollectString(const char*& data)
 		{
 			++data;
 
-			bool isEscaped = false;
-			bool nextIsEscaped = false;
-
-			for(;;)
+			while(*data != '\"')
 			{
-				isEscaped = nextIsEscaped;
-				nextIsEscaped = false;
-				if(!isEscaped)
+				if(SPRAWL_UNLIKELY(*data == '\\'))
 				{
-					switch(*data)
-					{
-					case '\"':
-						++data;
-						return;
-					case '\\':
-						nextIsEscaped = true;
-					}
+					++data;
 				}
 				++data;
 			}
+			++data;
 		}
 
 		void JSONToken::ParseString(const char*& data)
 		{
-			char const* startPoint = data;
+			char const* startPoint = data + 1;
 
 			CollectString(data);
 
-			m_holder->m_data = sprawl::String( sprawl::StringRef(data, data - startPoint - 1));
+			m_holder->m_data = StringData(startPoint, data - startPoint - 1);
 		}
 
 		void JSONToken::ParseNumber(const char*& data)
@@ -638,7 +627,7 @@ namespace sprawl
 
 			Done:
 
-			m_holder->m_data = sprawl::String( sprawl::StringRef(data, data - startPoint));
+			m_holder->m_data = StringData(startPoint, data - startPoint);
 		}
 
 		void JSONToken::ParseBool(const char*& data)
@@ -650,7 +639,7 @@ namespace sprawl
 				*(data + 3) == 'e'
 			)
 			{
-				m_holder->m_data = sprawl::String( sprawl::StringRef(data, 4) );
+				m_holder->m_data = StringData(data, 4);
 				data += 4;
 			}
 			else if(
@@ -661,7 +650,7 @@ namespace sprawl
 				*(data + 4) == 'e'
 			)
 			{
-				m_holder->m_data = sprawl::String( sprawl::StringRef(data, 5) );
+				m_holder->m_data = StringData(data, 5);
 				data += 5;
 			}
 #ifdef SPRAWL_STRICT_JSON
@@ -684,12 +673,12 @@ namespace sprawl
 				{
 				case '{':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Object ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringData(nullptr, 0), data, JSONType::Object ) );
 					break;
 				}
 				case '[':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Array ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringData(nullptr, 0), data, JSONType::Array ) );
 					break;
 				}
 				case '-':
@@ -704,18 +693,18 @@ namespace sprawl
 				case '8':
 				case '9':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Integer ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringData(nullptr, 0), data, JSONType::Integer ) );
 					break;
 				}
 				case '\"':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::String ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringData(nullptr, 0), data, JSONType::String ) );
 					break;
 				}
 				case 't':
 				case 'f':
 				{
-					m_holder->m_arrayChildren->push_back( JSONToken( StringRef(""), data, JSONType::Boolean ) );
+					m_holder->m_arrayChildren->push_back( JSONToken( StringData(nullptr, 0), data, JSONType::Boolean ) );
 					break;
 				}
 				case 'n':
@@ -754,7 +743,7 @@ namespace sprawl
 		{
 			++data;
 
-			sprawl::String key;
+			StringData key(nullptr, 0);
 
 			for(;;)
 			{
@@ -775,7 +764,7 @@ namespace sprawl
 				CollectString(data);
 
 				keyEnd = data - 1;
-				key = sprawl::String( sprawl::StringRef( keyStart, keyEnd - keyStart ) );
+				key = StringData( keyStart, keyEnd - keyStart );
 
 				SkipWhitespace(data);
 
@@ -872,7 +861,7 @@ namespace sprawl
 			}
 		}
 
-		JSONToken::JSONToken(sprawl::String const& myKey, const char*& data, JSONToken::JSONType expectedType)
+		JSONToken::JSONToken(StringData const& myKey, const char*& data, JSONToken::JSONType expectedType)
 			: m_holder(Holder::Create())
 			, m_key(myKey)
 		{
@@ -894,9 +883,16 @@ namespace sprawl
 			DecRef();
 		}
 
+		JSONToken::JSONToken()
+			: m_holder(Holder::Create())
+			, m_key(nullptr, 0)
+		{
+			::new(m_holder) Holder(JSONType::Empty);
+		}
+
 		JSONToken::JSONToken(const JSONToken& other)
 			: m_holder(other.m_holder)
-			, m_key()
+			, m_key(nullptr, 0)
 		{
 			IncRef();
 		}
@@ -933,7 +929,7 @@ namespace sprawl
 			return *this;
 		}
 
-		long long JSONToken::ToInt(sprawl::String const& str)
+		long long JSONToken::ToInt(StringData const& str)
 		{
 			long long result = 0;
 			size_t index = 0;
@@ -960,7 +956,7 @@ namespace sprawl
 			return result;
 		}
 
-		unsigned long long JSONToken::ToUInt(sprawl::String const& str)
+		unsigned long long JSONToken::ToUInt(StringData const& str)
 		{
 			unsigned long long result = 0;
 			size_t index = 0;
@@ -977,7 +973,7 @@ namespace sprawl
 			return result;
 		}
 
-		long double JSONToken::ToDouble(sprawl::String const& str)
+		long double JSONToken::ToDouble(StringData const& str)
 		{
 			long double result = 0;
 			size_t index = 0;
@@ -1061,7 +1057,7 @@ namespace sprawl
 			return result;
 		}
 
-		bool JSONToken::ToBool(sprawl::String const& str)
+		bool JSONToken::ToBool(StringData const& str)
 		{
 			char const* const data = str.c_str();
 			size_t const length = str.length();
@@ -1078,7 +1074,7 @@ namespace sprawl
 			return false;
 		}
 
-		sprawl::String JSONToken::EscapeString(sprawl::String const& str)
+		sprawl::String JSONToken::EscapeString(StringData const& str)
 		{
 			sprawl::StringBuilder builder;
 			const char* data = str.c_str();
@@ -1100,7 +1096,7 @@ namespace sprawl
 			return builder.Str();
 		}
 
-		sprawl::String JSONToken::UnescapeString(sprawl::String const& str)
+		sprawl::String JSONToken::UnescapeString(StringData const& str)
 		{
 			sprawl::StringBuilder builder;
 			bool inEscape = false;
@@ -1174,7 +1170,7 @@ namespace sprawl
 		}
 
 		JSONToken::Holder::Holder(JSONType forType)
-			: m_data()
+			: m_data(nullptr, 0)
 			, m_type(forType)
 			, m_objectChildren(nullptr)
 			, m_iter(nullptr)
