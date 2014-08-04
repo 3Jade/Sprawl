@@ -633,21 +633,25 @@ namespace sprawl
 		void JSONToken::ParseBool(const char*& data)
 		{
 			if(
-				*data == 't' &&
-				*(data + 1) == 'r' &&
-				*(data + 2) == 'u' &&
-				*(data + 3) == 'e'
+				*data == 't'
+#ifdef SPRAWL_STRICT_JSON
+				&& *(data + 1) == 'r'
+				&& *(data + 2) == 'u'
+				&& *(data + 3) == 'e'
+#endif
 			)
 			{
 				m_holder->m_data = StringData(data, 4);
 				data += 4;
 			}
 			else if(
-				*data == 'f' &&
-				*(data + 1) == 'a' &&
-				*(data + 2) == 'l' &&
-				*(data + 3) == 's' &&
-				*(data + 4) == 'e'
+				*data == 'f'
+#ifdef SPRAWL_STRICT_JSON
+				&& *(data + 1) == 'a'
+				&& *(data + 2) == 'l'
+				&& *(data + 3) == 's'
+				&& *(data + 4) == 'e'
+#endif
 			)
 			{
 				m_holder->m_data = StringData(data, 5);
@@ -832,6 +836,12 @@ namespace sprawl
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( JSONType::Null );
 					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+#ifdef SPRAWL_STRICT_JSON
+					if(*(data + 1) != 'u' || *(data + 2) != 'l' || *(data + 3) != 'l')
+					{
+						abort();
+					}
+#endif
 					data += 4;
 					break;
 				}
