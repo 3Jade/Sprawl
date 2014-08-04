@@ -329,7 +329,7 @@ namespace sprawl
 
 			return left[i] < right[i];
 		}
-		return false;
+		return m_holder->m_length < other.m_holder->m_length;
 	}
 
 	std::string String::toStdString() const
