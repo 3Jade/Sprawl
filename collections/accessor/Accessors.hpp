@@ -23,6 +23,8 @@ namespace sprawl
 		}
 
 		ValueType& m_value;
+	private:
+		MemberAccessor& operator=(MemberAccessor const&);
 	};
 	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)() const>
 	class ConstMemberAccessor
@@ -43,6 +45,8 @@ namespace sprawl
 		}
 
 		ValueType& m_value;
+	private:
+		ConstMemberAccessor& operator=(ConstMemberAccessor const&);
 	};
 
 	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)(), typename PointerType = ValueType*>
@@ -64,6 +68,8 @@ namespace sprawl
 		}
 
 		PointerType& m_value;
+	private:
+		PtrMemberAccessor& operator=(PtrMemberAccessor const&);
 	};
 
 
@@ -86,6 +92,8 @@ namespace sprawl
 		}
 
 		PointerType& m_value;
+	private:
+		PtrConstMemberAccessor& operator=(PtrConstMemberAccessor const&);
 	};
 
 	template<typename ValueType, typename KeyType, KeyType(*function)(ValueType*)>
@@ -107,6 +115,8 @@ namespace sprawl
 		}
 
 		ValueType& m_value;
+	private:
+		FunctionAccessor& operator=(FunctionAccessor const&);
 	};
 
 	template<typename ValueType, typename KeyType, KeyType(*function)(ValueType*), typename PointerType = ValueType*>
@@ -128,6 +138,8 @@ namespace sprawl
 		}
 
 		PointerType& m_value;
+	private:
+		PtrFunctionAccessor& operator=(PtrFunctionAccessor const&);
 	};
 
 	template<typename ValueType, typename KeyType>
@@ -151,6 +163,8 @@ namespace sprawl
 
 		KeyType m_key;
 		ValueType& m_value;
+	private:
+		KeyAccessor& operator=(KeyAccessor const&);
 	};
 
 	template<typename ValueType>
@@ -172,6 +186,8 @@ namespace sprawl
 		}
 
 		ValueType& m_value;
+	private:
+		SelfAccessor& operator=(SelfAccessor const&);
 	};
 
 	class NullAccessor

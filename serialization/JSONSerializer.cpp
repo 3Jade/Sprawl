@@ -673,6 +673,11 @@ namespace sprawl
 			for(;;)
 			{
 				SkipWhitespace(data);
+				if(*data == ']')
+				{
+					++data;
+					return;
+				}
 				switch(*data)
 				{
 				case '{':
@@ -752,6 +757,12 @@ namespace sprawl
 			for(;;)
 			{
 				SkipWhitespace(data);
+
+				if(*data == '}')
+				{
+					++data;
+					return;
+				}
 
 #ifdef SPRAWL_STRICT_JSON
 				if(*data != '\"')

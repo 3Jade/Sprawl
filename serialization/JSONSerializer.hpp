@@ -610,6 +610,11 @@ namespace sprawl
 					else
 					{
 						JSONToken& token = currentToken->operator[](name);
+						if(token.IsEmpty())
+						{
+							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
+						}
 						token.Val(*var);
 						m_currentObjectIndex.back() = &token.NextSibling();
 					}
@@ -639,6 +644,11 @@ namespace sprawl
 					else
 					{
 						JSONToken& token = currentToken->operator[](name);
+						if(token.IsEmpty())
+						{
+							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
+						}
 						token.Val(var, bytes);
 						m_currentObjectIndex.back() = &token.NextSibling();
 					}
@@ -670,6 +680,11 @@ namespace sprawl
 					else
 					{
 						JSONToken& token = currentToken->operator[](name);
+						if(token.IsEmpty())
+						{
+							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
+							return;
+						}
 						token.Val(str);
 						m_currentObjectIndex.back() = &token.NextSibling();
 					}
@@ -766,14 +781,14 @@ namespace sprawl
 				{
 					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						m_currentToken.push_back(&token[m_currentArrayIndex.back()++]);
+						m_currentToken.push_back(&token[m_currentArrayIndex.back()]);
 					}
 					else
 					{
 						m_currentToken.push_back(&token[str]);
 					}
 					m_currentObjectIndex.push_back(&m_currentToken.back()->FirstChild());
-					return m_currentToken.back()->Size();
+					return uint32_t(m_currentToken.back()->Size());
 				}
 				else
 				{
@@ -795,6 +810,14 @@ namespace sprawl
 				if(IsLoading())
 				{
 					m_currentObjectIndex.pop_back();
+					if(m_currentToken.back()->Type() == JSONToken::JSONType::Object)
+					{
+						m_currentObjectIndex.back() = &m_currentObjectIndex.back()->NextSibling();
+					}
+					else
+					{
+						++m_currentArrayIndex.back();
+					}
 				}
 			}
 
@@ -805,14 +828,14 @@ namespace sprawl
 				{
 					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						m_currentToken.push_back(&token[m_currentArrayIndex.back()++]);
+						m_currentToken.push_back(&token[m_currentArrayIndex.back()]);
 					}
 					else
 					{
 						m_currentToken.push_back(&token[str]);
 					}
 					m_currentArrayIndex.push_back(0);
-					size = m_currentToken.back()->Size();
+					size = uint32_t(m_currentToken.back()->Size());
 				}
 				else
 				{
@@ -833,6 +856,14 @@ namespace sprawl
 				if(IsLoading())
 				{
 					m_currentArrayIndex.pop_back();
+					if(m_currentToken.back()->Type() == JSONToken::JSONType::Object)
+					{
+						m_currentObjectIndex.back() = &m_currentObjectIndex.back()->NextSibling();
+					}
+					else
+					{
+						++m_currentArrayIndex.back();
+					}
 				}
 			}
 

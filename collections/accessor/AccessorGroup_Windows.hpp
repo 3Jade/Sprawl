@@ -187,6 +187,8 @@ namespace sprawl
 				 \
 				size_t m_thisIdx; \
 				size_t m_thisHash; \
+			private: \
+				AccessorGroup_Impl& operator=(AccessorGroup_Impl const& other); \
 			};
 
 
@@ -242,6 +244,8 @@ namespace sprawl
 				 \
 				_ACCESSORGROUP_VARIADICS( TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
 				 \
+			private: \
+				AccessorGroup& operator=(AccessorGroup const& other); \
 			};
 
 

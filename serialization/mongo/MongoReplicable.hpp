@@ -93,6 +93,22 @@ namespace sprawl
 				this->PopKey();
 			}
 
+			inline void serialize_impl(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB)
+			{
+				this->m_serializer->Reset();
+				this->PushKey(name);
+
+				(*m_serializer) % sprawl::serialization::prepare_data(var, bytes, name, PersistToDB);
+				m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
+				m_objData.insert(std::make_pair(m_current_key, m_serializer->Obj()));
+				if(!m_marked)
+				{
+					(*m_baseline) % sprawl::serialization::prepare_data(var, bytes, name, PersistToDB);
+				}
+
+				this->PopKey();
+			}
+
 		public:
 			virtual void serialize(mongo::OID* var, const sprawl::String& name, bool PersistToDB) override;
 
@@ -120,9 +136,16 @@ namespace sprawl
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				if(bytes == 1)
+				{
+					serialize_impl(var, name, PersistToDB);
+				}
+				else
+				{
+					serialize_impl(var, bytes, name, PersistToDB);
+				}
 			}
 
 			virtual void serialize(float* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
