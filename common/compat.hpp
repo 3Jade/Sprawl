@@ -18,12 +18,20 @@
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #	define SPRAWL_MEMCMP __builtin_memcmp
-#	define SPRAWL_MULTITHREADED defined(_MULTI_THREADED)
+#	ifdef _MULTI_THREADED
+#		define SPRAWL_MULTITHREADED 1
+#	else
+#		define SPRAWL_MULTITHREADED 0
+#	endif
 #	define SPRAWL_FORCEINLINE inline __attribute__((always_inline))
 #	define SPRAWL_CONSTEXPR constexpr
 #else
 #	define SPRAWL_MEMCMP memcmp
-#	define SPRAWL_MULTITHREADED defined(_MT)
+#	ifdef _MT
+#		define SPRAWL_MULTITHREADED 1
+#	else
+#		define SPRAWL_MULTITHREADED 0
+#	endif
 #	define SPRAWL_FORCEINLINE inline __forceinline
 #	define SPRAWL_CONSTEXPR const
 #endif

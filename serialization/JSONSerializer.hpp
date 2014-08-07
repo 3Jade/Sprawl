@@ -185,8 +185,7 @@ namespace sprawl
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Integer )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-					return 0;
+					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), 0);
 				}
 #endif
 
@@ -198,8 +197,7 @@ namespace sprawl
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Integer )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-					return 0;
+					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), 0);
 				}
 #endif
 
@@ -294,8 +292,7 @@ namespace sprawl
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::String )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-					return "";
+					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), StringLiteral(""));
 				}
 #endif
 
@@ -307,8 +304,7 @@ namespace sprawl
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Boolean )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-					return false;
+					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), false);
 				}
 #endif
 
@@ -320,8 +316,7 @@ namespace sprawl
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Double )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-					return 0.0;
+					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), 0.0);
 				}
 #endif
 
@@ -612,8 +607,7 @@ namespace sprawl
 						JSONToken& token = currentToken->operator[](name);
 						if(token.IsEmpty())
 						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
+							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
 						}
 						token.Val(*var);
 						m_currentObjectIndex.back() = &token.NextSibling();
@@ -646,8 +640,7 @@ namespace sprawl
 						JSONToken& token = currentToken->operator[](name);
 						if(token.IsEmpty())
 						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
+							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
 						}
 						token.Val(var, bytes);
 						m_currentObjectIndex.back() = &token.NextSibling();
@@ -682,8 +675,7 @@ namespace sprawl
 						JSONToken& token = currentToken->operator[](name);
 						if(token.IsEmpty())
 						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow());
-							return;
+							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
 						}
 						token.Val(str);
 						m_currentObjectIndex.back() = &token.NextSibling();
@@ -973,7 +965,7 @@ namespace sprawl
 
 			virtual ~JSONSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { SPRAWL_THROW_EXCEPTION(std::exception()); return nullptr; }
+			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { SPRAWL_THROW_EXCEPTION(std::exception(), nullptr); }
 			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
 		};
 
@@ -1066,7 +1058,7 @@ namespace sprawl
 			virtual ~JSONDeserializer(){}
 		protected:
 			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new JSONDeserializer(data, false); }
-			virtual SerializerBase* GetAnother() override { SPRAWL_THROW_EXCEPTION(std::exception()); return nullptr; }
+			virtual SerializerBase* GetAnother() override { SPRAWL_THROW_EXCEPTION(std::exception(), nullptr); }
 		private:
 			sprawl::String m_dataStr;
 		};

@@ -43,8 +43,7 @@ namespace sprawl
 			StringData keyData(key.c_str(), key.length());
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-				return staticEmpty;
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			auto it = m_holder->m_objectChildren->find( keyData );
@@ -66,8 +65,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array || index >= m_holder->m_arrayChildren->size() )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
-				return staticEmpty;
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			return (*m_holder->m_arrayChildren)[index];
@@ -113,7 +111,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( token );
 			return m_holder->m_arrayChildren->back();
@@ -124,7 +122,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::Integer, value ) );
 			return m_holder->m_arrayChildren->back();
@@ -135,7 +133,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::Integer, value ) );
 			return m_holder->m_arrayChildren->back();
@@ -146,7 +144,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::Double, value ) );
 			return m_holder->m_arrayChildren->back();
@@ -157,7 +155,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::Boolean, value ) );
 			return m_holder->m_arrayChildren->back();
@@ -168,7 +166,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::String, sprawl::String(value) ) );
 			return m_holder->m_arrayChildren->back();
@@ -179,7 +177,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::String, sprawl::String(value, length) ) );
 			return m_holder->m_arrayChildren->back();
@@ -190,7 +188,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 			m_holder->m_arrayChildren->push_back( JSONToken( JSONType::String, value ) );
 			return m_holder->m_arrayChildren->back();
@@ -201,7 +199,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -217,7 +215,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -233,7 +231,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -249,7 +247,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -265,7 +263,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -281,7 +279,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -297,7 +295,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -313,7 +311,7 @@ namespace sprawl
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
 			}
 
 			JSONToken* newToken = JSONToken::Create();
@@ -660,7 +658,7 @@ namespace sprawl
 #ifdef SPRAWL_STRICT_JSON
 			else
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data());
+				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), );
 			}
 #endif
 			return;

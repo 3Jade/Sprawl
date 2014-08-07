@@ -5,18 +5,26 @@
 #elif defined(__clang__)
 #	define SPRAWL_EXCEPTIONS_ENABLED __has_feature(cxx_exceptions)
 #elif defined(__GNUC__)
-#	define SPRAWL_EXCEPTIONS_ENABLED defined(__EXCEPTIONS)
+#	ifdef __EXCEPTIONS
+#		define SPRAWL_EXCEPTIONS_ENABLED 1
+#	else
+#		define SPRAWL_EXCEPTIONS_ENABLED 0
+#	endif
 #elif defined(_WIN32)
-#	define SPRAWL_EXCEPTIONS_ENABLED defined(_CPPUNWIND)
+#	ifdef _CPPUNWIND
+#		define SPRAWL_EXCEPTIONS_ENABLED 1
+#	else
+#		define SPRAWL_EXCEPTIONS_ENABLED 0
+#	endif
 #else
 #	define SPRAWL_EXCEPTIONS_ENABLED 0
 #endif
 
 #if SPRAWL_EXCEPTIONS_ENABLED
-#	define SPRAWL_THROW_EXCEPTION(exception) throw exception
+#	define SPRAWL_THROW_EXCEPTION(exception, returnValue) throw exception
 #else
 	namespace sprawl { void throw_exception(std::exception const& exception); }
-#	define SPRAWL_THROW_EXCEPTION(exception) sprawl::throw_exception(exception);
+#	define SPRAWL_THROW_EXCEPTION(exception, returnValue) sprawl::throw_exception(exception); return returnValue
 #endif
 
 #define SPRAWL_ABORT_MSG(msg, ...) fprintf(stderr, msg, ## __VA_ARGS__); fputs("\n", stderr); abort();
