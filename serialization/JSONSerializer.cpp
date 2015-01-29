@@ -893,7 +893,9 @@ namespace sprawl
 			case JSONType::String: ParseString(data); break;
 			case JSONType::Array: ParseArray(data); break;
 			case JSONType::Object: ParseObject(data); break;
-			default: break;
+			// "Empty" and "Null" have no content to parse.
+			// "Double" will never actually show up here - it will begin its life as "Integer" and grow into "Double" later!
+			case JSONType::Empty: case JSONType::Double: case JSONType::Null: default: break;
 			}
 		}
 

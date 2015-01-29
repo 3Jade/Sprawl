@@ -17,7 +17,6 @@ bool test_string()
 {
 	bool success = true;
 
-#ifndef _WIN32
 	TestStruct t;
 	sprawl::String str = sprawl::String(sprawl::StringLiteral("{0:03}, {1}, {2}, {3}, {4}")).format(30LL, true, "foo", t, &t);
 
@@ -26,6 +25,6 @@ bool test_string()
 		printf("Failed format test ('%s' != '003, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
 		success = false;
 	}
-#endif
+
 	return success;
 }

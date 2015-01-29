@@ -35,7 +35,7 @@ namespace CollectionTest
 
 #include <memory>
 
-bool test_collections()
+bool test_hashmap()
 {
 	using CollectionTest::TestType;
 	using CollectionTest::TestTypeAccessor;

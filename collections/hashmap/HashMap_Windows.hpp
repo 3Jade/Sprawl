@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Hash.hpp"
-#include "../iterator/LLIterator.hpp"
+#include "../iterator/MapIterator.hpp"
 #include "../accessor/Accessors.hpp"
 #include "../accessor/AccessorGroup_Windows.hpp"
 #include "../../memory/PoolAllocator.hpp"
@@ -25,8 +25,8 @@ namespace sprawl
 			public:
 				typedef ValueType value_type;
 
-				typedef LLIterator<ValueType, mapped_type> iterator;
-				typedef LLIterator<ValueType, mapped_type> const const_iterator;
+				typedef MapIterator<ValueType, mapped_type> iterator;
+				typedef MapIterator<ValueType, mapped_type> const const_iterator;
 				typedef sprawl::memory::DynamicPoolAllocator<sizeof(mapped_type)> allocator;
 
 				template<typename RequestedKeyType>
@@ -245,8 +245,8 @@ namespace sprawl
 				 \
 				typedef ValueType value_type; \
 				 \
-				typedef LLIterator<ValueType, mapped_type> iterator; \
-				typedef LLIterator<ValueType, mapped_type> const const_iterator; \
+				typedef MapIterator<ValueType, mapped_type> iterator; \
+				typedef MapIterator<ValueType, mapped_type> const const_iterator; \
 				typedef sprawl::memory::DynamicPoolAllocator<sizeof(mapped_type)> allocator; \
 				 \
 				using Base::get; \
@@ -495,7 +495,7 @@ namespace sprawl
 					newItem->SetIndex(spec, idx); \
 				} \
 				 \
-				inline const mapped_type* get_(typename Accessor::key_type const& key) const \
+				inline mapped_type const* get_(typename Accessor::key_type const& key) const \
 				{ \
 					Specialized<Idx> spec; \
 					size_t hash = hash_(key); \

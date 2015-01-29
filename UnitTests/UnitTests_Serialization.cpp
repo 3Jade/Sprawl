@@ -5,7 +5,7 @@
 
 namespace sprawl
 {
-	void throw_exception(std::exception const& e)
+	void throw_exception(std::exception const&)
 	{
 		//
 	}
