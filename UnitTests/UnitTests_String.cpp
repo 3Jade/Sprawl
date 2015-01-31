@@ -22,7 +22,31 @@ bool test_string()
 
 	if(str != "030, True, foo, TestStruct, TestStruct")
 	{
-		printf("Failed format test ('%s' != '003, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
+		printf("Failed format test ('%s' != '030, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
+		success = false;
+	}
+
+	str = sprawl::String(sprawl::StringLiteral("{:03}, {}, {}, {}, {}")).format(30LL, true, "foo", t, &t);
+
+	if (str != "030, True, foo, TestStruct, TestStruct")
+	{
+		printf("Failed format test ('%s' != '030, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
+		success = false;
+	}
+
+	str = sprawl::String(sprawl::StringLiteral("{0:03}, {1}, {2}, {}, {}")).format(30LL, true, "foo", t, &t);
+
+	if (str != "030, True, foo, TestStruct, TestStruct")
+	{
+		printf("Failed format test ('%s' != '030, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
+		success = false;
+	}
+
+	str = sprawl::String(sprawl::StringLiteral("{4}, {3}, {2}, {1}, {0:03}")).format(30LL, true, "foo", t, &t);
+
+	if (str != "TestStruct, TestStruct, foo, True, 030")
+	{
+		printf("Failed format test ('%s' != 'TestStruct, TestStruct, foo, True, 030'')\n... ", str.c_str());
 		success = false;
 	}
 

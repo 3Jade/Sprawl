@@ -313,7 +313,7 @@ namespace sprawl
 						}
 						else
 						{
-							helper.Append(lastIdx, builder, modifiers);
+							helper.Append(curIdx, builder, modifiers);
 							lastIdx = curIdx + 1;
 						}
 						modifiers[0] = '\0';
