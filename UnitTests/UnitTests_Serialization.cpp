@@ -15,7 +15,7 @@ namespace JsonTests
 {
 	struct TestType
 	{
-		std::unordered_map<sprawl::String, double> map;
+		std::map<sprawl::String, double> map;
 		std::vector<int> intArray;
 		std::vector<sprawl::String> strArray;
 		std::vector<std::vector<int>> nestedArray;
@@ -65,15 +65,16 @@ namespace JsonTests
 
 using namespace JsonTests;
 
-sprawl::String expectedValue1 = "{ \"__version__\" : 0, \"t\" : { \"map\" : { \"test3\" : 1000000000, \"test2\" : 1e+22, \"test\" : 1.0000000000000000715e-18 }, \"intArray\" : [ 1, -2, 3, -4, 5 ], \"strArray\" : [ \"hi\", \"there\", \"y'all\" ], \"nestedArray\" : [ [ 6, 7, 8, 9, 10 ] ], \"str\" : \"\\\\escapes\\\\ \\\" \\n\", \"i\" : 3, \"d\" : 2.5, \"b\" : true, \"c\" : \"f\", \"u\" : 32 } }";
-
-sprawl::String expectedValue2 = "{\n\t\"__version__\" : 0,\n\t\"map\" : {\n\t\t\"test3\" : 1000000000,\n\t\t\"test2\" : 1e+22,\n\t\t\"test\" : 1.0000000000000000715e-18\n\t},\n\t\"intArray\" : [\n\t\t1,\n\t\t-2,\n\t\t3,\n\t\t-4,\n\t\t5\n\t],\n\t\"strArray\" : [\n\t\t\"hi\",\n\t\t\"there\",\n\t\t\"y'all\"\n\t],\n\t\"nestedArray\" : [\n\t\t[\n\t\t\t6,\n\t\t\t7,\n\t\t\t8,\n\t\t\t9,\n\t\t\t10\n\t\t]\n\t],\n\t\"str\" : \"\\\\escapes\\\\ \\\" \\n\",\n\t\"i\" : 3,\n\t\"d\" : 2.5,\n\t\"b\" : true,\n\t\"c\" : \"f\",\n\t\"u\" : 32\n}";
-
-sprawl::String expectedTokValue = "{ \"test1\" : 1, \"test2\" : -2, \"object\" : { \"test1\" : 1, \"test2\" : -2, \"Tok\" : null }, \"array\" : [ -1, 2 ] }";
-sprawl::String expectedTok2Value = "{ \"test1\" : -1, \"test2\" : 2, \"object\" : { \"test1\" : -1, \"test2\" : 2, \"Tok2\" : null }, \"array\" : [ 1, -2 ] }";
-
 bool test_json()
 {
+
+	sprawl::String expectedValue1 = "{ \"__version__\" : 0, \"t\" : { \"map\" : { \"test\" : 1.0000000000000000715e-18, \"test2\" : 1e+22, \"test3\" : 1000000000 }, \"intArray\" : [ 1, -2, 3, -4, 5 ], \"strArray\" : [ \"hi\", \"there\", \"y'all\" ], \"nestedArray\" : [ [ 6, 7, 8, 9, 10 ] ], \"str\" : \"\\\\escapes\\\\ \\\" \\n\", \"i\" : 3, \"d\" : 2.5, \"b\" : true, \"c\" : \"f\", \"u\" : 32 } }";
+
+	sprawl::String expectedValue2 = "{\n\t\"__version__\" : 0,\n\t\"map\" : {\n\t\t\"test\" : 1.0000000000000000715e-18,\n\t\t\"test2\" : 1e+22,\n\t\t\"test3\" : 1000000000\n\t},\n\t\"intArray\" : [\n\t\t1,\n\t\t-2,\n\t\t3,\n\t\t-4,\n\t\t5\n\t],\n\t\"strArray\" : [\n\t\t\"hi\",\n\t\t\"there\",\n\t\t\"y'all\"\n\t],\n\t\"nestedArray\" : [\n\t\t[\n\t\t\t6,\n\t\t\t7,\n\t\t\t8,\n\t\t\t9,\n\t\t\t10\n\t\t]\n\t],\n\t\"str\" : \"\\\\escapes\\\\ \\\" \\n\",\n\t\"i\" : 3,\n\t\"d\" : 2.5,\n\t\"b\" : true,\n\t\"c\" : \"f\",\n\t\"u\" : 32\n}";
+
+	sprawl::String expectedTokValue = "{ \"test1\" : 1, \"test2\" : -2, \"object\" : { \"test1\" : 1, \"test2\" : -2, \"Tok\" : null }, \"array\" : [ -1, 2 ] }";
+	sprawl::String expectedTok2Value = "{ \"test1\" : -1, \"test2\" : 2, \"object\" : { \"test1\" : -1, \"test2\" : 2, \"Tok2\" : null }, \"array\" : [ 1, -2 ] }";
+
 	bool success = true;
 
 	//Test copy-on-write for json tokens

@@ -225,6 +225,7 @@ namespace sprawl
 				{
 					other.m_first = nullptr;
 					other.m_last = nullptr;
+					other.m_size = 0;
 				}
 
 				mapped_type* m_first;
@@ -251,6 +252,10 @@ namespace sprawl
 				 \
 				using Base::get; \
 				inline ValueType& get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) \
+				{ \
+					return get_(key)->m_value; \
+				} \
+				inline ValueType const& get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const \
 				{ \
 					return get_(key)->m_value; \
 				} \
@@ -371,7 +376,7 @@ namespace sprawl
 				} \
 				 \
 				HashMap_Impl(HashMap_Impl&& other) \
-					: Base(other) \
+					: Base(std::move(other)) \
 					, m_thisKeyTable(other.m_thisKeyTable) \
 				{ \
 					other.m_thisKeyTable = nullptr; \
@@ -613,6 +618,11 @@ namespace sprawl
 			{ \
 				return Base::get(val, Specialized<i>()); \
 			} \
+			template<int i, typename T2> \
+			inline ValueType const& get(T2 const& val) const\
+			{ \
+				return Base::get(val, Specialized<i>()); \
+			} \
 			 \
 			using Base::find; \
 			template<int i, typename T2> \
@@ -667,7 +677,7 @@ namespace sprawl
 			} \
 			 \
 			HashMap(HashMap&& other) \
-				: Base(other) \
+				: Base(std::move(other)) \
 			{ \
 				other.reserve(other.m_bucketCount); \
 			} \

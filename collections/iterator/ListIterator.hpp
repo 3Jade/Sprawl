@@ -29,9 +29,9 @@ namespace sprawl
 			return m_currentItem->m_value;
 		}
 
-		ValueType& operator->()
+		ValueType* operator->()
 		{
-			return m_currentItem->m_value;
+			return &m_currentItem->m_value;
 		}
 
 
@@ -40,9 +40,9 @@ namespace sprawl
 			return m_currentItem->m_value;
 		}
 
-		ValueType const& operator->() const
+		ValueType const* operator->() const
 		{
-			return m_currentItem->m_value;
+			return &m_currentItem->m_value;
 		}
 
 		ValueType& Value()

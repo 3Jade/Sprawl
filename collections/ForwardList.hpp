@@ -32,6 +32,24 @@ public:
 		Clear();
 	}
 
+	ForwardList(ForwardList const& other)
+	    : m_first(nullptr)
+	    , m_size(0)
+	{
+	    for(auto& value : other)
+	    {
+		PushFront(value);
+	    }
+	}
+
+	ForwardList(ForwardList&& other)
+	    : m_first(other.m_first)
+	    , m_size(other.m_size)
+	{
+	    other.m_first = nullptr;
+	    other.m_size = nullptr;
+	}
+
 	void PushFront(T const& item)
 	{
 		ItemType* newItem = new ItemType(item);
@@ -121,6 +139,7 @@ public:
 			item = item->next;
 			delete del;
 		}
+		m_first = nullptr;
 		m_size = 0;
 	}
 

@@ -15,6 +15,8 @@ int main(int argc, char* argv[])
 	ADD_TEST(list);
 	ADD_TEST(string);
 	ADD_TEST(json);
+	ADD_TEST(time);
+	ADD_TEST(thread);
 #ifdef WITH_MONGO
 	ADD_TEST(mongo_replicable);
 #endif

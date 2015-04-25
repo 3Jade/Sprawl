@@ -17,7 +17,7 @@ namespace sprawl
 			Error,
 		};
 
-		inline const char* const LogLevelToStr(LogLevel level)
+		inline char const* LogLevelToStr(LogLevel level)
 		{
 			switch(level)
 			{

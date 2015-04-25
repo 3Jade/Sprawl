@@ -28,6 +28,29 @@ public:
 		//
 	}
 
+	List(List const& other)
+	    : m_first(nullptr)
+	    , m_last(nullptr)
+	    , m_size(0)
+	{
+	    ItemType* item = other.m_first;
+	    while(item)
+	    {
+		PushBack(item->m_value);
+		item = item->next;
+	    }
+	}
+
+	List(List&& other)
+	    : m_first(other.m_first)
+	    , m_last(other.m_last)
+	    , m_size(other.m_size)
+	{
+	    other.m_first = nullptr;
+	    other.m_last = nullptr;
+	    other.m_size = 0;
+	}
+
 	~List()
 	{
 		Clear();
@@ -40,6 +63,7 @@ public:
 		{
 			m_first = newItem;
 			m_last = newItem;
+			++m_size;
 		}
 		else
 		{
@@ -84,6 +108,7 @@ public:
 		{
 			m_first = newItem;
 			m_last = newItem;
+			++m_size;
 		}
 		else
 		{
@@ -177,6 +202,8 @@ public:
 			item = item->next;
 			delete del;
 		}
+		m_first = nullptr;
+		m_last = nullptr;
 		m_size = 0;
 	}
 

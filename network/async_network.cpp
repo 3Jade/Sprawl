@@ -52,7 +52,7 @@ namespace sprawl
 	{
 		namespace
 		{
-			static void PrintLastError(char* prefixText)
+			static void PrintLastError(char const* prefixText)
 			{
 #	ifdef _WIN32
 				char buf[512];
@@ -615,6 +615,7 @@ namespace sprawl
 			, m_sendLock()
 			, m_connectionType(connectionType)
 			, m_lastError(nullptr)
+			, m_sendReady(false)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
 			m_hints.ai_family = AF_UNSPEC;
@@ -808,14 +809,18 @@ namespace sprawl
 			{
 				{
 					std::unique_lock<std::mutex> lock(m_sendLock);
-					if(m_connectionType == ConnectionType::UDP)
+					while(!m_sendReady)
 					{
-						m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						if(m_connectionType == ConnectionType::UDP)
+						{
+							m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						}
+						else
+						{
+							m_sendNotifier.wait( lock );
+						}
 					}
-					else
-					{
-						m_sendNotifier.wait( lock );
-					}
+					m_sendReady = false;
 				}
 
 				std::lock_guard<std::mutex> lock(m_mtx);
@@ -992,6 +997,8 @@ namespace sprawl
 
 		void ServerSocket::NotifySend()
 		{
+			std::lock_guard<std::mutex> lock(m_sendLock);
+			m_sendReady = true;
 			m_sendNotifier.notify_one();
 		}
 
@@ -1012,6 +1019,7 @@ namespace sprawl
 			, m_sendLock()
 			, m_connectionType(connectionType)
 			, m_lastError(nullptr)
+			, m_sendReady(false)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
 			m_hints.ai_family = AF_UNSPEC;
@@ -1188,14 +1196,18 @@ namespace sprawl
 			{
 				{
 					std::unique_lock<std::mutex> lock(m_sendLock);
-					if(m_connectionType == ConnectionType::UDP)
+					while(!m_sendReady)
 					{
-						m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						if(m_connectionType == ConnectionType::UDP)
+						{
+							m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						}
+						else
+						{
+							m_sendNotifier.wait( lock );
+						}
 					}
-					else
-					{
-						m_sendNotifier.wait( lock );
-					}
+					m_sendReady = false;
 				}
 				if (!m_running)
 				{
@@ -1268,6 +1280,8 @@ namespace sprawl
 
 		void ClientSocket::NotifySend()
 		{
+			std::lock_guard<std::mutex> lock(m_sendLock);
+			m_sendReady = true;
 			m_sendNotifier.notify_one();
 		}
 	}

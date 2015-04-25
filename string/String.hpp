@@ -7,6 +7,8 @@
 
 #include "StringCommon.hpp"
 #include "StringBuilder.hpp"
+#include <stdint.h>
+#include <unordered_map>
 
 namespace sprawl
 {
@@ -358,7 +360,7 @@ namespace sprawl
 	{
 	public:
 		template<size_t N>
-		explicit StringLiteral(const char (&ptr)[N])
+		StringLiteral(const char (&ptr)[N])
 			: m_ptr(ptr)
 			, m_length(N-1)
 		{
@@ -372,12 +374,14 @@ namespace sprawl
 			//
 		}
 
-	protected:
-		StringLiteral& operator=(const StringLiteral& other);
-		StringLiteral(const StringLiteral& other);
+		const char* GetPtr() const { return m_ptr; }
+		size_t GetLength() const { return m_length; }
+		bool operator==(const StringLiteral& other) const { return m_ptr == other.m_ptr; }
+		bool operator!=(const StringLiteral& other) const { return m_ptr != other.m_ptr; }
 
+	protected:
 		friend class String::Holder;
-		const char* const m_ptr;
+		char const* m_ptr;
 		size_t m_length;
 	};
 	typedef StringLiteral StringRef;
@@ -395,6 +399,18 @@ namespace std
 		inline value_type operator()(const argument_type& str) const
 		{
 			return str.GetHash();
+		}
+	};
+
+	template<>
+	struct hash<sprawl::StringLiteral>
+	{
+		typedef sprawl::StringLiteral argument_type;
+		typedef std::size_t value_type;
+
+		inline value_type operator()(const argument_type& str) const
+		{
+			return sprawl::murmur3::HashPointer(intptr_t(str.GetPtr()));
 		}
 	};
 }

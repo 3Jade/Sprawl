@@ -280,6 +280,8 @@ namespace sprawl
 			ConnectionType m_connectionType;
 
 			const char* m_lastError;
+
+			bool m_sendReady;
 		};
 
 		class ClientSocket
@@ -352,6 +354,8 @@ namespace sprawl
 			ConnectionType m_connectionType;
 
 			const char* m_lastError;
+
+			bool m_sendReady;
 		};
 	}
 }
