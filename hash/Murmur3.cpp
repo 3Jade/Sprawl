@@ -140,5 +140,32 @@ namespace sprawl
 			return outputHash;
 		}
 #endif
+		size_t HashInt32(uint32_t data)
+		{
+			data ^= (data >> 16);
+			data *= 0x85ebca6b;
+			data ^= (data >> 13);
+			data *= 0xc2b2ae35;
+			data ^= (data >> 16);
+			return data;
+		}
+
+		size_t HashInt64(uint64_t data)
+		{
+			data ^= (data >> 33);
+			data *= 0xff51afd7ed558ccdULL;
+			data ^= (data >> 33);
+			data *= 0xc4ceb9fe1a85ec53ULL;
+			data ^= (data >> 33);
+			return data;
+		}
+		size_t HashPointer(intptr_t data)
+		{
+#if SPRAWL_32_BIT
+			return HashInt32(data);
+#else
+			return HashInt64(data);
+#endif
+		}
 	}
 }

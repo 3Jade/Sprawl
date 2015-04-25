@@ -5,11 +5,11 @@
 namespace sprawl
 {
 	template<typename ValueType, typename AccessorType>
-	class LLIterator : public std::iterator<std::forward_iterator_tag, ValueType, std::ptrdiff_t, ValueType*, ValueType&>
+	class MapIterator : public std::iterator<std::forward_iterator_tag, ValueType, std::ptrdiff_t, ValueType*, ValueType&>
 	{
 	public:
 		typedef AccessorType* accessor_type;
-		LLIterator(AccessorType* item)
+		MapIterator(AccessorType* item)
 			: m_currentItem(item)
 		{
 			//
@@ -57,33 +57,33 @@ namespace sprawl
 			return m_currentItem->m_value;
 		}
 
-		LLIterator<ValueType, AccessorType>& operator++()
+		MapIterator<ValueType, AccessorType>& operator++()
 		{
 			m_currentItem = m_currentItem ? m_currentItem->next : nullptr;
 			return *this;
 		}
 
-		LLIterator<ValueType, AccessorType> operator++(int)
+		MapIterator<ValueType, AccessorType> operator++(int)
 		{
-			LLIterator<ValueType, AccessorType> tmp(*this);
+			MapIterator<ValueType, AccessorType> tmp(*this);
 			++(*this);
 			return tmp;
 		}
 
-		LLIterator<ValueType, AccessorType> const& operator++() const
+		MapIterator<ValueType, AccessorType> const& operator++() const
 		{
 			m_currentItem = m_currentItem ? m_currentItem->next : nullptr;
 			return *this;
 		}
 
-		LLIterator<ValueType, AccessorType> const operator++(int) const
+		MapIterator<ValueType, AccessorType> const operator++(int) const
 		{
-			LLIterator<ValueType, AccessorType> tmp(*this);
+			MapIterator<ValueType, AccessorType> tmp(*this);
 			++(*this);
 			return tmp;
 		}
 
-		LLIterator<ValueType, AccessorType> operator+(int steps)
+		MapIterator<ValueType, AccessorType> operator+(int steps)
 		{
 			AccessorType* item = m_currentItem;
 			for(int i = 0; i < steps; ++i)
@@ -94,10 +94,10 @@ namespace sprawl
 				}
 				item = item->next;
 			}
-			return LLIterator<ValueType, AccessorType>(item);
+			return MapIterator<ValueType, AccessorType>(item);
 		}
 
-		const LLIterator<ValueType, AccessorType> operator+(int steps) const
+		MapIterator<ValueType, AccessorType> const operator+(int steps) const
 		{
 			AccessorType* item = m_currentItem;
 			for(int i = 0; i < steps; ++i)
@@ -108,15 +108,15 @@ namespace sprawl
 				}
 				item = item->next;
 			}
-			return LLIterator<ValueType, AccessorType>(item);
+			return MapIterator<ValueType, AccessorType>(item);
 		}
 
-		bool operator==(LLIterator<ValueType, AccessorType> const& rhs) const
+		bool operator==(MapIterator<ValueType, AccessorType> const& rhs) const
 		{
 			return m_currentItem == rhs.m_currentItem;
 		}
 
-		bool operator!=(const LLIterator<ValueType, AccessorType>& rhs) const
+		bool operator!=(MapIterator<ValueType, AccessorType> const& rhs) const
 		{
 			return !this->operator==(rhs);
 		}
@@ -141,14 +141,14 @@ namespace sprawl
 			return m_currentItem != nullptr && m_currentItem->next != nullptr;
 		}
 
-		LLIterator<ValueType, AccessorType> Next()
+		MapIterator<ValueType, AccessorType> Next()
 		{
-			return LLIterator<ValueType, AccessorType>(m_currentItem ? m_currentItem->next : nullptr);
+			return MapIterator<ValueType, AccessorType>(m_currentItem ? m_currentItem->next : nullptr);
 		}
 
-		const LLIterator<ValueType, AccessorType> Next() const
+		MapIterator<ValueType, AccessorType> const Next() const
 		{
-			return LLIterator<ValueType, AccessorType>(m_currentItem ? m_currentItem->next : nullptr);
+			return MapIterator<ValueType, AccessorType>(m_currentItem ? m_currentItem->next : nullptr);
 		}
 
 		operator bool()

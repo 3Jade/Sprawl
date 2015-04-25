@@ -6,6 +6,7 @@
 
 #include "async_network.hpp"
 #include <sstream>
+#include "../common/logging.hpp"
 
 #ifdef _WIN32
 #	define close closesocket
@@ -40,41 +41,28 @@
 			return 0;
 		}
 	}
-#endif
 
-#ifndef SPRAWL_NETWORK_DEBUG_ERRORS
-#	define SPRAWL_NETWORK_DEBUG_ERRORS 0
-#endif
-
-#ifdef _WIN32
-#	if SPRAWL_NETWORK_DEBUG_ERRORS
-#		include <WinBase.h>
-#		include <Winsock2.h>
-#	endif
+#include <WinBase.h>
+#include <Winsock2.h>
 #endif
 
 namespace sprawl
 {
 	namespace async_network
 	{
-
-#if SPRAWL_NETWORK_DEBUG_ERRORS
 		namespace
 		{
-			static void PrintLastError()
+			static void PrintLastError(char const* prefixText)
 			{
 #	ifdef _WIN32
 				char buf[512];
 				FormatMessageA( FORMAT_MESSAGE_FROM_SYSTEM, NULL, WSAGetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), buf, 512, NULL);
-				fprintf( stderr, "%s\n", buf );
+				SPRAWL_LOG_TRACE( "%s: %s\n", prefixText, buf );
 #	else
-				fprintf( stderr, "%s\n", strerror(errno) );
+				SPRAWL_LOG_TRACE("%s: %s\n", prefixText, strerror(errno));
 #	endif
 			}
 		}
-#	else
-#		define PrintLastError()
-#endif
 		SOCKET Connection::GetDescriptor()
 		{
 			return m_desc;
@@ -96,6 +84,8 @@ namespace sprawl
 		{
 			//Store this data to be sent later on the network thread
 			std::lock_guard<std::mutex> lock(m_outDataMutex);
+
+			SPRAWL_LOG_TRACE("Request to send %d bytes of data, adding to queue", int(data.length()));
 
 			m_outData.push_back(std::make_pair(data, onSendFunction));
 
@@ -151,10 +141,11 @@ namespace sprawl
 
 			for(auto& data : outData)
 			{
+				SPRAWL_LOG_TRACE("TCP: Performing send with %d bytes of data", int(data.first.length()));
 				int ret = send(m_desc, data.first.c_str(), (int)data.first.length(), 0);
 				if(ret == -1)
 				{
-					PrintLastError();
+					PrintLastError("TCP: Send failed");
 				}
 
 				if(data.second)
@@ -174,12 +165,15 @@ namespace sprawl
 			int ret;
 			char buf[32768];
 			char* pbuf = buf;
+
+			SPRAWL_LOG_TRACE("TCP: Told there was data on socket %d, receiving.", m_desc);
 			ret = recv(m_desc, pbuf, 32768, 0);
+			SPRAWL_LOG_TRACE("TCP: Received %d bytes of data on socket %d.", ret, m_desc);
 			if(ret <= 0)
 			{
 				if(ret == -1)
 				{
-					PrintLastError();
+					PrintLastError("TCP: Recv failed");
 				}
 				return ret;
 			}
@@ -206,6 +200,7 @@ namespace sprawl
 					}
 					if(newEnd > 0)
 					{
+						SPRAWL_LOG_TRACE("TCP: Client code informs of complete packet, calling receive callback.");
 						m_onReceive(shared_from_this(), cPacket, newEnd);
 						cPacket += newEnd;
 						packetEnd -= newEnd;
@@ -214,6 +209,7 @@ namespace sprawl
 					}
 					else
 					{
+						SPRAWL_LOG_TRACE("TCP: Client code informs packet is incomplete, returning and waiting for more.");
 						break;
 					}
 				}
@@ -223,6 +219,7 @@ namespace sprawl
 
 		void Connection::Close()
 		{
+			SPRAWL_LOG_TRACE("Socket close: %d", m_desc);
 			if( m_parentClientSocket )
 			{
 				m_parentClientSocket->Close();
@@ -235,6 +232,7 @@ namespace sprawl
 
 		/*virtual*/ void UDPConnection::Send(const std::string& str, FailType behavior, SendCallback callback /*= nullptr*/) /*override final*/
 		{
+			SPRAWL_LOG_TRACE("UDP: Request to send %d bytes of data, adding to queue", int(str.length()));
 			SendPacketWithID(str, behavior, ++m_currentId, callback);
 
 			if( m_parentClientSocket )
@@ -309,12 +307,13 @@ namespace sprawl
 			std::lock_guard<std::mutex> lock(m_packetMutex);
 			for(auto& kvp: outPackets)
 			{
+				SPRAWL_LOG_TRACE("UDP: Performing send with %d bytes of data", int(kvp.second.first.m_content.length()));
 				//Send the packet...
 				std::string content = kvp.second.first.m_header + kvp.second.first.m_content;
 				int ret = sendto(m_desc, content.c_str(), (int)content.length(), 0, &m_dest, m_slen);
 				if(ret == -1)
 				{
-					PrintLastError();
+					PrintLastError("UDP: Send failed");
 				}
 				if(kvp.second.second)
 				{
@@ -347,7 +346,7 @@ namespace sprawl
 			ret = recvfrom(m_desc, buf, 32768, MSG_PEEK, (sockaddr*)&m_src, &m_slen);
 			if(ret == -1)
 			{
-				PrintLastError();
+				PrintLastError("UDP: recv failed");
 				return ret;
 			}
 			if(m_lastRcvd.tv_sec == 0 && m_lastRcvd.tv_usec == 0)
@@ -355,6 +354,7 @@ namespace sprawl
 				//New connection. Remember who's on the other end.
 				m_dest = m_src;
 			}
+			SPRAWL_LOG_TRACE("UDP: Receiving %d bytes of data on socket %d.", ret, m_dest);
 			//If we're not pulling from the person who's actually on the other end of this connection, ignore the data.
 			if(((sockaddr_in*)&m_dest)->sin_addr.s_addr == ((sockaddr_in*)&m_src)->sin_addr.s_addr
 					&& ((sockaddr_in*)&m_dest)->sin_port == ((sockaddr_in*)&m_src)->sin_port)
@@ -615,6 +615,7 @@ namespace sprawl
 			, m_sendLock()
 			, m_connectionType(connectionType)
 			, m_lastError(nullptr)
+			, m_sendReady(false)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
 			m_hints.ai_family = AF_UNSPEC;
@@ -676,7 +677,8 @@ namespace sprawl
 			m_inSock = socket(m_servInfo->ai_family, m_servInfo->ai_socktype, m_servInfo->ai_protocol);
 			if( m_inSock == -1 )
 			{
-				SOCK_ERROR("Could not open socket.");
+				PrintLastError("Could not open socket");
+				return false;
 			}
 
 			int yes = 1;
@@ -807,14 +809,18 @@ namespace sprawl
 			{
 				{
 					std::unique_lock<std::mutex> lock(m_sendLock);
-					if(m_connectionType == ConnectionType::UDP)
+					while(!m_sendReady)
 					{
-						m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						if(m_connectionType == ConnectionType::UDP)
+						{
+							m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						}
+						else
+						{
+							m_sendNotifier.wait( lock );
+						}
 					}
-					else
-					{
-						m_sendNotifier.wait( lock );
-					}
+					m_sendReady = false;
 				}
 
 				std::lock_guard<std::mutex> lock(m_mtx);
@@ -880,6 +886,8 @@ namespace sprawl
 
 				int ret = select((int)(max + 1), &m_inSet, NULL, &m_excSet, nullptr);
 
+				SPRAWL_LOG_TRACE("Select informs of %d sockets with data ready to receive.", ret);
+
 				std::lock_guard<std::mutex> lock(m_mtx);
 
 				if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
@@ -917,6 +925,10 @@ namespace sprawl
 						{
 							m_lastError = strerror(errno);
 							continue;
+						}
+						else
+						{
+							PrintLastError("Could not accept connection");
 						}
 					}
 					else
@@ -985,6 +997,8 @@ namespace sprawl
 
 		void ServerSocket::NotifySend()
 		{
+			std::lock_guard<std::mutex> lock(m_sendLock);
+			m_sendReady = true;
 			m_sendNotifier.notify_one();
 		}
 
@@ -1005,6 +1019,7 @@ namespace sprawl
 			, m_sendLock()
 			, m_connectionType(connectionType)
 			, m_lastError(nullptr)
+			, m_sendReady(false)
 		{
 			memset(&m_hints, 0, sizeof m_hints);
 			m_hints.ai_family = AF_UNSPEC;
@@ -1035,11 +1050,17 @@ namespace sprawl
 			s << port;
 			getaddrinfo(addr.c_str(), s.str().c_str(), &m_hints, &m_servInfo);
 
-			for(p = m_servInfo; p != nullptr; p = p->ai_next) {
+			for(p = m_servInfo; p != nullptr; p = p->ai_next)
+			{
 				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-					SOCK_ERROR("Could not open socket.");
+				{
+					PrintLastError("Could not open socket.");
+					return false;
+				}
 
-				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1) {
+				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1)
+				{
+					PrintLastError("Socket connect attempt failed (non-fatal)");
 					close(m_sock);
 					continue;
 				}
@@ -1049,7 +1070,7 @@ namespace sprawl
 
 			if(p == nullptr)
 			{
-				SOCK_ERROR("Connection failure.");
+				SOCK_ERROR("All socket connect attempts failed. Could not establish a connection.");
 			}
 
 			if(m_connectionType == ConnectionType::TCP)
@@ -1081,11 +1102,18 @@ namespace sprawl
 			{
 				SOCK_ERROR("Already connected.");
 			}
-			for(p = m_servInfo; p != nullptr; p = p->ai_next) {
-				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
-					SOCK_ERROR("Could not open socket.");
 
-				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1) {
+			for (p = m_servInfo; p != nullptr; p = p->ai_next)
+			{
+				if ((m_sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1)
+				{
+					PrintLastError("Could not open socket.");
+					return false;
+				}
+
+				if (connect(m_sock, p->ai_addr, (int)p->ai_addrlen) == -1)
+				{
+					PrintLastError("Socket connect attempt failed (non-fatal)");
 					close(m_sock);
 					continue;
 				}
@@ -1093,8 +1121,10 @@ namespace sprawl
 				break;
 			}
 
-			if(p == nullptr)
-				SOCK_ERROR("Connection failure.");
+			if (p == nullptr)
+			{
+				SOCK_ERROR("All socket connect attempts failed. Could not establish a connection.");
+			}
 
 			if(m_connectionType == ConnectionType::TCP)
 			{
@@ -1139,25 +1169,25 @@ namespace sprawl
 
 		void ClientSocket::Close()
 		{
-			if(m_running)
+			m_running = false;
+			if (m_sendThread.joinable())
 			{
-				m_running = false;
+				if (m_connectionType == ConnectionType::UDP)
+				{
+					close(m_con->GetDescriptor());
+				}
 				m_sendNotifier.notify_one();
-				if(std::this_thread::get_id() != m_sendThread.get_id())
-				{
-					m_sendThread.join();
-				}
-				close(m_con->GetDescriptor());
-				if(std::this_thread::get_id() != m_recvThread.get_id())
-				{
-					m_recvThread.join();
-				}
-				if(m_onClose)
-				{
-					m_onClose(m_con);
-				}
-				m_con.reset();
+				m_sendThread.join();
 			}
+			if(m_recvThread.joinable())
+			{
+				if (m_connectionType == ConnectionType::TCP)
+				{
+					close(m_con->GetDescriptor());
+				}
+				m_recvThread.join();
+			}
+			m_con.reset();
 		}
 
 		void ClientSocket::SendThread()
@@ -1166,21 +1196,35 @@ namespace sprawl
 			{
 				{
 					std::unique_lock<std::mutex> lock(m_sendLock);
-					if(m_connectionType == ConnectionType::UDP)
+					while(!m_sendReady)
 					{
-						m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						if(m_connectionType == ConnectionType::UDP)
+						{
+							m_sendNotifier.wait_for( lock, std::chrono::milliseconds(250) );
+						}
+						else
+						{
+							m_sendNotifier.wait( lock );
+						}
 					}
-					else
-					{
-						m_sendNotifier.wait( lock );
-					}
+					m_sendReady = false;
+				}
+				if (!m_running)
+				{
+					return;
 				}
 				m_con->Send();
 				if(m_connectionType == ConnectionType::UDP)
 				{
 					if(std::static_pointer_cast<UDPConnection>(m_con)->CheckClosed())
 					{
-						Close();
+						SPRAWL_LOG_TRACE("Received disconnect signal for socket %d.", m_con->GetDescriptor());
+						close(m_con->GetDescriptor());
+						if (m_onClose)
+						{
+							m_onClose(m_con);
+						}
+						m_running = false;
 						return;
 					}
 					std::static_pointer_cast<UDPConnection>(m_con)->SendKeepAlive();
@@ -1204,6 +1248,13 @@ namespace sprawl
 
 				int ret = select((int)(m_sock + 1), &m_inSet, NULL, &m_excSet, nullptr);
 
+				if (!m_running)
+				{
+					return;
+				}
+
+				SPRAWL_LOG_TRACE("Select informs client socket has data ready to receive.");
+
 				if( ret == -1 && errno != EAGAIN && errno != EWOULDBLOCK )
 				{
 					m_lastError = strerror(errno);
@@ -1213,7 +1264,14 @@ namespace sprawl
 				{
 					if( m_con->Recv() <= 0 && m_connectionType == ConnectionType::TCP )
 					{
-						Close();
+						SPRAWL_LOG_TRACE("Received disconnect signal for socket %d.", m_con->GetDescriptor());
+						close(m_con->GetDescriptor());
+						if (m_onClose)
+						{
+							m_onClose(m_con);
+						}
+						m_running = false;
+						m_sendNotifier.notify_one();
 						return;
 					}
 				}
@@ -1222,6 +1280,8 @@ namespace sprawl
 
 		void ClientSocket::NotifySend()
 		{
+			std::lock_guard<std::mutex> lock(m_sendLock);
+			m_sendReady = true;
 			m_sendNotifier.notify_one();
 		}
 	}

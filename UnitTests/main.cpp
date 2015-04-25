@@ -11,9 +11,12 @@ int main(int argc, char* argv[])
 #define ADD_TEST(name) extern bool test_##name(); tests.push_back(std::make_tuple(#name, false, &test_##name))
 
 	ADD_TEST(memory);
-	ADD_TEST(collections);
+	ADD_TEST(hashmap);
+	ADD_TEST(list);
 	ADD_TEST(string);
 	ADD_TEST(json);
+	ADD_TEST(time);
+	ADD_TEST(thread);
 #ifdef WITH_MONGO
 	ADD_TEST(mongo_replicable);
 #endif

@@ -136,16 +136,19 @@ namespace sprawl
 				serialize_impl(var, name, PersistToDB);
 			}
 
+			using ReplicableSerializer<MongoSerializer>::operator%;
+
+			virtual SerializerBase& operator%(BinaryData&& var) override
+			{
+				uint32_t len = var.size;
+				serialize_impl(var.val, len, var.name, var.PersistToDB);
+				return *this;
+			}
+
 			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
 			{
-				if(bytes == 1)
-				{
-					serialize_impl(var, name, PersistToDB);
-				}
-				else
-				{
-					serialize_impl(var, bytes, name, PersistToDB);
-				}
+				sprawl::String str(sprawl::StringRef(var, bytes));
+				serialize(&str, bytes, name, PersistToDB);
 			}
 
 			virtual void serialize(float* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
