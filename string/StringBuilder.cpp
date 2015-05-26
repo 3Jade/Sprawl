@@ -196,13 +196,25 @@ namespace sprawl
 		return *this;
 	}
 
+	StringBuilder& StringBuilder::operator<<(StringLiteral const& elem)
+	{
+		char buf[15];
+#ifdef _WIN32
+		_snprintf(buf, 15, "%%%Iu.%Ius", elem.GetLength(), elem.GetLength());
+#else
+		snprintf(buf, 15, "%%%zu.%zus", elem.GetLength(), elem.GetLength());
+#endif
+		checked_snprintf(buf, elem.GetPtr());
+		return *this;
+	}
+
 	StringBuilder& StringBuilder::operator<<(String const& elem)
 	{
-		char buf[8];
+		char buf[15];
 #ifdef _WIN32
-		_snprintf(buf, 8, "%%.%Ius", elem.length());
+		_snprintf(buf, 15, "%%%Iu.%Ius", elem.length(), elem.length());
 #else
-		snprintf(buf, 8, "%%.%zus", elem.length());
+		snprintf(buf, 15, "%%%zu.%zus", elem.length(), elem.length());
 #endif
 		checked_snprintf(buf, elem.c_str());
 		return *this;
@@ -210,11 +222,11 @@ namespace sprawl
 
 	StringBuilder& StringBuilder::operator<<(std::string const& elem)
 	{
-		char buf[8];
+		char buf[15];
 #ifdef _WIN32
-		_snprintf(buf, 8, "%%.%Ius", elem.length());
+		_snprintf(buf, 15, "%%%Iu.%Ius", elem.length(), elem.length());
 #else
-		snprintf(buf, 8, "%%.%zus", elem.length());
+		snprintf(buf, 15, "%%%zu.%zus", elem.length(), elem.length());
 #endif
 		checked_snprintf(buf, elem.c_str());
 		return *this;
@@ -664,17 +676,36 @@ namespace sprawl
 		checked_snprintf(buf, elem);
 	}
 
-	void StringBuilder::AppendElementToBuffer(String const& elem, char const* const modifiers)
+	void StringBuilder::AppendElementToBuffer(StringLiteral const& elem, char const* const /*modifiers*/)
 	{
 		char buf[15];
-		sprintf(buf, "%%%ss", modifiers);
+#ifdef _WIN32
+		_snprintf(buf, 15, "%%%Iu.%Ius", elem.GetLength(), elem.GetLength());
+#else
+		snprintf(buf, 15, "%%%zu.%zus", elem.GetLength(), elem.GetLength());
+#endif
+		checked_snprintf(buf, elem.GetPtr());
+	}
+
+	void StringBuilder::AppendElementToBuffer(String const& elem, char const* const /*modifiers*/)
+	{
+		char buf[15];
+#ifdef _WIN32
+		_snprintf(buf, 15, "%%%Iu.%Ius", elem.length(), elem.length());
+#else
+		snprintf(buf, 15, "%%%zu.%zus", elem.length(), elem.length());
+#endif
 		checked_snprintf(buf, elem.c_str());
 	}
 
-	void StringBuilder::AppendElementToBuffer(std::string const& elem, char const* const modifiers)
+	void StringBuilder::AppendElementToBuffer(std::string const& elem, char const* const /*modifiers*/)
 	{
 		char buf[15];
-		sprintf(buf, "%%%ss", modifiers);
+#ifdef _WIN32
+		_snprintf(buf, 15, "%%%Iu.%Ius", elem.length(), elem.length());
+#else
+		snprintf(buf, 15, "%%%zu.%zus", elem.length(), elem.length());
+#endif
 		checked_snprintf(buf, elem.c_str());
 	}
 

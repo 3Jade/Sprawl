@@ -11,6 +11,7 @@ namespace sprawl
 	{
 		class Thread;
 		class Handle;
+		void RunThread(Thread* thread);
 	}
 
 	namespace this_thread
@@ -24,6 +25,7 @@ namespace sprawl
 
 #ifdef _WIN32
 #	include "thread_windows.hpp"
+#	undef Yield
 #else
 #	include "thread_linux.hpp"
 #endif
@@ -54,10 +56,11 @@ public:
 
 	void Start();
 
-private:
-	static void* EntryPoint(void* data);
+protected:
 	void PlatformJoin();
 	void PlatformDetach();
+
+	friend void RunThread(Thread* thread);
 
 	char const* const m_threadName;
 	std::function<void()> m_function;
@@ -100,14 +103,6 @@ sprawl::threading::Thread::Thread(char const* const threadName, Function&& f)
 
 }
 
-inline sprawl::threading::Thread::~Thread()
-{
-	if(Joinable())
-	{
-		abort();
-	}
-}
-
 inline void sprawl::threading::Thread::Join()
 {
 	if(!Joinable())
@@ -128,9 +123,7 @@ inline void sprawl::threading::Thread::Detach()
 	m_handle = Handle();
 }
 
-inline /*static*/ void* sprawl::threading::Thread::EntryPoint(void *data)
+inline void sprawl::threading::RunThread(Thread* thread)
 {
-	Thread* thread = reinterpret_cast<Thread*>(data);
 	thread->m_function();
-	return nullptr;
 }

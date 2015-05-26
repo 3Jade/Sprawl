@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../common/compat.hpp"
-#include "../threading/mutex.hpp"
+#include "../threading/threadlocal.hpp"
 
 #ifndef SPRAWL_MEMORY_NO_FREE
 #	define SPRAWL_MEMORY__RELEASE_EMPTY_BLOCKS 0
@@ -40,19 +40,20 @@ namespace sprawl
 
 		private:
 			static SPRAWL_CONSTEXPR size_t adjustedBlockSize = (blockSize+7) & ~7;
-			static MemoryBit<sizeOfType>* ms_firstBit;
 
 #if SPRAWL_MULTITHREADED
-			static sprawl::threading::Mutex ms_allocMutex;
+			static sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> ms_firstBit;
+#else
+			static MemoryBit<sizeOfType>* ms_firstBit;
 #endif
 		};
 
-		template<size_t sizeOfType, size_t blockSize>
-		MemoryBit<sizeOfType>* DynamicPoolAllocator<sizeOfType, blockSize>::ms_firstBit = nullptr;
-
 #if SPRAWL_MULTITHREADED
 		template<size_t sizeOfType, size_t blockSize>
-		sprawl::threading::Mutex DynamicPoolAllocator<sizeOfType, blockSize>::ms_allocMutex;
+		sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> DynamicPoolAllocator<sizeOfType, blockSize>::ms_firstBit;
+#else
+		template<size_t sizeOfType, size_t blockSize>
+		MemoryBit<sizeOfType>* DynamicPoolAllocator<sizeOfType, blockSize>::ms_firstBit = nullptr;
 #endif
 
 		template<size_t sizeOfType, size_t blockSize>
@@ -67,10 +68,10 @@ namespace sprawl
 		void* DynamicPoolAllocator<sizeOfType, blockSize>::alloc()
 		{
 #if SPRAWL_MULTITHREADED
-			sprawl::threading::ScopedLock lock(ms_allocMutex);
-#endif
-
+			MemoryBit<sizeOfType>* bit = *ms_firstBit;
+#else
 			MemoryBit<sizeOfType>* bit = ms_firstBit;
+#endif
 
 			if(bit)
 			{
@@ -79,13 +80,17 @@ namespace sprawl
 			}
 
 			MemoryBit<sizeOfType>* newBits = (MemoryBit<sizeOfType>*)malloc(sizeof(MemoryBit<sizeOfType>) * adjustedBlockSize);
-			for(size_t i = 1; i < adjustedBlockSize; ++i)
+			for(size_t i = 1; i < adjustedBlockSize-1; ++i)
 			{
-				newBits[i].next = ms_firstBit;
+				newBits[i].next = &newBits[i+1];
 				newBits[i].allocType = 0;
-				ms_firstBit = &newBits[i];
 			}
+			newBits[adjustedBlockSize-1].next = nullptr;
+			newBits[adjustedBlockSize-1].allocType = 0;
+
 			newBits[0].allocType = 0;
+
+			ms_firstBit = &newBits[1];
 
 			return newBits[0].data;
 		}
@@ -96,12 +101,13 @@ namespace sprawl
 			void* allocType = reinterpret_cast<void*>(reinterpret_cast<intptr_t*>(addr)[-2]);
 			if(allocType == 0)
 			{
-#if SPRAWL_MULTITHREADED
-				sprawl::threading::ScopedLock lock(ms_allocMutex);
-#endif
 				MemoryBit<sizeOfType>* bit = reinterpret_cast<MemoryBit<sizeOfType>*>(reinterpret_cast<intptr_t*>(addr)-2);
 
+#if SPRAWL_MULTITHREADED
+				bit->next = *ms_firstBit;
+#else
 				bit->next = ms_firstBit;
+#endif
 				ms_firstBit = bit;
 			}
 			else
@@ -124,14 +130,28 @@ namespace sprawl
 				typedef StaticPoolAllocator<sizeof(T), staticBufferSize> otherAllocator;
 			};
 		private:
+
+#if SPRAWL_MULTITHREADED
+			static sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> ms_firstBit;
+			static sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> ms_blockPool;
+			static sprawl::threading::ThreadLocal<size_t> ms_highestBitUsed;
+#else
 			static MemoryBit<sizeOfType>* ms_firstBit;
 			static MemoryBit<sizeOfType> ms_blockPool[staticBufferSize];
 			static size_t ms_highestBitUsed;
-#if SPRAWL_MULTITHREADED
-			static sprawl::threading::Mutex ms_allocMutex;
 #endif
 		};
 
+#if SPRAWL_MULTITHREADED
+		template<size_t sizeOfType, size_t staticBufferSize>
+		sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> StaticPoolAllocator<sizeOfType, staticBufferSize>::ms_firstBit = nullptr;
+
+		template<size_t sizeOfType, size_t staticBufferSize>
+		sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> StaticPoolAllocator<sizeOfType, staticBufferSize>::ms_blockPool = (MemoryBit<sizeOfType>*)malloc(sizeof(MemoryBit<sizeOfType>) * staticBufferSize);
+
+		template<size_t sizeOfType, size_t staticBufferSize>
+		sprawl::threading::ThreadLocal<size_t> StaticPoolAllocator<sizeOfType, staticBufferSize>::ms_highestBitUsed = 0;
+#else
 		template<size_t sizeOfType, size_t staticBufferSize>
 		MemoryBit<sizeOfType>* StaticPoolAllocator<sizeOfType, staticBufferSize>::ms_firstBit = nullptr;
 
@@ -140,10 +160,6 @@ namespace sprawl
 
 		template<size_t sizeOfType, size_t staticBufferSize>
 		size_t StaticPoolAllocator<sizeOfType, staticBufferSize>::ms_highestBitUsed = 0;
-
-#if SPRAWL_MULTITHREADED
-		template<size_t sizeOfType, size_t staticBufferSize>
-		sprawl::threading::Mutex StaticPoolAllocator<sizeOfType, staticBufferSize>::ms_allocMutex;
 #endif
 
 		template<size_t sizeOfType, size_t staticBufferSize>
@@ -158,10 +174,10 @@ namespace sprawl
 		void* StaticPoolAllocator<sizeOfType, staticBufferSize>::alloc()
 		{
 #if SPRAWL_MULTITHREADED
-			sprawl::threading::ScopedLock lock(ms_allocMutex);
-#endif
-
+			MemoryBit<sizeOfType>* bit = *ms_firstBit;
+#else
 			MemoryBit<sizeOfType>* bit = ms_firstBit;
+#endif
 
 			if(bit)
 			{
@@ -169,7 +185,12 @@ namespace sprawl
 				return bit->data;
 			}
 
+#if SPRAWL_MULTITHREADED
+			MemoryBit<sizeOfType>* newBit = &(*ms_blockPool)[++(*ms_highestBitUsed)];
+#else
 			MemoryBit<sizeOfType>* newBit = &ms_blockPool[++ms_highestBitUsed];
+#endif
+
 			newBit->allocType = 0;
 
 			return newBit->data;
@@ -181,12 +202,13 @@ namespace sprawl
 			void* allocType = reinterpret_cast<void*>(reinterpret_cast<intptr_t*>(addr)[-2]);
 			if(allocType == 0)
 			{
-#if SPRAWL_MULTITHREADED
-				sprawl::threading::ScopedLock lock(ms_allocMutex);
-#endif
 				MemoryBit<sizeOfType>* bit = reinterpret_cast<MemoryBit<sizeOfType>*>(reinterpret_cast<intptr_t*>(addr)-2);
 
+#if SPRAWL_MULTITHREADED
+				bit->next = *ms_firstBit;
+#else
 				bit->next = ms_firstBit;
+#endif
 				ms_firstBit = bit;
 			}
 			else
