@@ -207,7 +207,7 @@ def UnitTests():
 
 	@csbuild.postMakeStep
 	def postMake(project):
-		unitTestExe = "bin/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
+		unitTestExe = "bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
 		if platform.system() == "Windows":
 			time.sleep(2)
 		else:
