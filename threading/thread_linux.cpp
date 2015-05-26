@@ -2,6 +2,16 @@
 #include "../time/time.hpp"
 #include <time.h>
 
+namespace ThreadStatic
+{
+	static void* EntryPoint(void *data)
+	{
+		sprawl::threading::Thread* thread = reinterpret_cast<sprawl::threading::Thread*>(data);
+		sprawl::threading::RunThread(thread);
+		return nullptr;
+	}
+}
+
 int64_t sprawl::threading::Handle::GetUniqueId() const
 {
 	return int64_t(m_thread);
@@ -9,7 +19,7 @@ int64_t sprawl::threading::Handle::GetUniqueId() const
 
 void sprawl::threading::Thread::Start()
 {
-	int result = pthread_create(&m_handle.GetNativeHandle(), nullptr, &Thread::EntryPoint, this);
+	int result = pthread_create(&m_handle.GetNativeHandle(), nullptr, &ThreadStatic::EntryPoint, this);
 	if(result == 0)
 	{
 		if(m_threadName != nullptr)
@@ -33,6 +43,14 @@ void sprawl::threading::Thread::PlatformDetach()
 sprawl::threading::Handle sprawl::this_thread::GetHandle()
 {
 	return sprawl::threading::Handle(pthread_self());
+}
+
+sprawl::threading::Thread::~Thread()
+{
+	if(Joinable())
+	{
+		abort();
+	}
 }
 
 void sprawl::this_thread::Sleep(uint64_t nanoseconds)

@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <unordered_map>
 
+#include <atomic>
+
 namespace sprawl
 {
 	class StringLiteral;
@@ -52,7 +54,7 @@ namespace sprawl
 			char m_staticData[staticDataSize];
 			char* m_dynamicData;
 			const char* m_data;
-			int m_refCount;
+			std::atomic<int> m_refCount;
 			size_t m_length;
 			mutable size_t m_hash;
 			mutable bool m_hashComputed;

@@ -13,6 +13,7 @@
 namespace sprawl
 {
 	class String;
+	class StringLiteral;
 
 	class StringBuilder
 	{
@@ -38,6 +39,7 @@ namespace sprawl
 		StringBuilder& operator<<(char const elem);
 		StringBuilder& operator<<(char const* const elem);
 		StringBuilder& operator<<(String const& elem);
+		StringBuilder& operator<<(StringLiteral const& elem);
 
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
 		StringBuilder& operator<<(std::string const& elem);
@@ -62,6 +64,7 @@ namespace sprawl
 		void AppendElementToBuffer(char const elem, char const* const modifiers);
 		void AppendElementToBuffer(char const* const elem, char const* const modifiers);
 		void AppendElementToBuffer(String const& elem, char const* const modifiers);
+		void AppendElementToBuffer(StringLiteral const& elem, char const* const modifiers);
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
 		void AppendElementToBuffer(std::string const& elem, char const* const modifiers);
 #endif

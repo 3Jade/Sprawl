@@ -3,14 +3,28 @@
 #include <string>
 #include <tuple>
 #include <string.h>
+#include "../threading/condition_variable.hpp"
+
+extern sprawl::threading::ConditionVariable cond;
+sprawl::threading::ConditionVariable cond2;
+extern bool test_thread();
+
+class blah
+{
+public:
+	static sprawl::threading::ConditionVariable cond3;
+};
+sprawl::threading::ConditionVariable blah::cond3;
 
 int main(int argc, char* argv[])
 {
+	cond.NotifyAll();
+	blah::cond3.NotifyAll();
 	std::vector<std::tuple<std::string, bool, bool(*)(void)>> tests;
 
 #define ADD_TEST(name) extern bool test_##name(); tests.push_back(std::make_tuple(#name, false, &test_##name))
 
-	ADD_TEST(memory);
+	//ADD_TEST(memory);
 	ADD_TEST(hashmap);
 	ADD_TEST(list);
 	ADD_TEST(string);

@@ -21,6 +21,7 @@ csbuild.DisablePrecompile()
 csbuild.AddOption("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
 csbuild.AddOption("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
 csbuild.AddOption("--vs-ver", action="store", default="vs2012", help="Visual studio version", choices=["vs2012", "vs2013"])
+csbuild.AddOption("--no-threads", action="store_true", help="Build without thread support")
 csbuild.SetHeaderInstallSubdirectory("sprawl/{project.name}")
 
 if platform.system() == "Windows":
@@ -38,6 +39,9 @@ csbuild.Toolchain("msvc").AddCompilerFlags(
 	"/wd\"4067\"",
 	"/wd\"4351\""
 )
+
+if not csbuild.GetOption("no_threads"):
+	csbuild.Toolchain("gcc", "ios", "android").AddCompilerFlags("-pthread")
 
 @csbuild.target("debug")
 def debug():
@@ -69,7 +73,7 @@ def serialization():
 
 	
 @csbuild.project("time", "time")
-def time():
+def timeProject():
 	csbuild.SetOutput("libsprawl_time", csbuild.ProjectType.StaticLibrary)
 
 	csbuild.Toolchain("gcc").AddExcludeFiles("time/*_windows.cpp")
@@ -163,16 +167,14 @@ def common():
 
 	csbuild.EnableHeaderInstall()
 
-UnitTestDepends = ["network", "serialization", "string", "hash", "time", "threading"]
+UnitTestDepends = ["serialization", "string", "hash", "time", "threading"]
 if MongoDir:
 	UnitTestDepends.append("serialization-mongo")
 
 @csbuild.project("UnitTests", "UnitTests", UnitTestDepends)
 def UnitTests():
 	csbuild.SetOutput("SprawlUnitTest")
-	csbuild.SetOutputDirectory("bin/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
-
-	csbuild.AddLibraryDirectories( "lib/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}" )
+	csbuild.SetOutputDirectory("bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
 	
 	if MongoDir:
 		csbuild.AddIncludeDirectories(

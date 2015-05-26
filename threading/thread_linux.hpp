@@ -30,5 +30,3 @@ public:
 private:
 	pthread_t m_thread;
 };
-
-
