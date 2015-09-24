@@ -196,6 +196,12 @@ namespace sprawl
 		return *this;
 	}
 
+	StringBuilder& StringBuilder::operator<<(char* const elem)
+	{
+		checked_snprintf("%s", elem);
+		return *this;
+	}
+
 	StringBuilder& StringBuilder::operator<<(StringLiteral const& elem)
 	{
 		char buf[15];
@@ -670,6 +676,13 @@ namespace sprawl
 	}
 
 	void StringBuilder::AppendElementToBuffer(char const* const elem, char const* const modifiers)
+	{
+		char buf[15];
+		sprintf(buf, "%%%ss", modifiers);
+		checked_snprintf(buf, elem);
+	}
+
+	void StringBuilder::AppendElementToBuffer(char* const elem, char const* const modifiers)
 	{
 		char buf[15];
 		sprintf(buf, "%%%ss", modifiers);

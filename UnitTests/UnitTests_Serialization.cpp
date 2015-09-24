@@ -3,6 +3,9 @@
 #include "../string/String.hpp"
 #include "../serialization/JSONSerializer.hpp"
 
+#include "gtest_printers.hpp"
+#include <gtest/gtest.h>
+
 namespace sprawl
 {
 	void throw_exception(std::exception const&)
@@ -42,7 +45,7 @@ namespace JsonTests
 			;
 		}
 
-		bool operator==(TestType const& other)
+		bool operator==(TestType const& other) const
 		{
 			return map == other.map
 					&& intArray == other.intArray
@@ -65,36 +68,35 @@ namespace JsonTests
 
 using namespace JsonTests;
 
-bool test_json()
+class JsonTokenTest : public testing::Test
 {
+protected:
+	virtual void SetUp() override
+	{
+		tok = sprawl::serialization::JSONToken::object();
+		tok.Insert("test1", 1);
+		tok.Insert("test2", 2);
+		tok["object"] = sprawl::serialization::JSONToken::object();
+		tok["object"].Insert("test1", 1);
+		tok["object"].Insert("test2", 2);
+		tok["array"] = sprawl::serialization::JSONToken::array();
+		tok["array"].PushBack(1);
+		tok["array"].PushBack(2);
+	}
 
-#ifdef _WIN32
-	sprawl::String expectedValue1 = "{ \"__version__\" : 0, \"t\" : { \"map\" : { \"test\" : 1.0000000000000001e-018, \"test2\" : 1e+022, \"test3\" : 1000000000 }, \"intArray\" : [ 1, -2, 3, -4, 5 ], \"strArray\" : [ \"hi\", \"there\", \"y'all\" ], \"nestedArray\" : [ [ 6, 7, 8, 9, 10 ] ], \"str\" : \"\\\\escapes\\\\ \\\" \\n\", \"i\" : 3, \"d\" : 2.5, \"b\" : true, \"c\" : \"f\", \"u\" : 32 } }";
+	sprawl::serialization::JSONToken tok;
+};
 
-	sprawl::String expectedValue2 = "{\n\t\"__version__\" : 0,\n\t\"map\" : {\n\t\t\"test\" : 1.0000000000000001e-018,\n\t\t\"test2\" : 1e+022,\n\t\t\"test3\" : 1000000000\n\t},\n\t\"intArray\" : [\n\t\t1,\n\t\t-2,\n\t\t3,\n\t\t-4,\n\t\t5\n\t],\n\t\"strArray\" : [\n\t\t\"hi\",\n\t\t\"there\",\n\t\t\"y'all\"\n\t],\n\t\"nestedArray\" : [\n\t\t[\n\t\t\t6,\n\t\t\t7,\n\t\t\t8,\n\t\t\t9,\n\t\t\t10\n\t\t]\n\t],\n\t\"str\" : \"\\\\escapes\\\\ \\\" \\n\",\n\t\"i\" : 3,\n\t\"d\" : 2.5,\n\t\"b\" : true,\n\t\"c\" : \"f\",\n\t\"u\" : 32\n}";
+TEST_F(JsonTokenTest, JsonTokensWork)
+{
+	sprawl::String expectedTokValue = "{ \"test1\" : 1, \"test2\" : 2, \"object\" : { \"test1\" : 1, \"test2\" : 2 }, \"array\" : [ 1, 2 ] }";
+	ASSERT_EQ(expectedTokValue, tok.ToJSONString());
+}
 
-#else
-	sprawl::String expectedValue1 = "{ \"__version__\" : 0, \"t\" : { \"map\" : { \"test\" : 1.0000000000000000715e-18, \"test2\" : 1e+22, \"test3\" : 1000000000 }, \"intArray\" : [ 1, -2, 3, -4, 5 ], \"strArray\" : [ \"hi\", \"there\", \"y'all\" ], \"nestedArray\" : [ [ 6, 7, 8, 9, 10 ] ], \"str\" : \"\\\\escapes\\\\ \\\" \\n\", \"i\" : 3, \"d\" : 2.5, \"b\" : true, \"c\" : \"f\", \"u\" : 32 } }";
-
-	sprawl::String expectedValue2 = "{\n\t\"__version__\" : 0,\n\t\"map\" : {\n\t\t\"test\" : 1.0000000000000000715e-18,\n\t\t\"test2\" : 1e+22,\n\t\t\"test3\" : 1000000000\n\t},\n\t\"intArray\" : [\n\t\t1,\n\t\t-2,\n\t\t3,\n\t\t-4,\n\t\t5\n\t],\n\t\"strArray\" : [\n\t\t\"hi\",\n\t\t\"there\",\n\t\t\"y'all\"\n\t],\n\t\"nestedArray\" : [\n\t\t[\n\t\t\t6,\n\t\t\t7,\n\t\t\t8,\n\t\t\t9,\n\t\t\t10\n\t\t]\n\t],\n\t\"str\" : \"\\\\escapes\\\\ \\\" \\n\",\n\t\"i\" : 3,\n\t\"d\" : 2.5,\n\t\"b\" : true,\n\t\"c\" : \"f\",\n\t\"u\" : 32\n}";
-#endif
-
+TEST_F(JsonTokenTest, CopyOnWriteWorks)
+{
 	sprawl::String expectedTokValue = "{ \"test1\" : 1, \"test2\" : -2, \"object\" : { \"test1\" : 1, \"test2\" : -2, \"Tok\" : null }, \"array\" : [ -1, 2 ] }";
 	sprawl::String expectedTok2Value = "{ \"test1\" : -1, \"test2\" : 2, \"object\" : { \"test1\" : -1, \"test2\" : 2, \"Tok2\" : null }, \"array\" : [ 1, -2 ] }";
-
-	bool success = true;
-
-	//Test copy-on-write for json tokens
-
-	sprawl::serialization::JSONToken tok = sprawl::serialization::JSONToken::object();
-	tok.Insert("test1", 1);
-	tok.Insert("test2", 2);
-	tok["object"] = sprawl::serialization::JSONToken::object();
-	tok["object"].Insert("test1", 1);
-	tok["object"].Insert("test2", 2);
-	tok["array"] = sprawl::serialization::JSONToken::array();
-	tok["array"].PushBack(1);
-	tok["array"].PushBack(2);
 
 	sprawl::serialization::JSONToken tok2 = tok;
 	tok2["test1"] = sprawl::serialization::JSONToken::number((long long)-1);
@@ -106,44 +108,56 @@ bool test_json()
 	tok["array"][0] = sprawl::serialization::JSONToken::number((long long)-1);
 	tok2["array"][1] = sprawl::serialization::JSONToken::number((long long)-2);
 
+	ASSERT_EQ(expectedTokValue, tok.ToJSONString());
+	ASSERT_EQ(expectedTok2Value, tok2.ToJSONString());
+}
 
-	if(tok.ToJSONString() != expectedTokValue || tok2.ToJSONString() != expectedTok2Value)
+class JsonSerializerTest : public testing::Test
+{
+protected:
+	virtual void SetUp() override
 	{
-		success = false;
-		printf("\n\nFailed copy-on-write json token building...\n\n");
+		t.str = "\\escapes\\ \" \n";
+		t.i = 3;
+		t.d = 2.5;
+		t.b = true;
+		t.c = 'f';
+		t.u = 32;
+
+		t.map["test"] = 0.000000000000000001;
+		t.map["test2"] = 10000000000000000000000.1;
+		t.map["test3"] = 1000000000.00000001;
+
+		t.intArray.push_back(1);
+		t.intArray.push_back(-2);
+		t.intArray.push_back(3);
+		t.intArray.push_back(-4);
+		t.intArray.push_back(5);
+
+		t.strArray.push_back("hi");
+		t.strArray.push_back("there");
+		t.strArray.push_back("y'all");
+
+		std::vector<int> nested;
+		nested.push_back(6);
+		nested.push_back(7);
+		nested.push_back(8);
+		nested.push_back(9);
+		nested.push_back(10);
+		t.nestedArray.push_back(nested);
 	}
 
-	// Test serialization...
-
 	TestType t;
-	t.str = "\\escapes\\ \" \n";
-	t.i = 3;
-	t.d = 2.5;
-	t.b = true;
-	t.c = 'f';
-	t.u = 32;
+};
 
-	t.map["test"] = 0.000000000000000001;
-	t.map["test2"] = 10000000000000000000000.1;
-	t.map["test3"] = 1000000000.00000001;
 
-	t.intArray.push_back(1);
-	t.intArray.push_back(-2);
-	t.intArray.push_back(3);
-	t.intArray.push_back(-4);
-	t.intArray.push_back(5);
-
-	t.strArray.push_back("hi");
-	t.strArray.push_back("there");
-	t.strArray.push_back("y'all");
-
-	std::vector<int> nested;
-	nested.push_back(6);
-	nested.push_back(7);
-	nested.push_back(8);
-	nested.push_back(9);
-	nested.push_back(10);
-	t.nestedArray.push_back(nested);
+TEST_F(JsonSerializerTest, SerializationWorks)
+{
+#ifdef _WIN32
+	sprawl::String expectedValue1 = "{ \"__version__\" : 0, \"t\" : { \"map\" : { \"test\" : 1.0000000000000001e-018, \"test2\" : 1e+022, \"test3\" : 1000000000 }, \"intArray\" : [ 1, -2, 3, -4, 5 ], \"strArray\" : [ \"hi\", \"there\", \"y'all\" ], \"nestedArray\" : [ [ 6, 7, 8, 9, 10 ] ], \"str\" : \"\\\\escapes\\\\ \\\" \\n\", \"i\" : 3, \"d\" : 2.5, \"b\" : true, \"c\" : \"f\", \"u\" : 32 } }";
+#else
+	sprawl::String expectedValue1 = "{ \"__version__\" : 0, \"t\" : { \"map\" : { \"test\" : 1.0000000000000000715e-18, \"test2\" : 1e+22, \"test3\" : 1000000000 }, \"intArray\" : [ 1, -2, 3, -4, 5 ], \"strArray\" : [ \"hi\", \"there\", \"y'all\" ], \"nestedArray\" : [ [ 6, 7, 8, 9, 10 ] ], \"str\" : \"\\\\escapes\\\\ \\\" \\n\", \"i\" : 3, \"d\" : 2.5, \"b\" : true, \"c\" : \"f\", \"u\" : 32 } }";
+#endif
 
 	sprawl::serialization::JSONSerializer s;
 
@@ -151,13 +165,16 @@ bool test_json()
 
 	sprawl::String str1 = s.Str();
 
-	if(str1 != expectedValue1)
-	{
-		success = false;
-		printf("\n\nFailed plain print...\n\n");
-		puts(str1.c_str());
-		puts(expectedValue1.c_str());
-	}
+	ASSERT_EQ(expectedValue1, str1);
+}
+
+TEST_F(JsonSerializerTest, PrettySerializationWorks)
+{
+#ifdef _WIN32
+	sprawl::String expectedValue2 = "{\n\t\"__version__\" : 0,\n\t\"map\" : {\n\t\t\"test\" : 1.0000000000000001e-018,\n\t\t\"test2\" : 1e+022,\n\t\t\"test3\" : 1000000000\n\t},\n\t\"intArray\" : [\n\t\t1,\n\t\t-2,\n\t\t3,\n\t\t-4,\n\t\t5\n\t],\n\t\"strArray\" : [\n\t\t\"hi\",\n\t\t\"there\",\n\t\t\"y'all\"\n\t],\n\t\"nestedArray\" : [\n\t\t[\n\t\t\t6,\n\t\t\t7,\n\t\t\t8,\n\t\t\t9,\n\t\t\t10\n\t\t]\n\t],\n\t\"str\" : \"\\\\escapes\\\\ \\\" \\n\",\n\t\"i\" : 3,\n\t\"d\" : 2.5,\n\t\"b\" : true,\n\t\"c\" : \"f\",\n\t\"u\" : 32\n}";
+#else
+	sprawl::String expectedValue2 = "{\n\t\"__version__\" : 0,\n\t\"map\" : {\n\t\t\"test\" : 1.0000000000000000715e-18,\n\t\t\"test2\" : 1e+22,\n\t\t\"test3\" : 1000000000\n\t},\n\t\"intArray\" : [\n\t\t1,\n\t\t-2,\n\t\t3,\n\t\t-4,\n\t\t5\n\t],\n\t\"strArray\" : [\n\t\t\"hi\",\n\t\t\"there\",\n\t\t\"y'all\"\n\t],\n\t\"nestedArray\" : [\n\t\t[\n\t\t\t6,\n\t\t\t7,\n\t\t\t8,\n\t\t\t9,\n\t\t\t10\n\t\t]\n\t],\n\t\"str\" : \"\\\\escapes\\\\ \\\" \\n\",\n\t\"i\" : 3,\n\t\"d\" : 2.5,\n\t\"b\" : true,\n\t\"c\" : \"f\",\n\t\"u\" : 32\n}";
+#endif
 
 	sprawl::serialization::JSONSerializer s2;
 	s2.SetPrettyPrint(true);
@@ -166,36 +183,40 @@ bool test_json()
 
 	sprawl::String str2 = s2.Str();
 
-	if(str2 != expectedValue2)
-	{
-		success = false;
-		printf("\n\nFailed pretty print...\n\n");
-		puts(str2.c_str());
-		puts(expectedValue2.c_str());
-	}
+	ASSERT_EQ(expectedValue2, str2);
+}
 
-	// Test deserialization...
+TEST_F(JsonSerializerTest, DeserializationWorks)
+{
+	sprawl::serialization::JSONSerializer s;
+
+	s % NAME_PROPERTY(t);
+
+	sprawl::String str1 = s.Str();
 
 	sprawl::serialization::JSONDeserializer d(str1);
-	sprawl::serialization::JSONDeserializer d2(str2);
 
 	TestType t1;
-	TestType t2;
 
 	d % sprawl::serialization::prepare_data(t1, "t");
+
+	ASSERT_EQ(t, t1);
+}
+
+TEST_F(JsonSerializerTest, PrettyDeserializationWorks)
+{
+	sprawl::serialization::JSONSerializer s2;
+	s2.SetPrettyPrint(true);
+
+	t.Serialize(s2);
+
+	sprawl::String str2 = s2.Str();
+
+	sprawl::serialization::JSONDeserializer d2(str2);
+
+	TestType t2;
+
 	t2.Serialize(d2);
 
-	if(t1 != t)
-	{
-		success = false;
-		printf("\n\nFailed deserialization...\n\n");
-	}
-
-	if(t2 != t)
-	{
-		success = false;
-		printf("\n\nFailed pretty deserialization...\n\n");
-	}
-
-	return success;
+	ASSERT_EQ(t, t2);
 }

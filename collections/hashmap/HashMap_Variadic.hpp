@@ -3,7 +3,7 @@
 #include "Hash.hpp"
 #include "../iterator/MapIterator.hpp"
 #include "../accessor/Accessors.hpp"
-#include "../accessor/AccessorGroup_Variadic.hpp"
+#include "../accessor/AccessorGroup_HashMap.hpp"
 #include "../../memory/PoolAllocator.hpp"
 #include "../../common/specialized.hpp"
 
@@ -27,7 +27,13 @@ namespace sprawl
 				typedef sprawl::memory::DynamicPoolAllocator<sizeof(mapped_type)> allocator;
 
 				template<typename RequestedKeyType>
-				inline void get(RequestedKeyType const&, Specialized<Idx>)
+				inline void Get(RequestedKeyType const&, Specialized<Idx>)
+				{
+					RequestedKeyType::error_invalid_key_index_combination();
+				}
+
+				template<typename RequestedKeyType>
+				inline void GetOrInsert(RequestedKeyType const&, Specialized<Idx>)
 				{
 					RequestedKeyType::error_invalid_key_index_combination();
 				}
@@ -51,7 +57,7 @@ namespace sprawl
 				}
 
 				template< typename RequestedKeyType>
-				inline void erase(RequestedKeyType const&, Specialized<Idx>)
+				inline void Erase(RequestedKeyType const&, Specialized<Idx>)
 				{
 					RequestedKeyType::error_invalid_key_index_combination();
 				}
@@ -87,32 +93,32 @@ namespace sprawl
 				}
 
 				template<typename RequestedKeyType>
-				inline void has(RequestedKeyType const&, Specialized<Idx>)
+				inline void Has(RequestedKeyType const&, Specialized<Idx>)
 				{
 					RequestedKeyType::error_invalid_key_index_combination();
 				}
 
-				inline size_t size()
+				inline size_t Size()
 				{
 					return m_size;
 				}
 
-				inline size_t bucketCount() const
+				inline size_t BucketCount() const
 				{
 					return m_bucketCount;
 				}
 
-				inline size_t bucketSize(int, Specialized<Idx>) const
+				inline size_t BucketSize(int, Specialized<Idx>) const
 				{
 					return ValueType::error_invalid_index();
 				}
 
-				inline bool empty()
+				inline bool Empty()
 				{
 					return m_size == 0;
 				}
 
-				void clear()
+				void Clear()
 				{
 					mapped_type* ptr_next = nullptr;
 					for (mapped_type* ptr = m_first; ptr != nullptr; ptr = ptr_next)
@@ -124,9 +130,10 @@ namespace sprawl
 
 					m_first = nullptr;
 					m_last = nullptr;
+					m_size = 0;
 				}
 
-				void rehash()
+				void Rehash()
 				{
 					for (mapped_type* ptr = m_first; ptr != nullptr; ptr = ptr->next)
 					{
@@ -136,12 +143,12 @@ namespace sprawl
 
 				virtual ~HashMap_Impl()
 				{
-					clear();
+					Clear();
 				}
 
 			protected:
 
-				inline bool check_and_insert_(mapped_type* newItem)
+				inline bool checkAndInsert_(mapped_type* newItem)
 				{
 					insert_(newItem);
 					return true;
@@ -195,6 +202,8 @@ namespace sprawl
 					{
 						item->next->prev = item->prev;
 					}
+					--m_size;
+					allocator::free(item);
 				}
 
 				HashMap_Impl(size_t startingBucketCount)
@@ -245,14 +254,60 @@ namespace sprawl
 				typedef MapIterator<ValueType, mapped_type> const const_iterator;
 				typedef sprawl::memory::DynamicPoolAllocator<sizeof(mapped_type)> allocator;
 
-				using Base::get;
-				inline ValueType& get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
+				using Base::Get;
+				inline ValueType& Get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
 				{
-					return get_(key)->m_value;
+					return get_(key)->Value();
 				}
-				inline ValueType const& get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const
+				inline ValueType const& Get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const
 				{
-					return get_(key)->m_value;
+					return get_(key)->Value();
+				}
+
+				using Base::GetOrInsert;
+				inline ValueType& GetOrInsert(typename Accessor::key_type const& key, ValueType const& defaultValue, Specialized<Idx> = Specialized<Idx>())
+				{
+					auto it = find(key, spec);
+					if(it.Valid())
+					{
+						return it.Value();
+					}
+					return this->Insert(key, defaultValue).Value();
+				}
+
+				inline ValueType& GetOrInsert(typename Accessor::key_type const& key, ValueType&& defaultValue, Specialized<Idx> = Specialized<Idx>())
+				{
+					auto it = find(key, spec);
+					if(it.Valid())
+					{
+						return it.Value();
+					}
+					return this->Insert(key, std::move(defaultValue)).Value();
+				}
+
+				inline ValueType& GetOrInsert(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
+				{
+					auto it = find(key, spec);
+					if(it.Valid())
+					{
+						return it.Value();
+					}
+					return this->Insert(key, ValueType()).Value();
+				}
+
+				inline ValueType const& GetOrInsert(typename Accessor::key_type const& key, ValueType const& defaultValue, Specialized<Idx> = Specialized<Idx>()) const
+				{
+					return const_cast<HashMap_Impl*>(this)->GetOrInsert(key, defaultValue, spec);
+				}
+
+				inline ValueType const& GetOrInsert(typename Accessor::key_type const& key, ValueType&& defaultValue, Specialized<Idx> = Specialized<Idx>()) const
+				{
+					return const_cast<HashMap_Impl*>(this)->GetOrInsert(key, std::move(defaultValue), spec);
+				}
+
+				inline ValueType const& GetOrInsert(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>()) const
+				{
+					return const_cast<HashMap_Impl*>(this)->GetOrInsert(key, spec);
 				}
 
 				using Base::find;
@@ -274,14 +329,14 @@ namespace sprawl
 					return const_iterator(ret);
 				}
 
-				using Base::has;
-				inline bool has(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
+				using Base::Has;
+				inline bool Has(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
 				{
 					return get_(key) != nullptr;
 				}
 
 				template<int index>
-				inline int bucketSize(int i, Specialized<Idx> spec = Specialized<Idx>()) const
+				inline int BucketSize(int i, Specialized<Idx> spec = Specialized<Idx>()) const
 				{
 					int ret = 0;
 					mapped_type *item = m_thisKeyTable[i];
@@ -293,37 +348,37 @@ namespace sprawl
 					return ret;
 				}
 
-				inline void clear()
+				inline void Clear()
 				{
 					for (size_t i = 0; i < this->m_bucketCount; ++i)
 					{
 						m_thisKeyTable[i] = nullptr;
 					}
-					Base::clear();
+					Base::Clear();
 				}
 
 				template<typename... Params>
-				inline iterator insert(ValueType const& val, Params... keys)
+				inline iterator Insert(Params&&... keysAndValue)
 				{
 					mapped_type* newItem = (mapped_type*)allocator::alloc();
-					::new((void*)newItem) mapped_type(val, keys...);
+					::new((void*)newItem) mapped_type(std::forward<Params>(keysAndValue)...);
 
-					if(!check_and_insert_(newItem))
+					if(this->m_size > (this->m_bucketCount*0.5))
+					{
+						Reserve(this->m_bucketCount * 2 + 1);
+					}
+
+					if(!checkAndInsert_(newItem))
 					{
 						newItem->~mapped_type();
 						allocator::free(newItem);
 						return iterator(nullptr);
 					}
 
-					if(this->m_size > (this->m_bucketCount*0.5))
-					{
-						reserve(this->m_bucketCount * 2 + 1);
-					}
-
 					return iterator(newItem);
 				}
 
-				inline void reserve(size_t newBucketCount)
+				inline void Reserve(size_t newBucketCount)
 				{
 					reserve_(newBucketCount);
 
@@ -334,14 +389,14 @@ namespace sprawl
 					}
 				}
 
-				inline void rehash()
+				inline void Rehash()
 				{
 					rehash_();
-					Base::rehash();
+					Base::Rehash();
 				}
 
-				using Base::erase;
-				inline void erase(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
+				using Base::Erase;
+				inline void Erase(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
 				{
 					erase_(get_(key));
 				}
@@ -392,7 +447,6 @@ namespace sprawl
 
 				inline void nullout_(mapped_type* item)
 				{
-					Specialized<Idx> spec;
 					item->SetNext(spec, nullptr);
 					item->SetPrev(spec, nullptr);
 					Base::nullout_(item);
@@ -400,20 +454,19 @@ namespace sprawl
 
 				inline void reinsert_(mapped_type* newItem)
 				{
-					insert_here_(newItem);
+					insertHere_(newItem);
 					Base::reinsert_(newItem);
 				}
 
 				inline void insert_(mapped_type* newItem)
 				{
-					insert_here_(newItem);
+					insertHere_(newItem);
 					Base::insert_(newItem);
 				}
 
-				bool check_and_insert_(mapped_type* newItem)
+				bool checkAndInsert_(mapped_type* newItem)
 				{
-					Specialized<Idx> spec;
-					typename Accessor::key_type const& key = newItem->Accessor(spec).GetKey();
+					typename Accessor::key_type const& key = newItem->Accessor(spec).Key();
 
 					size_t hash = hash_(key);
 					newItem->SetHash(spec, hash);
@@ -422,7 +475,7 @@ namespace sprawl
 					mapped_type* hashMatch = m_thisKeyTable[index];
 					while (hashMatch)
 					{
-						if(hashMatch->Accessor(spec).GetKey() == key)
+						if(hashMatch->Accessor(spec).Key() == key)
 							return hashMatch;
 						hashMatch = hashMatch->Next(spec);
 					}
@@ -432,18 +485,17 @@ namespace sprawl
 						return false;
 					}
 
-					if(!Base::check_and_insert_(newItem))
+					if(!Base::checkAndInsert_(newItem))
 					{
 						return false;
 					}
 
-					insert_here_(newItem, index);
+					insertHere_(newItem, index);
 					return true;
 				}
 
 				void erase_(mapped_type* item)
 				{
-					Specialized<Idx> spec;
 					mapped_type* prev = item->Prev(spec);
 					mapped_type* next = item->Next(spec);
 
@@ -465,25 +517,14 @@ namespace sprawl
 
 
 			private:
-				inline void insert_here_(mapped_type* newItem)
+				inline void insertHere_(mapped_type* newItem)
 				{
-					Specialized<Idx> spec;
 					size_t idx = newItem->GetHash(spec) % this->m_bucketCount;
-
-					mapped_type* next = m_thisKeyTable[idx];
-					newItem->SetNext(spec, next);
-					if(next != nullptr)
-					{
-						next->SetPrev(spec, newItem);
-					}
-					m_thisKeyTable[idx] = newItem;
-					newItem->SetIndex(spec, idx);
+					insertHere_(newItem, idx);
 				}
 
-				inline void insert_here_(mapped_type* newItem, size_t idx)
+				inline void insertHere_(mapped_type* newItem, size_t idx)
 				{
-					Specialized<Idx> spec;
-
 					mapped_type* next = m_thisKeyTable[idx];
 					newItem->SetNext(spec, next);
 					if(next != nullptr)
@@ -496,13 +537,12 @@ namespace sprawl
 
 				inline mapped_type* get_(typename Accessor::key_type const& key)
 				{
-					Specialized<Idx> spec;
 					size_t hash = hash_(key);
 					size_t idx = hash % this->m_bucketCount;
 					mapped_type* hashMatch = m_thisKeyTable[idx];
 					while(hashMatch)
 					{
-						if(hashMatch->GetHash(spec) == hash && hashMatch->Accessor(spec).GetKey() == key)
+						if(hashMatch->GetHash(spec) == hash && hashMatch->Accessor(spec).Key() == key)
 							return hashMatch;
 						hashMatch = hashMatch->Next(spec);
 					}
@@ -511,13 +551,12 @@ namespace sprawl
 
 				inline mapped_type const* get_(typename Accessor::key_type const& key) const
 				{
-					Specialized<Idx> spec;
 					size_t hash = hash_(key);
 					size_t idx = hash % this->m_bucketCount;
 					mapped_type* hashMatch = m_thisKeyTable[idx];
 					while(hashMatch)
 					{
-						if(hashMatch->GetHash(spec) == hash && hashMatch->Accessor(spec).GetKey() == key)
+						if(hashMatch->GetHash(spec) == hash && hashMatch->Accessor(spec).Key() == key)
 							return hashMatch;
 						hashMatch = hashMatch->Next(spec);
 					}
@@ -531,7 +570,6 @@ namespace sprawl
 
 				void rehash_()
 				{
-					Specialized<Idx> spec;
 					for (size_t i = 0; i < this->m_bucketCount; ++i)
 					{
 						mapped_type* item = m_thisKeyTable[i];
@@ -546,29 +584,81 @@ namespace sprawl
 					}
 				}
 
-				struct EnsureKeyUnique{};
 				mapped_type** m_thisKeyTable;
+				static Specialized<Idx> spec;
 			};
+
+			template< typename ValueType, typename mapped_type, size_t Idx, typename Accessor, typename... AdditionalAccessors >
+			/*static*/ Specialized<Idx> HashMap_Impl<ValueType, mapped_type, Idx, Accessor, AdditionalAccessors...>::spec;
 		}
 
 		template< typename ValueType, typename... Accessors >
-		class HashMap : public detail::HashMap_Impl<ValueType, detail::AccessorGroup<ValueType, Accessors...>, 0, Accessors...>
+		class HashMap : public detail::HashMap_Impl<ValueType, detail::MapAccessorGroup<ValueType, Accessors...>, 0, Accessors...>
 		{
 		public:
-			typedef detail::HashMap_Impl<ValueType, detail::AccessorGroup<ValueType, Accessors...>, 0, Accessors...> Base;
-			typedef detail::AccessorGroup<ValueType, Accessors...> mapped_type;
+			typedef detail::HashMap_Impl<ValueType, detail::MapAccessorGroup<ValueType, Accessors...>, 0, Accessors...> Base;
+			typedef detail::MapAccessorGroup<ValueType, Accessors...> mapped_type;
 
-			using Base::get;
+			using Base::Get;
 			template<int i, typename T2>
-			inline ValueType& get(T2 const& val)
+			inline ValueType& Get(T2 const& key)
 			{
-				return get(val, Specialized<i>());
+				return Get(key, Specialized<i>());
 			}
 
 			template<int i, typename T2>
-			inline ValueType const& get(T2 const& val) const
+			inline ValueType const& Get(T2 const& key) const
 			{
-				return get(val, Specialized<i>());
+				return Get(key, Specialized<i>());
+			}
+
+			using Base::GetOrInsert;
+			template<int i, typename T2>
+			inline ValueType& GetOrInsert(T2 const& key, ValueType const& defaultValue)
+			{
+				return GetOrInsert(key, defaultValue, Specialized<i>());
+			}
+
+			template<int i, typename T2>
+			inline ValueType const& GetOrInsert(T2 const& key, ValueType const& defaultValue) const
+			{
+				return GetOrInsert(key, defaultValue, Specialized<i>());
+			}
+
+			template<int i, typename T2>
+			inline ValueType& GetOrInsert(T2 const& key, ValueType&& defaultValue)
+			{
+				return GetOrInsert(key, std::move(defaultValue), Specialized<i>());
+			}
+
+			template<int i, typename T2>
+			inline ValueType const& GetOrInsert(T2 const& key, ValueType&& defaultValue) const
+			{
+				return GetOrInsert(key, std::move(defaultValue), Specialized<i>());
+			}
+
+			template<int i, typename T2>
+			inline ValueType& GetOrInsert(T2 const& key)
+			{
+				return GetOrInsert(key, Specialized<i>());
+			}
+
+			template<int i, typename T2>
+			inline ValueType const& GetOrInsert(T2 const& key) const
+			{
+				return GetOrInsert(key, Specialized<i>());
+			}
+
+			template<typename T2>
+			inline ValueType& operator[](T2 const& key)
+			{
+				return GetOrInsert(key);
+			}
+
+			template<typename T2>
+			inline ValueType const& operator[](T2 const& key) const
+			{
+				return GetOrInsert(key);
 			}
 			
 			using Base::find;
@@ -591,30 +681,30 @@ namespace sprawl
 				return cfind(val, Specialized<i>());
 			}
 			
-			using Base::has;
+			using Base::Has;
 			template<int i, typename T2>
-			inline bool has(T2 const& val)
+			inline bool Has(T2 const& val)
 			{
-				return has(val, Specialized<i>());
+				return Has(val, Specialized<i>());
 			}
 			
-			using Base::erase;
+			using Base::Erase;
 			template<int i, typename T2>
-			inline void erase(T2 const& val)
+			inline void Erase(T2 const& val)
 			{
-				return erase(val, Specialized<i>());
+				return Erase(val, Specialized<i>());
 			}
 
 			HashMap(size_t startingBucketCount = 256)
 				: Base(startingBucketCount)
 			{
-				Base::reserve(startingBucketCount);
+				Base::Reserve(startingBucketCount);
 			}
 
 			HashMap(HashMap const& other)
 				: Base(other)
 			{
-				Base::reserve(this->m_bucketCount);
+				Base::Reserve(this->m_bucketCount);
 				for (mapped_type* ptr = other.m_first; ptr; ptr = ptr->next)
 				{
 					mapped_type* newPtr = (mapped_type*)Base::allocator::alloc();
@@ -626,15 +716,15 @@ namespace sprawl
 			HashMap(HashMap&& other)
 				: Base(std::move(other))
 			{
-				other.reserve(other.m_bucketCount);
+				other.Reserve(other.m_bucketCount);
 			}
 
 			HashMap& operator=(HashMap const& other)
 			{
-				Base::clear();
+				Base::Clear();
 				this->m_bucketCount = other.m_bucketCount;
 				this->m_size = other.m_size;
-				Base::reserve(this->m_bucketCount);
+				Base::Reserve(this->m_bucketCount);
 				for (mapped_type* ptr = other.m_first; ptr; ptr = ptr->next)
 				{
 					mapped_type* newPtr = (mapped_type*)Base::allocator::alloc();

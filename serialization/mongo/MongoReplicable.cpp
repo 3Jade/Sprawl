@@ -4,20 +4,20 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		void MongoReplicableSerializer::StartArray(const String& name, uint32_t& size, bool b)
+		void MongoReplicableSerializer::StartArray(String const& name, uint32_t& size, bool b)
 		{
 			ReplicableSerializer<MongoSerializer>::StartArray(name, size, b);
 			m_allArrays.insert(m_current_key);
 		}
 
-		uint32_t MongoReplicableSerializer::StartObject(const String& name, bool b)
+		uint32_t MongoReplicableSerializer::StartObject(String const& name, bool b)
 		{
 			uint32_t ret = ReplicableSerializer<MongoSerializer>::StartObject(name, b);
 			m_allObjs.insert(m_current_key);
 			return ret;
 		}
 
-		uint32_t MongoReplicableSerializer::StartMap(const String& name, bool b)
+		uint32_t MongoReplicableSerializer::StartMap(String const& name, bool b)
 		{
 			uint32_t ret = ReplicableSerializer<MongoSerializer>::StartMap(name, b);
 			m_allObjs.insert(m_current_key);
@@ -54,7 +54,7 @@ namespace sprawl
 			m_array_tracker.clear();
 		}
 
-		void MongoReplicableSerializer::PushKey(const String& name, bool forArray)
+		void MongoReplicableSerializer::PushKey(String const& name, bool forArray)
 		{
 			bool parentIsArray = false;
 			if(!m_current_key.empty() && m_current_key[m_current_key.size() - 2] < 0)
@@ -102,15 +102,15 @@ namespace sprawl
 			ReplicableSerializer<MongoSerializer>::PopKey();
 		}
 
-		std::vector<mongo::BSONObj> MongoReplicableSerializer::BuildDelta(const MongoReplicableSerializer::BuildDeltaParams& params)
+		std::vector<mongo::BSONObj> MongoReplicableSerializer::BuildDelta(MongoReplicableSerializer::BuildDeltaParams const& params)
 		{
-			const ReplicationBSONMap& objs = params.objs;
-			const ReplicationMap& data = params.data;
-			const ReplicationMap& markedData = params.markedData;
-			const ReplicationSet& allArrays = params.allArrays;
-			const ReplicationSet& markedArrays = params.markedArrays;
-			const ReplicationSet& allObjs = params.allObjs;
-			const ReplicationSet& markedObjs = params.markedObjs;
+			ReplicationBSONMap const& objs = params.objs;
+			ReplicationMap const& data = params.data;
+			ReplicationMap const& markedData = params.markedData;
+			ReplicationSet const& allArrays = params.allArrays;
+			ReplicationSet const& markedArrays = params.markedArrays;
+			ReplicationSet const& allObjs = params.allObjs;
+			ReplicationSet const& markedObjs = params.markedObjs;
 
 			mongo::BSONObjBuilder updateQuery;
 
@@ -218,7 +218,7 @@ namespace sprawl
 					&currentObject,
 					&rootObjects
 					] (
-					const ReplicationKey& keyToBuild,
+					ReplicationKey const& keyToBuild,
 					bool newObj,
 					bool removal
 					)
@@ -615,7 +615,7 @@ namespace sprawl
 			return std::move(ret);
 		}
 
-		void MongoReplicableSerializer::serialize(mongo::Date_t* var, const String& name, bool PersistToDB)
+		void MongoReplicableSerializer::serialize(mongo::Date_t* var, String const& name, bool PersistToDB)
 		{
 			this->m_serializer->Reset();
 			this->PushKey(name);
@@ -631,7 +631,7 @@ namespace sprawl
 			this->PopKey();
 		}
 
-		void MongoReplicableSerializer::serialize(mongo::BSONObj* var, const String& name, bool PersistToDB)
+		void MongoReplicableSerializer::serialize(mongo::BSONObj* var, String const& name, bool PersistToDB)
 		{
 			this->m_serializer->Reset();
 			this->PushKey(name);
@@ -647,7 +647,7 @@ namespace sprawl
 			this->PopKey();
 		}
 
-		void MongoReplicableSerializer::serialize(mongo::OID* var, const String& name, bool PersistToDB)
+		void MongoReplicableSerializer::serialize(mongo::OID* var, String const& name, bool PersistToDB)
 		{
 			this->m_serializer->Reset();
 			this->PushKey(name);
@@ -663,7 +663,7 @@ namespace sprawl
 			this->PopKey();
 		}
 
-		void MongoReplicableDeserializer::serialize(mongo::OID* var, const String& name, bool PersistToDB)
+		void MongoReplicableDeserializer::serialize(mongo::OID* var, String const& name, bool PersistToDB)
 		{
 			m_serializer->Reset();
 			PushKey(name);

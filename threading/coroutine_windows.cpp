@@ -12,7 +12,7 @@ namespace CoroutineStatic
 	}
 }
 
-sprawl::threading::Coroutine::Holder::Holder()
+sprawl::threading::CoroutineBase::Holder::Holder()
 	: m_function(nullptr)
 	, m_stackSize(0)
 	, m_stack(nullptr)
@@ -28,7 +28,7 @@ sprawl::threading::Coroutine::Holder::Holder()
 	m_stackPointer = GetCurrentFiber();
 }
 
-sprawl::threading::Coroutine::Holder::Holder(std::function<void()> function, size_t /*stackSize*/)
+sprawl::threading::CoroutineBase::Holder::Holder(std::function<void()> function, size_t /*stackSize*/)
 	: m_function(function)
 	, m_stackSize(0)
 	, m_stack(nullptr)
@@ -37,10 +37,10 @@ sprawl::threading::Coroutine::Holder::Holder(std::function<void()> function, siz
 	, m_refCount(1)
 	, m_priorCoroutine(nullptr)
 {
-	m_stackPointer = CreateFiberEx(0, m_stackSize, 0, &CoroutineStatic::EntryPoint, &Coroutine::entryPoint_);
+	m_stackPointer = CreateFiberEx(0, m_stackSize, 0, &CoroutineStatic::EntryPoint, &CoroutineBase::entryPoint_);
 }
 
-void sprawl::threading::Coroutine::Resume()
+void sprawl::threading::CoroutineBase::Resume()
 {
 	m_holder->m_state = CoroutineState::Executing;
 
@@ -54,17 +54,18 @@ void sprawl::threading::Coroutine::Resume()
 	SwitchToFiber(m_holder->m_stackPointer);
 }
 
-void sprawl::threading::Coroutine::reactivate_()
+void sprawl::threading::CoroutineBase::reactivate_()
 {
 	m_holder->m_state = CoroutineState::Executing;
 
-	Coroutine currentlyActiveCoroutine = *ms_thisThreadCoroutine;
+	CoroutineBase currentlyActiveCoroutine = *ms_thisThreadCoroutine;
 	ms_thisThreadCoroutine = *this;
 
+	currentlyActiveCoroutine.releaseRef_();
 	SwitchToFiber(m_holder->m_stackPointer);
 }
 
-void sprawl::threading::Coroutine::Pause()
+void sprawl::threading::CoroutineBase::Pause()
 {
 	m_holder->m_state = CoroutineState::Paused;
 

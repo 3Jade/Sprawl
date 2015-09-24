@@ -17,8 +17,8 @@ class sprawl::collections::List
 {
 public:
 	typedef detail::ListItem<T> ItemType;
-	typedef ListIterator<T, ItemType> iterator;
-	typedef ListIterator<T, ItemType> const const_iterator;
+	typedef ListIterator<T, ItemType, std::bidirectional_iterator_tag> iterator;
+	typedef ListIterator<T, ItemType, std::bidirectional_iterator_tag> const const_iterator;
 
 	List()
 		: m_first(nullptr)
@@ -36,8 +36,8 @@ public:
 	    ItemType* item = other.m_first;
 	    while(item)
 	    {
-		PushBack(item->m_value);
-		item = item->next;
+			PushBack(item->m_value);
+			item = item->next;
 	    }
 	}
 
@@ -122,6 +122,7 @@ public:
 		m_first = item->next;
 		m_first->prev = nullptr;
 		delete item;
+		--m_size;
 	}
 
 	void PopBack()
@@ -130,20 +131,21 @@ public:
 		m_last = item->prev;
 		m_last->next = nullptr;
 		delete item;
+		--m_size;
 	}
 
 	void Insert(const_iterator& insertAfter, T const& item)
 	{
 		ItemType* newItem = new ItemType(item);
-		ItemType* insertAfterItem = insertAfter.m_currentItem;
-		insertAfter_(newItem, insertAfterItem);
+		ItemType* insertItem = insertAfter.m_currentItem;
+		insertBefore_(newItem, insertItem);
 	}
 
 	void Insert(const_iterator& insertAfter, T&& item)
 	{
 		ItemType* newItem = new ItemType(std::move(item));
-		ItemType* insertAfterItem = insertAfter.m_currentItem;
-		insertAfter_(newItem, insertAfterItem);
+		ItemType* insertItem = insertAfter.m_currentItem;
+		insertBefore_(newItem, insertItem);
 	}
 
 	void Erase(const_iterator& iter)
@@ -183,12 +185,22 @@ public:
 		return m_size == 0;
 	}
 
-	T& front()
+	T& Front()
 	{
 		return m_first->m_value;
 	}
 
-	T& back()
+	T& Back()
+	{
+		return m_last->m_value;
+	}
+
+	T const& Front() const
+	{
+		return m_first->m_value;
+	}
+
+	T const& Back() const
 	{
 		return m_last->m_value;
 	}

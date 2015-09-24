@@ -141,17 +141,17 @@ namespace sprawl
 		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
 		SerializerBase& SerializerBase::operator%(SerializationData<class MongoSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
 		SerializerBase& SerializerBase::operator%(SerializationData<class MongoDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		void SerializerBase::StartArray(const sprawl::String& , uint32_t&, bool){}
+		void SerializerBase::StartArray(sprawl::String const& , uint32_t&, bool){}
 		void SerializerBase::EndArray(){}
-		uint32_t SerializerBase::StartObject(const sprawl::String& , bool){ return 0; }
+		uint32_t SerializerBase::StartObject(sprawl::String const& , bool){ return 0; }
 		void SerializerBase::EndObject(){}
-		uint32_t SerializerBase::StartMap(const sprawl::String& s, bool b){ return StartObject(s, b); }
+		uint32_t SerializerBase::StartMap(sprawl::String const& s, bool b){ return StartObject(s, b); }
 		void SerializerBase::EndMap(){ EndObject(); }
 		sprawl::String SerializerBase::GetNextKey(){ return ""; }
 
-		SerializerBase::StringSet SerializerBase::GetDeletedKeys(const sprawl::String&){ return StringSet(); }
+		SerializerBase::StringSet SerializerBase::GetDeletedKeys(sprawl::String const&){ return StringSet(); }
 
-		SerializerBase* SerializerBase::GetAnother(const sprawl::String&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
+		SerializerBase* SerializerBase::GetAnother(sprawl::String const&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
 		SerializerBase* SerializerBase::GetAnother(){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 

@@ -2,6 +2,11 @@
 #include "../time/time.hpp"
 #include <time.h>
 
+#ifdef __APPLE__
+#include <sched.h>
+#	define pthread_yield sched_yield
+#endif
+
 namespace ThreadStatic
 {
 	static void* EntryPoint(void *data)
@@ -20,6 +25,7 @@ int64_t sprawl::threading::Handle::GetUniqueId() const
 void sprawl::threading::Thread::Start()
 {
 	int result = pthread_create(&m_handle.GetNativeHandle(), nullptr, &ThreadStatic::EntryPoint, this);
+#ifndef __APPLE__
 	if(result == 0)
 	{
 		if(m_threadName != nullptr)
@@ -27,6 +33,7 @@ void sprawl::threading::Thread::Start()
 			pthread_setname_np(m_handle.GetNativeHandle(), m_threadName);
 		}
 	}
+#endif
 }
 
 void sprawl::threading::Thread::PlatformJoin()

@@ -1,5 +1,8 @@
 #include "../serialization/mongo/MongoReplicable.hpp"
 
+#include "gtest_printers.hpp"
+#include <gtest/gtest.h>
+
 struct TestStruct1
 {
 	TestStruct1()
@@ -38,9 +41,8 @@ struct TestStruct2
 	std::vector<TestStruct1> vect;
 };
 
-bool test_mongo_replicable()
+TEST(MongoReplicable, RemovingArrayWithNestedArrayInsideNestedObjectWorks)
 {
-	bool success = true;
 	TestStruct2 t( { TestStruct1({1, 2, 3}), TestStruct1({4, 5, 6}) } );
 
 	sprawl::serialization::MongoReplicableSerializer m;
@@ -55,29 +57,29 @@ bool test_mongo_replicable()
 
 	std::vector<mongo::BSONObj> deltas = m.generateUpdateQuery();
 
-#define ASSERT(condition, message, ...) if(!(!(condition))==false){ success = false; printf(message, ## __VA_ARGS__); printf("\n..."); }
+	EXPECT_EQ(size_t(3), deltas.size()) << "Test case should have returned three queries.";
 
-	ASSERT(deltas.size() == 3, "Test case should have returned three queries.");
-	ASSERT(
-		deltas[0].jsonString(mongo::TenGen) ==
+	if(deltas.size() >= 1)
+	{
+		EXPECT_EQ(
 			R"raw({ "$unset" : { "t.vect.0.vect.2" : "", "t.vect.1" : "" } })raw",
-			"Test case returned invalid first query. Should have been:\n\n\t"
-			R"raw({ "$unset" : { "t.vect.0.vect.2" : "", "t.vect.1" : "" } })raw"
-			"\n\nGot:\n\n\t%s",
-			deltas[0].jsonString(mongo::TenGen).c_str());
-	ASSERT(
-		deltas[1].jsonString(mongo::TenGen) ==
+			deltas[0].jsonString(mongo::TenGen)
+		) << "Invalid first query";
+	}
+
+	if(deltas.size() >= 2)
+	{
+		EXPECT_EQ(
 			R"raw({ "$pull" : { "t.vect.0.vect" : null } })raw",
-			"Test case returned invalid second query Should have been:\n\n\t"
-			R"raw({ "$pull" : { "t.vect.0.vect" : null } })raw"
-			"\n\nGot:\n\n\t%s",
-			deltas[1].jsonString(mongo::TenGen).c_str());
-	ASSERT(
-		deltas[2].jsonString(mongo::TenGen) ==
+			deltas[1].jsonString(mongo::TenGen)
+		) << "Invalid second query";
+	}
+
+	if(deltas.size() >= 3)
+	{
+		EXPECT_EQ(
 			R"raw({ "$pull" : { "t.vect" : null } })raw",
-			"Test case returned invalid third query Should have been:\n\n\t"
-			R"raw({ "$pull" : { "t.vect" : null } })raw"
-			"\n\nGot:\n\n\t%s",
-			deltas[2].jsonString(mongo::TenGen).c_str());
-	return success;
+			deltas[2].jsonString(mongo::TenGen)
+		) << "Invalid third query";
+	}
 }

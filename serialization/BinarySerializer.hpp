@@ -79,86 +79,86 @@ namespace sprawl
 			void serialize_impl(void* var, const uint32_t bytes, bool /*PersistToDB*/);
 
 		public:
-			virtual void serialize(int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB)  override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override
 			{
 				serialize_impl(reinterpret_cast<void*>(var), bytes, PersistToDB);
 			}
 
-			virtual void serialize(std::string* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override;
+			virtual void serialize(std::string* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override;
 
-			virtual void serialize(sprawl::String* var, const uint32_t bytes, const sprawl::String&, bool PersistToDB) override;
+			virtual void serialize(sprawl::String* var, const uint32_t bytes, sprawl::String const&, bool PersistToDB) override;
 		protected:
 
 			BinarySerializerBase();
 			virtual ~BinarySerializerBase();
 		private:
-			BinarySerializerBase(const SerializerBase&);
-			BinarySerializerBase& operator=(const SerializerBase&);
+			BinarySerializerBase(SerializerBase const&);
+			BinarySerializerBase& operator=(SerializerBase const&);
 		};
 
 		class BinarySerializer : public BinarySerializerBase, public Serializer
@@ -199,7 +199,7 @@ namespace sprawl
 
 			virtual ~BinarySerializer();
 		protected:
-			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override;
+			virtual SerializerBase* GetAnother(sprawl::String const& /*data*/) override;
 			virtual SerializerBase* GetAnother() override;
 		};
 
@@ -233,15 +233,15 @@ namespace sprawl
 			virtual SerializerBase& operator%(SerializationData<Deserializer>&& var) override;
 			virtual SerializerBase& operator%(SerializationData<BinaryDeserializer>&& var) override;
 
-			virtual void Data(const sprawl::String& str) override;
+			virtual void Data(sprawl::String const& str) override;
 
 			virtual void Data(const char* data, size_t length) override;
 
-			BinaryDeserializer(const sprawl::String& data);
+			BinaryDeserializer(sprawl::String const& data);
 
 			BinaryDeserializer(const char* data, size_t length);
 
-			BinaryDeserializer(const sprawl::String& data, bool);
+			BinaryDeserializer(sprawl::String const& data, bool);
 
 			BinaryDeserializer(const char* data, size_t length, bool);
 
@@ -251,7 +251,7 @@ namespace sprawl
 
 			virtual ~BinaryDeserializer();
 
-			virtual SerializerBase* GetAnother(const sprawl::String& data) override;
+			virtual SerializerBase* GetAnother(sprawl::String const& data) override;
 			virtual SerializerBase* GetAnother() override;
 		private:
 		};

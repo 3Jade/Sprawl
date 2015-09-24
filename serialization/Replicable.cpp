@@ -6,13 +6,13 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		ReplicationKey::ReplicationKey(const sprawl::serialization::ReplicationKey& other)
+		ReplicationKey::ReplicationKey(sprawl::serialization::ReplicationKey const& other)
 			: m_size(other.m_size)
 		{
 			memcpy( m_data, other.m_data, sizeof(int32_t) * other.m_size );
 		}
 
-		bool ReplicationKey::operator==(const ReplicationKey& other) const
+		bool ReplicationKey::operator==(ReplicationKey const& other) const
 		{
 			if( m_size != other.m_size )
 			{
@@ -21,7 +21,7 @@ namespace sprawl
 			return (memcmp( m_data, other.m_data, sizeof(int32_t) * m_size ) == 0);
 		}
 
-		bool ReplicationKey::operator<(const ReplicationKey& other) const
+		bool ReplicationKey::operator<(ReplicationKey const& other) const
 		{
 			uint32_t size = (m_size < other.m_size ? m_size : other.m_size);
 
@@ -58,7 +58,7 @@ namespace sprawl
 			s.EndArray();
 		}
 
-		bool StartsWith(const ReplicationKey& x, const ReplicationKey& y)
+		bool StartsWith(ReplicationKey const& x, ReplicationKey const& y)
 		{
 			uint32_t xsize = x.size();
 			uint32_t ysize = y.size();

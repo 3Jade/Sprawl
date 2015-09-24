@@ -29,6 +29,11 @@ public:
 
 	Mutex();
 	~Mutex();
+	Mutex(Mutex&& other)
+		: m_mutexImpl(other.m_mutexImpl)
+	{
+		other.m_mutexImpl = MutexType();
+	}
 
 	MutexType& GetNativeMutex() { return m_mutexImpl; }
 private:

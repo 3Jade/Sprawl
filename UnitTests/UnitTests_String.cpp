@@ -5,6 +5,9 @@
 #include "../string/String.hpp"
 #include "../collections/HashMap.hpp"
 
+#include "gtest_printers.hpp"
+#include <gtest/gtest.h>
+
 struct TestStruct{};
 
 sprawl::StringBuilder& operator<<(sprawl::StringBuilder& builder, TestStruct const&)
@@ -13,42 +16,48 @@ sprawl::StringBuilder& operator<<(sprawl::StringBuilder& builder, TestStruct con
 	return builder;
 }
 
-bool test_string()
-{
-	bool success = true;
+TestStruct t;
 
-	TestStruct t;
+TEST(StringTest, FormatWorks_AllNumbers)
+{
 	sprawl::String str = sprawl::String(sprawl::StringLiteral("{0:03}, {1}, {2}, {3}, {4}")).format(30LL, true, "foo", t, &t);
 
-	if(str != "030, True, foo, TestStruct, TestStruct")
-	{
-		printf("Failed format test ('%s' != '030, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
-		success = false;
-	}
+	EXPECT_EQ(sprawl::String("030, True, foo, TestStruct, TestStruct"), str);
+}
 
-	str = sprawl::String(sprawl::StringLiteral("{:03}, {}, {}, {}, {}")).format(30LL, true, "foo", t, &t);
+#ifndef _WIN32
+TEST(StringTest, FormatLiteralWorks)
+{
+	sprawl::String str = "{0:03}, {1}, {2}, {3}, {4}"_format(30LL, true, "foo", t, &t);
 
-	if (str != "030, True, foo, TestStruct, TestStruct")
-	{
-		printf("Failed format test ('%s' != '030, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
-		success = false;
-	}
+	EXPECT_EQ(sprawl::String("030, True, foo, TestStruct, TestStruct"), str);
+}
+#endif
 
-	str = sprawl::String(sprawl::StringLiteral("{0:03}, {1}, {2}, {}, {}")).format(30LL, true, "foo", t, &t);
+TEST(StringTest, FormatWorks_AllEmpty)
+{
+	sprawl::String str = sprawl::String(sprawl::StringLiteral("{:03}, {}, {}, {}, {}")).format(30LL, true, "foo", t, &t);
 
-	if (str != "030, True, foo, TestStruct, TestStruct")
-	{
-		printf("Failed format test ('%s' != '030, True, foo, TestStruct, TestStruct'')\n... ", str.c_str());
-		success = false;
-	}
+	EXPECT_EQ(sprawl::String("030, True, foo, TestStruct, TestStruct"), str);
+}
 
-	str = sprawl::String(sprawl::StringLiteral("{4}, {3}, {2}, {1}, {0:03}")).format(30LL, true, "foo", t, &t);
+TEST(StringTest, FormatWorks_Mixed)
+{
+	sprawl::String str = sprawl::String(sprawl::StringLiteral("{0:03}, {1}, {2}, {}, {}")).format(30LL, true, "foo", t, &t);
 
-	if (str != "TestStruct, TestStruct, foo, True, 030")
-	{
-		printf("Failed format test ('%s' != 'TestStruct, TestStruct, foo, True, 030'')\n... ", str.c_str());
-		success = false;
-	}
+	EXPECT_EQ(sprawl::String("030, True, foo, TestStruct, TestStruct"), str);
+}
 
-	return success;
+TEST(StringTest, FormatWorks_BackwardNumbers)
+{
+	sprawl::String str = sprawl::String(sprawl::StringLiteral("{4}, {3}, {2}, {1}, {0:03}")).format(30LL, true, "foo", t, &t);
+
+	EXPECT_EQ(sprawl::String("TestStruct, TestStruct, foo, True, 030"), str);
+}
+
+TEST(StringTest, FormatWorks_RepeatNumbers)
+{
+	sprawl::String str = sprawl::String(sprawl::StringLiteral("{4}, {1}, {3}, {2}, {1}, {4}, {0:03}")).format(30LL, true, "foo", t, &t);
+
+	EXPECT_EQ(sprawl::String("TestStruct, True, TestStruct, foo, True, TestStruct, 030"), str);
 }

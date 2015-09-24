@@ -10,7 +10,7 @@ namespace sprawl
 	{
 		JSONToken JSONToken::staticEmpty(JSONToken::JSONType::Empty);
 
-		const JSONToken& JSONToken::operator[](sprawl::String const& key) const
+		JSONToken const& JSONToken::operator[](sprawl::String const& key) const
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
@@ -27,7 +27,7 @@ namespace sprawl
 			return *it.Value();
 		}
 
-		const JSONToken& JSONToken::operator[](size_t index) const
+		JSONToken const& JSONToken::operator[](size_t index) const
 		{
 			if( m_holder->m_type != JSONType::Array || index >= m_holder->m_arrayChildren->size() )
 			{
@@ -53,7 +53,7 @@ namespace sprawl
 				new (newToken) JSONToken(JSONType::Empty);
 				newToken->m_key = StringData( key.c_str(), key.length() );
 				newToken->m_key.CommitStorage();
-				newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+				newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 				return *newToken;
 			}
 
@@ -77,7 +77,7 @@ namespace sprawl
 			{
 			case JSONType::Object:
 			{
-				return m_holder->m_objectChildren->size();
+				return m_holder->m_objectChildren->Size();
 			}
 			case JSONType::Array:
 			{
@@ -206,11 +206,11 @@ namespace sprawl
 			new (newToken) JSONToken(token);
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, unsigned long long value)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, unsigned long long value)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -222,11 +222,11 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::Integer, value);
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, long long value)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, long long value)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -238,11 +238,11 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::Integer, value);
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, long double value)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, long double value)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -254,11 +254,11 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::Double, value);
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, bool value)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, bool value)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -270,11 +270,11 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::Boolean, value);
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, const char* const value)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, const char* const value)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -286,11 +286,11 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::String, sprawl::String(value));
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, const char* const value, size_t length)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, const char* const value, size_t length)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -302,11 +302,11 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::String, sprawl::String(value, length) );
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
-		JSONToken& JSONToken::Insert(const sprawl::String& name, const sprawl::String& value)
+		JSONToken& JSONToken::Insert(sprawl::String const& name, sprawl::String const& value)
 		{
 			EnsureOwnership();
 			if( m_holder->m_type != JSONType::Object )
@@ -318,7 +318,7 @@ namespace sprawl
 			new (newToken) JSONToken(JSONType::String, value );
 			newToken->m_key = StringData(name.c_str(), name.length());
 			newToken->m_key.CommitStorage();
-			newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+			newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 			return *newToken;
 		}
 
@@ -427,7 +427,7 @@ namespace sprawl
 					outString << " ";
 				}
 				bool first = true;
-				for( auto kvp = m_holder->m_objectChildren->begin(); kvp != m_holder->m_objectChildren->end(); ++kvp )
+				for( auto kvp : *m_holder->m_objectChildren )
 				{
 					if(kvp.Value()->IsEmpty())
 					{
@@ -551,13 +551,13 @@ namespace sprawl
 
 		/// TODO PERFORMANCE: Replace sprawl::String here with a non-ref-counted string class that will simply store a pointer and a length with no allocations
 
-		void JSONToken::SkipWhitespace(const char*& data)
+		void JSONToken::SkipWhitespace(char const*& data)
 		{
 			while(*data == ' ' || *data == '\t' || *data == '\n' || *data == '\r')
 				++data;
 		}
 
-		void JSONToken::CollectString(const char*& data)
+		void JSONToken::CollectString(char const*& data)
 		{
 			++data;
 
@@ -572,7 +572,7 @@ namespace sprawl
 			++data;
 		}
 
-		void JSONToken::ParseString(const char*& data)
+		void JSONToken::ParseString(char const*& data)
 		{
 			char const* startPoint = data + 1;
 
@@ -581,7 +581,7 @@ namespace sprawl
 			m_holder->m_data = StringData(startPoint, data - startPoint - 1);
 		}
 
-		void JSONToken::ParseNumber(const char*& data)
+		void JSONToken::ParseNumber(char const*& data)
 		{
 			char const* startPoint = data;
 
@@ -589,37 +589,37 @@ namespace sprawl
 			{
 				switch( *data )
 				{
-				case '-':
-				case '+':
-				case '0':
-				case '1':
-				case '2':
-				case '3':
-				case '4':
-				case '5':
-				case '6':
-				case '7':
-				case '8':
-				case '9':
-				{
-					++data;
-					break;
-				}
-				case '.':
-				case 'e':
-				case 'E':
-				{
-					if( m_holder->m_type == JSONType::Integer )
+					case '-':
+					case '+':
+					case '0':
+					case '1':
+					case '2':
+					case '3':
+					case '4':
+					case '5':
+					case '6':
+					case '7':
+					case '8':
+					case '9':
 					{
-						m_holder->m_type = JSONType::Double;
+						++data;
+						break;
 					}
-					++data;
-				break;
-				}
-				default:
-				{
-					goto Done;
-				}
+					case '.':
+					case 'e':
+					case 'E':
+					{
+						if( m_holder->m_type == JSONType::Integer )
+						{
+							m_holder->m_type = JSONType::Double;
+						}
+						++data;
+					break;
+					}
+					default:
+					{
+						goto Done;
+					}
 				}
 			}
 
@@ -628,7 +628,7 @@ namespace sprawl
 			m_holder->m_data = StringData(startPoint, data - startPoint);
 		}
 
-		void JSONToken::ParseBool(const char*& data)
+		void JSONToken::ParseBool(char const*& data)
 		{
 			if(
 				*data == 't'
@@ -664,7 +664,7 @@ namespace sprawl
 			return;
 		}
 
-		void JSONToken::ParseArray(const char*& data)
+		void JSONToken::ParseArray(char const*& data)
 		{
 			++data;
 
@@ -746,7 +746,7 @@ namespace sprawl
 			}
 		}
 
-		void JSONToken::ParseObject(const char*& data)
+		void JSONToken::ParseObject(char const*& data)
 		{
 			++data;
 
@@ -798,14 +798,14 @@ namespace sprawl
 				{
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( key, data, JSONType::Object );
-					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 					break;
 				}
 				case '[':
 				{
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( key, data, JSONType::Array );
-					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 					break;
 				}
 				case '-':
@@ -822,14 +822,14 @@ namespace sprawl
 				{
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( key, data, JSONType::Integer );
-					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 					break;
 				}
 				case '\"':
 				{
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( key, data, JSONType::String );
-					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 					break;
 				}
 				case 't':
@@ -837,14 +837,14 @@ namespace sprawl
 				{
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( key, data, JSONType::Boolean );
-					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 					break;
 				}
 				case 'n':
 				{
 					JSONToken* newToken = JSONToken::Create();
 					new (newToken) JSONToken( JSONType::Null );
-					newToken->m_holder->m_iter = m_holder->m_objectChildren->insert( newToken );
+					newToken->m_holder->m_iter = m_holder->m_objectChildren->Insert( newToken );
 #ifdef SPRAWL_STRICT_JSON
 					if(*(data + 1) != 'u' || *(data + 2) != 'l' || *(data + 3) != 'l')
 					{
@@ -880,7 +880,7 @@ namespace sprawl
 			}
 		}
 
-		JSONToken::JSONToken(StringData const& myKey, const char*& data, JSONToken::JSONType expectedType)
+		JSONToken::JSONToken(StringData const& myKey, char const*& data, JSONToken::JSONType expectedType)
 			: m_holder(Holder::Create())
 			, m_key(myKey)
 		{
@@ -911,7 +911,7 @@ namespace sprawl
 			::new(m_holder) Holder(JSONType::Empty);
 		}
 
-		JSONToken::JSONToken(const JSONToken& other)
+		JSONToken::JSONToken(JSONToken const& other)
 			: m_holder(other.m_holder)
 			, m_key(nullptr, 0)
 		{
@@ -935,7 +935,7 @@ namespace sprawl
 						JSONToken* newToken = JSONToken::Create();
 						new (newToken) JSONToken(*kvp.Value());
 						newToken->m_key = kvp.Key();
-						newToken->m_holder->m_iter = newHolder->m_objectChildren->insert( newToken );
+						newToken->m_holder->m_iter = newHolder->m_objectChildren->Insert( newToken );
 					}
 				}
 				DecRef();
@@ -943,7 +943,7 @@ namespace sprawl
 			}
 		}
 
-		JSONToken& JSONToken::operator=(const JSONToken& other)
+		JSONToken& JSONToken::operator=(JSONToken const& other)
 		{
 			m_holder = other.m_holder;
 			IncRef();
@@ -1165,7 +1165,7 @@ namespace sprawl
 			return staticEmpty;
 		}
 
-		const JSONToken& JSONToken::NextSibling() const
+		JSONToken const& JSONToken::NextSibling() const
 		{
 			if(m_holder->m_iter.More())
 			{
@@ -1222,7 +1222,7 @@ namespace sprawl
 			{
 				for(auto& child : *m_objectChildren)
 				{
-					JSONToken::Free(child);
+					JSONToken::Free(child.Value());
 				}
 				m_objectChildren->~TokenMap();
 				mapAlloc::free(m_objectChildren);

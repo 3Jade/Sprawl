@@ -17,13 +17,23 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const GetKey()
+		inline KeyType const Key() const
 		{
 			return (m_value.*function)();
 		}
 
-		ValueType& m_value;
+		inline ValueType& Value()
+		{
+			return m_value;
+		}
+
+		inline ValueType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		ValueType& m_value;
 		MemberAccessor& operator=(MemberAccessor const&);
 	};
 	template<typename ValueType, typename KeyType, KeyType(ValueType::*function)() const>
@@ -39,13 +49,23 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const GetKey()
+		inline KeyType const Key() const
 		{
 			return (m_value.*function)();
 		}
 
-		ValueType& m_value;
+		inline ValueType& Value()
+		{
+			return m_value;
+		}
+
+		inline ValueType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		ValueType& m_value;
 		ConstMemberAccessor& operator=(ConstMemberAccessor const&);
 	};
 
@@ -62,13 +82,23 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const GetKey()
+		inline KeyType const Key() const
 		{
 			return ((*m_value).*function)();
 		}
 
-		PointerType& m_value;
+		inline PointerType& Value()
+		{
+			return m_value;
+		}
+
+		inline PointerType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		PointerType& m_value;
 		PtrMemberAccessor& operator=(PtrMemberAccessor const&);
 	};
 
@@ -86,13 +116,23 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const GetKey()
+		inline KeyType const Key() const
 		{
 			return ((*m_value).*function)();
 		}
 
-		PointerType& m_value;
+		inline PointerType& Value()
+		{
+			return m_value;
+		}
+
+		inline PointerType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		PointerType& m_value;
 		PtrConstMemberAccessor& operator=(PtrConstMemberAccessor const&);
 	};
 
@@ -109,13 +149,23 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const GetKey()
+		inline KeyType const Key() const
 		{
 			return (*function)(&m_value);
 		}
 
-		ValueType& m_value;
+		inline ValueType& Value()
+		{
+			return m_value;
+		}
+
+		inline ValueType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		ValueType& m_value;
 		FunctionAccessor& operator=(FunctionAccessor const&);
 	};
 
@@ -132,13 +182,23 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const GetKey()
+		inline KeyType const Key() const
 		{
 			return (*function)(&(*m_value));
 		}
 
-		PointerType& m_value;
+		inline PointerType& Value()
+		{
+			return m_value;
+		}
+
+		inline PointerType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		PointerType& m_value;
 		PtrFunctionAccessor& operator=(PtrFunctionAccessor const&);
 	};
 
@@ -156,14 +216,24 @@ namespace sprawl
 			//
 		}
 
-		inline KeyType const& GetKey()
+		inline KeyType const& Key() const
 		{
 			return m_key;
 		}
 
+		inline ValueType& Value()
+		{
+			return m_value;
+		}
+
+		inline ValueType const& Value() const
+		{
+			return m_value;
+		}
+
+	private:
 		KeyType m_key;
 		ValueType& m_value;
-	private:
 		KeyAccessor& operator=(KeyAccessor const&);
 	};
 
@@ -180,13 +250,23 @@ namespace sprawl
 			//
 		}
 
-		inline ValueType const& GetKey()
+		inline ValueType const& Key() const
 		{
 			return m_value;
 		}
 
-		ValueType& m_value;
+		inline ValueType& Value()
+		{
+			return m_value;
+		}
+
+		inline ValueType const& Value() const
+		{
+			return m_value;
+		}
+
 	private:
+		ValueType& m_value;
 		SelfAccessor& operator=(SelfAccessor const&);
 	};
 
@@ -196,7 +276,7 @@ namespace sprawl
 		typedef void* key_type;
 		struct arg_type {};
 
-		inline void* GetKey()
+		inline void* Key()
 		{
 			return nullptr;
 		}

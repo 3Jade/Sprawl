@@ -8,18 +8,18 @@
 #ifdef _WIN32
 #	undef Yield
 #else
-#	include <ucontext.h>
+	#ifdef __APPLE__
+		#include <sys/ucontext.h>
+	#else
+		#include <ucontext.h>
+	#endif
 #endif
-
-///TODO:
-/// - Get rid of std::shared_ptr, make coroutines have shared data instead
-/// - Get rid of std::function, allow Start() to accept function parameters
-/// - Windows implementation
 
 namespace sprawl
 {
 	namespace threading
 	{
+		class CoroutineBase;
 		class Coroutine;
 
 		template<typename SendType, typename ReceiveType>
@@ -30,7 +30,7 @@ namespace sprawl
 	}
 }
 
-class sprawl::threading::Coroutine
+class sprawl::threading::CoroutineBase
 {
 public:
 
@@ -53,14 +53,13 @@ public:
 	template<typename ReceiveType>
 	static void Yield(ReceiveType const& value);
 
-	Coroutine();
-	Coroutine(std::function<void ()> function, size_t stackSize = 0);
+	CoroutineBase();
 
-	Coroutine(Coroutine const& other);
+	CoroutineBase(CoroutineBase const& other);
 
-	Coroutine& operator=(Coroutine const& other);
+	CoroutineBase& operator=(CoroutineBase const& other);
 
-	virtual ~Coroutine();
+	virtual ~CoroutineBase();
 
 	void Start() { Resume(); }
 	void Pause();
@@ -71,21 +70,23 @@ public:
 
 	CoroutineState State();
 protected:
-	static ThreadLocal<Coroutine*> ms_coroutineInitHelper;
-	static ThreadLocal<Coroutine> ms_thisThreadCoroutine;
+	static ThreadLocal<CoroutineBase*> ms_coroutineInitHelper;
+	static ThreadLocal<CoroutineBase> ms_thisThreadCoroutine;
 
 	static void entryPoint_();
 	void run_();
 	void reactivate_();
+	void releaseRef_();
 
 	struct Holder;
 
-	explicit Coroutine(Holder* holder);
+	explicit CoroutineBase(Holder* holder);
 
 	Holder* m_holder;
+	bool m_ownsHolder;
 };
 
-struct sprawl::threading::Coroutine::Holder
+struct sprawl::threading::CoroutineBase::Holder
 {
 	void IncRef();
 	bool DecRef();
@@ -102,7 +103,7 @@ struct sprawl::threading::Coroutine::Holder
 
 	std::atomic<int> m_refCount;
 
-	Coroutine m_priorCoroutine;
+	CoroutineBase m_priorCoroutine;
 
 	static Holder* Create(std::function<void()> function, size_t stackSize);
 	static Holder* Create();
@@ -114,20 +115,64 @@ protected:
 	Holder(std::function<void()> function, size_t stackSize);
 };
 
+class sprawl::threading::Coroutine : public sprawl::threading::CoroutineBase
+{
+public:
+	Coroutine()
+		: CoroutineBase()
+	{
+		//
+	}
+
+	Coroutine(std::function<void ()> function, size_t stackSize = 0)
+		: CoroutineBase(CoroutineBase::Holder::Create(function, stackSize))
+	{
+		//
+	}
+
+	template<
+		typename Callable,
+		typename... Params,
+		typename = typename std::enable_if<
+			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+		>::type
+	>
+	Coroutine(Callable && callable, Params &&... params)
+		: CoroutineBase(CoroutineBase::Holder::Create(std::bind(std::forward<Callable>(callable), std::forward<Params>(params)...), 0))
+	{
+		//
+	}
+};
+
 template<typename SendType, typename ReceiveType>
-class sprawl::threading::CoroutineWithChannel : public sprawl::threading::Coroutine
+class sprawl::threading::CoroutineWithChannel : public sprawl::threading::CoroutineBase
 {
 public:
 	CoroutineWithChannel(std::function<void ()> function, size_t stackSize = 0)
-		: Coroutine(ChannelHolder::Create(function, stackSize))
+		: CoroutineBase(ChannelHolder::Create(function, stackSize))
 	{
 		// NOP
 	}
 
-	CoroutineWithChannel(Coroutine const& other)
-		: Coroutine(other)
+	CoroutineWithChannel(CoroutineBase const& other)
+		: CoroutineBase(other)
 	{
 		// NOP
+	}
+
+	template<
+		typename Callable,
+		typename... Params,
+		typename = typename std::enable_if<
+			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+		>::type
+	>
+	CoroutineWithChannel(Callable && callable, Params &&... params)
+		: CoroutineBase(ChannelHolder::Create(std::bind(std::forward<Callable>(callable), std::forward<Params>(params)...), 0))
+	{
+		//
 	}
 
 	SendType& Receive(ReceiveType const& value)
@@ -181,7 +226,7 @@ public:
 
 private:
 
-	struct ChannelHolder : public Coroutine::Holder
+	struct ChannelHolder : public CoroutineBase::Holder
 	{
 		static ChannelHolder* Create(std::function<void()> function, size_t stackSize)
 		{
@@ -214,19 +259,33 @@ private:
 };
 
 template<typename SendType>
-class sprawl::threading::CoroutineWithChannel<SendType, void> : public sprawl::threading::Coroutine
+class sprawl::threading::CoroutineWithChannel<SendType, void> : public sprawl::threading::CoroutineBase
 {
 public:
 	CoroutineWithChannel(std::function<void ()> function, size_t stackSize = 0)
-		: Coroutine(ChannelHolder::Create(function, stackSize))
+		: CoroutineBase(ChannelHolder::Create(function, stackSize))
 	{
 		// NOP
 	}
 
-	CoroutineWithChannel(Coroutine const& other)
-		: Coroutine(other)
+	CoroutineWithChannel(CoroutineBase const& other)
+		: CoroutineBase(other)
 	{
 		// NOP
+	}
+
+	template<
+		typename Callable,
+		typename... Params,
+		typename = typename std::enable_if<
+			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+		>::type
+	>
+	CoroutineWithChannel(Callable && callable, Params &&... params)
+		: CoroutineBase(ChannelHolder::Create(std::bind(std::forward<Callable>(callable), std::forward<Params>(params)...), 0))
+	{
+		//
 	}
 
 	SendType& Receive()
@@ -247,7 +306,7 @@ public:
 		Resume();
 	}
 
-	using Coroutine::operator();
+	using CoroutineBase::operator();
 
 	void operator()(SendType const& value)
 	{
@@ -261,7 +320,7 @@ public:
 
 private:
 
-	struct ChannelHolder : public Coroutine::Holder
+	struct ChannelHolder : public CoroutineBase::Holder
 	{
 		static ChannelHolder* Create(std::function<void()> function, size_t stackSize = 0)
 		{
@@ -292,19 +351,33 @@ private:
 };
 
 template<typename ReceiveType>
-class sprawl::threading::CoroutineWithChannel<void, ReceiveType> : public sprawl::threading::Coroutine
+class sprawl::threading::CoroutineWithChannel<void, ReceiveType> : public sprawl::threading::CoroutineBase
 {
 public:
 	CoroutineWithChannel(std::function<void ()> function, size_t stackSize = 0)
-		: Coroutine(ChannelHolder::Create(function, stackSize))
+		: CoroutineBase(ChannelHolder::Create(function, stackSize))
 	{
 		// NOP
 	}
 
-	CoroutineWithChannel(Coroutine const& other)
-		: Coroutine(other)
+	CoroutineWithChannel(CoroutineBase const& other)
+		: CoroutineBase(other)
 	{
 		// NOP
+	}
+
+	template<
+		typename Callable,
+		typename... Params,
+		typename = typename std::enable_if<
+			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+		>::type
+	>
+	CoroutineWithChannel(Callable && callable, Params &&... params)
+		: CoroutineBase(ChannelHolder::Create(std::bind(std::forward<Callable>(callable), std::forward<Params>(params)...), 0))
+	{
+		//
 	}
 
 	void Yield(ReceiveType const& value)
@@ -321,7 +394,7 @@ public:
 
 	ReceiveType& Resume()
 	{
-		Coroutine::Resume();
+		CoroutineBase::Resume();
 		return reinterpret_cast<ChannelHolder*>(m_holder)->m_receivedValue;
 	}
 
@@ -336,7 +409,7 @@ public:
 	}
 
 private:
-	struct ChannelHolder : public Coroutine::Holder
+	struct ChannelHolder : public CoroutineBase::Holder
 	{
 		static ChannelHolder* Create(std::function<void()> function, size_t stackSize)
 		{
@@ -367,31 +440,31 @@ private:
 };
 
 template<>
-class sprawl::threading::CoroutineWithChannel<void, void> : public sprawl::threading::Coroutine
+class sprawl::threading::CoroutineWithChannel<void, void> : public sprawl::threading::CoroutineBase
 {
 
 };
 
 template<typename SendType, typename ReceiveType>
-/*static*/ SendType& sprawl::threading::Coroutine::Receive(ReceiveType const& value)
+/*static*/ SendType& sprawl::threading::CoroutineBase::Receive(ReceiveType const& value)
 {
-	Coroutine crt = *Coroutine::ms_thisThreadCoroutine;
-	CoroutineWithChannel<SendType, ReceiveType> withChannel = crt;
+	CoroutineWithChannel<SendType, ReceiveType> withChannel = *CoroutineBase::ms_thisThreadCoroutine;
+	withChannel.releaseRef_();
 	return withChannel.Receive(value);
 }
 
 template<typename SendType>
-/*static*/ SendType& sprawl::threading::Coroutine::Receive()
+/*static*/ SendType& sprawl::threading::CoroutineBase::Receive()
 {
-	Coroutine crt = *Coroutine::ms_thisThreadCoroutine;
-	CoroutineWithChannel<SendType, void> withChannel = crt;
+	CoroutineWithChannel<SendType, void> withChannel = *CoroutineBase::ms_thisThreadCoroutine;
+	withChannel.releaseRef_();
 	return withChannel.Receive();
 }
 
 template<typename ReceiveType>
-/*static*/ void sprawl::threading::Coroutine::Yield(ReceiveType const& value)
+/*static*/ void sprawl::threading::CoroutineBase::Yield(ReceiveType const& value)
 {
-	Coroutine crt = *Coroutine::ms_thisThreadCoroutine;
-	CoroutineWithChannel<void, ReceiveType> withChannel = crt;
+	CoroutineWithChannel<void, ReceiveType> withChannel = *CoroutineBase::ms_thisThreadCoroutine;
+	withChannel.releaseRef_();
 	withChannel.Yield(value);
 }

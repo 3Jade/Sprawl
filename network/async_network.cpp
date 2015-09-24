@@ -80,7 +80,7 @@ namespace sprawl
 			return ((sockaddr_in*)&m_dest)->sin_port;
 		}
 
-		void Connection::Send(const std::string& data, SendCallback onSendFunction /*= nullptr*/)
+		void Connection::Send(std::string const& data, SendCallback onSendFunction /*= nullptr*/)
 		{
 			//Store this data to be sent later on the network thread
 			std::lock_guard<std::mutex> lock(m_outDataMutex);
@@ -230,7 +230,7 @@ namespace sprawl
 			}
 		}
 
-		/*virtual*/ void UDPConnection::Send(const std::string& str, FailType behavior, SendCallback callback /*= nullptr*/) /*override final*/
+		/*virtual*/ void UDPConnection::Send(std::string const& str, FailType behavior, SendCallback callback /*= nullptr*/) /*override final*/
 		{
 			SPRAWL_LOG_TRACE("UDP: Request to send %d bytes of data, adding to queue", int(str.length()));
 			SendPacketWithID(str, behavior, ++m_currentId, callback);
@@ -517,7 +517,7 @@ namespace sprawl
 			}
 		}
 
-		UDPConnection::packet::packet(uint32_t _id, FailType _behavior, const std::string& _content, const std::string& header_)
+		UDPConnection::packet::packet(uint32_t _id, FailType _behavior, std::string const& _content, std::string const& header_)
 			: m_ID(_id)
 			, m_behavior(_behavior)
 			, m_content(_content)
@@ -534,7 +534,7 @@ namespace sprawl
 		{
 		}
 
-		UDPConnection::packet::packet(const UDPConnection::packet& other)
+		UDPConnection::packet::packet(UDPConnection::packet const& other)
 			: m_ID(other.m_ID)
 			, m_behavior(other.m_behavior)
 			, m_content(other.m_content)
@@ -542,7 +542,7 @@ namespace sprawl
 		{
 		}
 
-		UDPConnection::packet& UDPConnection::packet::operator=(const UDPConnection::packet& other)
+		UDPConnection::packet& UDPConnection::packet::operator=(UDPConnection::packet const& other)
 		{
 			m_ID = other.m_ID;
 			m_behavior = other.m_behavior;
@@ -551,7 +551,7 @@ namespace sprawl
 			return *this;
 		}
 
-		void UDPConnection::SendPacketWithID(const std::string& str, FailType behavior, int32_t sendid, SendCallback callback)
+		void UDPConnection::SendPacketWithID(std::string const& str, FailType behavior, int32_t sendid, SendCallback callback)
 		{
 			char header[3*sizeof(uint32_t)];
 			char* ptr = header;
@@ -1039,7 +1039,7 @@ namespace sprawl
 			freeaddrinfo(m_servInfo);
 		}
 
-		bool ClientSocket::Connect(const std::string& addr, int port)
+		bool ClientSocket::Connect(std::string const& addr, int port)
 		{
 			struct addrinfo* p;
 			if(port < 1 || port > 65535)

@@ -115,9 +115,9 @@ namespace sprawl
 			int GetPort();
 
 			//Send is asynchronous - data is passed in on the main thread and then sent on the network thread
-			virtual void Send(const std::string& data, SendCallback onSendFunction = nullptr);
+			virtual void Send(std::string const& data, SendCallback onSendFunction = nullptr);
 
-			virtual void Send(const std::string& str, FailType /*behavior*/, SendCallback callback = nullptr)
+			virtual void Send(std::string const& str, FailType /*behavior*/, SendCallback callback = nullptr)
 			{
 				Send(str, callback);
 			}
@@ -155,11 +155,11 @@ namespace sprawl
 		class UDPConnection : public Connection
 		{
 		public:
-			virtual void Send(const std::string& str, SendCallback callback = nullptr) override final
+			virtual void Send(std::string const& str, SendCallback callback = nullptr) override final
 			{
 				Send(str, FailType::ignore, callback);
 			}
-			virtual void Send(const std::string& str, FailType behavior, SendCallback callback = nullptr) override final;
+			virtual void Send(std::string const& str, FailType behavior, SendCallback callback = nullptr) override final;
 		protected:
 			friend class ServerSocket;
 			friend class ClientSocket;
@@ -179,10 +179,10 @@ namespace sprawl
 		private:
 			struct packet
 			{
-				packet(uint32_t _id, FailType _behavior, const std::string& _content, const std::string& header_);
+				packet(uint32_t _id, FailType _behavior, std::string const& _content, std::string const& header_);
 				packet(packet&& other);
-				packet(const packet& other);
-				packet& operator=(const packet& other);
+				packet(packet const& other);
+				packet& operator=(packet const& other);
 				uint32_t m_ID;
 				struct timeval m_sentTime;
 				FailType m_behavior;
@@ -201,7 +201,7 @@ namespace sprawl
 			struct timeval m_lastSent;
 			socklen_t m_slen;
 
-			void SendPacketWithID(const std::string& str, FailType behavior, int32_t sendid, SendCallback callback);
+			void SendPacketWithID(std::string const& str, FailType behavior, int32_t sendid, SendCallback callback);
 		};
 
 		//Asynchronous socket class
@@ -291,7 +291,7 @@ namespace sprawl
 
 			~ClientSocket();
 
-			bool Connect(const std::string& addr, int port);
+			bool Connect(std::string const& addr, int port);
 
 			bool Reconnect();
 
@@ -311,12 +311,12 @@ namespace sprawl
 				return m_con;
 			}
 
-			void Send(const std::string& str)
+			void Send(std::string const& str)
 			{
 				m_con->Send(str);
 			}
 
-			void Send(const std::string& str, FailType behavior)
+			void Send(std::string const& str, FailType behavior)
 			{
 				m_con->Send(str, behavior);
 			}

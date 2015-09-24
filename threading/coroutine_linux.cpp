@@ -1,9 +1,13 @@
+#include <sys/mman.h>
+#ifdef __APPLE__
+	#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+	#include <ucontext.h>
+#endif
+
 #include "coroutine.hpp"
 #include "threadlocal.hpp"
 
-#include <sys/mman.h>
-
-sprawl::threading::Coroutine::Holder::Holder()
+sprawl::threading::CoroutineBase::Holder::Holder()
 	: m_function(nullptr)
 	, m_stackSize(0)
 	, m_stack(nullptr)
@@ -18,7 +22,7 @@ sprawl::threading::Coroutine::Holder::Holder()
 	getcontext(&m_context);
 }
 
-sprawl::threading::Coroutine::Holder::Holder(std::function<void()> function, size_t stackSize)
+sprawl::threading::CoroutineBase::Holder::Holder(std::function<void()> function, size_t stackSize)
 	: m_function(function)
 	, m_stackSize(stackSize == 0 ? 1024 * 1024 : stackSize)
 	, m_stack(nullptr)
@@ -38,10 +42,10 @@ sprawl::threading::Coroutine::Holder::Holder(std::function<void()> function, siz
 	m_context.uc_stack.ss_sp = m_stack;
 	m_context.uc_stack.ss_size = m_stackSize;
 
-	makecontext(&m_context, &Coroutine::entryPoint_, 0);
+	makecontext(&m_context, &CoroutineBase::entryPoint_, 0);
 }
 
-void sprawl::threading::Coroutine::Resume()
+void sprawl::threading::CoroutineBase::Resume()
 {
 	m_holder->m_state = CoroutineState::Executing;
 
@@ -55,17 +59,18 @@ void sprawl::threading::Coroutine::Resume()
 	swapcontext(&m_holder->m_priorCoroutine.m_holder->m_context, &m_holder->m_context);
 }
 
-void sprawl::threading::Coroutine::reactivate_()
+void sprawl::threading::CoroutineBase::reactivate_()
 {
 	m_holder->m_state = CoroutineState::Executing;
 
-	Coroutine currentlyActiveCoroutine = *ms_thisThreadCoroutine;
+	CoroutineBase currentlyActiveCoroutine = *ms_thisThreadCoroutine;
 	ms_thisThreadCoroutine = *this;
+	currentlyActiveCoroutine.releaseRef_();
 
 	swapcontext(&currentlyActiveCoroutine.m_holder->m_context, &m_holder->m_context);
 }
 
-void sprawl::threading::Coroutine::Pause()
+void sprawl::threading::CoroutineBase::Pause()
 {
 	m_holder->m_state = CoroutineState::Paused;
 

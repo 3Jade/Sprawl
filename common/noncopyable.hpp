@@ -10,6 +10,6 @@ class sprawl::noncopyable
 public:
 	noncopyable() {}
 private:
-	noncopyable(const noncopyable& other);
-	noncopyable& operator=(const noncopyable& other);
+	noncopyable(noncopyable const& other);
+	noncopyable& operator=(noncopyable const& other);
 };

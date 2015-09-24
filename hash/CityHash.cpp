@@ -90,7 +90,7 @@ namespace sprawl
 				return val ^ (val >> 47);
 			}
 
-			static inline uint64_t Hash128to64(const uint128_t& x)
+			static inline uint64_t Hash128to64(uint128_t const& x)
 			{
 				const uint64_t kMul = 0x9ddfea08eb382d69ULL;
 				uint64_t a = (x.first ^ x.second) * kMul;

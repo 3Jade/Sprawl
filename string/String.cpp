@@ -68,7 +68,7 @@ namespace sprawl
 		}
 	}
 
-	String::Holder::Holder(const StringLiteral& literal)
+	String::Holder::Holder(StringLiteral const& literal)
 		: m_staticData()
 		, m_dynamicData(nullptr)
 		, m_data(literal.m_ptr)
@@ -94,8 +94,8 @@ namespace sprawl
 	{
 		typedef memory::DynamicPoolAllocator<sizeof(String::Holder)> holderAlloc;
 
-		return (String::Holder*)holderAlloc::alloc();
-
+		String::Holder* ret = (String::Holder*)holderAlloc::alloc();
+		return ret;
 	}
 
 	void String::Holder::FreeHolder(Holder* holder)
@@ -134,7 +134,7 @@ namespace sprawl
 		new (m_holder) Holder(data, length);
 	}
 
-	String::String(const String& other)
+	String::String(String const& other)
 		: m_holder(other.m_holder)
 	{
 		if(m_holder != &ms_emptyHolder)
@@ -150,13 +150,13 @@ namespace sprawl
 		other.m_holder = &ms_emptyHolder;
 	}
 
-	String::String(const std::string& stlString)
+	String::String(std::string const& stlString)
 		: m_holder(Holder::CreateHolder())
 	{
 		new (m_holder) Holder(stlString.c_str(), stlString.length());
 	}	
 
-	String::String(const StringLiteral& stringLiteral)
+	String::String(StringLiteral const& stringLiteral)
 		: m_holder(Holder::CreateHolder())
 	{
 		new (m_holder) Holder(stringLiteral);
@@ -170,7 +170,7 @@ namespace sprawl
 		}
 	}
 	
-	sprawl::String String::operator+(const sprawl::String& other) const
+	sprawl::String String::operator+(sprawl::String const& other) const
 	{
 		sprawl::String ret;
 		ret.m_holder = Holder::CreateHolder();
@@ -221,7 +221,7 @@ namespace sprawl
 		return std::move(ret);
 	}
 
-	sprawl::String& String::operator+=(const sprawl::String& other)
+	sprawl::String& String::operator+=(sprawl::String const& other)
 	{
 		Holder* newHolder = Holder::CreateHolder();
 		new (newHolder) Holder();
@@ -276,7 +276,7 @@ namespace sprawl
 		return *this;
 	}
 	
-	String& String::operator=(const String& other)
+	String& String::operator=(String const& other)
 	{
 		if(m_holder != &ms_emptyHolder && m_holder->DecRef())
 		{
@@ -305,7 +305,7 @@ namespace sprawl
 		return *this;
 	}
 	
-	bool String::operator<(const String& other) const
+	bool String::operator<(String const& other) const
 	{
 		if(m_holder == other.m_holder)
 		{
@@ -330,6 +330,15 @@ namespace sprawl
 			return left[i] < right[i];
 		}
 		return m_holder->m_length < other.m_holder->m_length;
+	}
+
+	String String::GetOwned() const
+	{
+		if (m_holder->m_data == m_holder->m_dynamicData || m_holder->m_data == m_holder->m_staticData)
+		{
+			return *this;
+		}
+		return String(m_holder->m_data, m_holder->m_length);
 	}
 
 	std::string String::toStdString() const

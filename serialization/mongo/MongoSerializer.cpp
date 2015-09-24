@@ -115,7 +115,7 @@ namespace sprawl
 			return *this;
 		}
 
-		uint32_t MongoSerializerBase::StartObject(const String& str, bool PersistToDB)
+		uint32_t MongoSerializerBase::StartObject(String const& str, bool PersistToDB)
 		{
 			if(m_disableDepth || !PersistToDB)
 			{
@@ -218,7 +218,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::StartArray(const String& str, uint32_t& size, bool PersistToDB)
+		void MongoSerializerBase::StartArray(String const& str, uint32_t& size, bool PersistToDB)
 		{
 			if(m_disableDepth || !PersistToDB)
 			{
@@ -374,7 +374,7 @@ namespace sprawl
 			delete m_builder;
 		}
 
-		void MongoSerializerBase::serialize(String* var, const uint32_t, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(String* var, const uint32_t, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -429,7 +429,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(std::string* var, const uint32_t, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(std::string* var, const uint32_t, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -484,7 +484,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(unsigned char* var, const uint32_t, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(unsigned char* var, const uint32_t, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -541,7 +541,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(unsigned short* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(unsigned short* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -629,7 +629,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(unsigned long long* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(unsigned long long* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -717,7 +717,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(unsigned long* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(unsigned long* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -805,7 +805,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(unsigned int* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(unsigned int* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -893,7 +893,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(bool* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(bool* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -981,7 +981,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(double* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(double* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1069,7 +1069,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(float* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(float* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1157,7 +1157,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(char* var, const uint32_t, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(char* var, const uint32_t, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1214,7 +1214,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(short* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(short* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1302,7 +1302,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(long long* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(long long* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1390,7 +1390,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(long* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(long* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1478,7 +1478,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(int* var, const uint32_t bytes, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(int* var, const uint32_t bytes, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1566,7 +1566,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(mongo::Date_t* var, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(mongo::Date_t* var, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1621,7 +1621,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(mongo::BSONObj* var, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(mongo::BSONObj* var, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{
@@ -1676,7 +1676,7 @@ namespace sprawl
 			}
 		}
 
-		void MongoSerializerBase::serialize(mongo::OID* var, const String& name, bool PersistToDB)
+		void MongoSerializerBase::serialize(mongo::OID* var, String const& name, bool PersistToDB)
 		{
 			if(!PersistToDB || m_disableDepth)
 			{

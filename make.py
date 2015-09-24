@@ -7,27 +7,25 @@ import platform
 
 import csbuild
 from csbuild import log
-from csbuild.toolchain_msvc import VisualStudioPackage
 
 csbuild.Toolchain("gcc").Compiler().SetCppStandard("c++11")
 csbuild.Toolchain("gcc").SetCxxCommand("clang++")
 
-csbuild.Toolchain("msvc").SetMsvcVersion(VisualStudioPackage.Vs2013)
-
-csbuild.Toolchain("gcc").Compiler().AddWarnFlags("all", "extra", "ctor-dtor-privacy", "old-style-cast", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "switch-enum", "undef")
+csbuild.Toolchain("gcc").Compiler().AddWarnFlags("all", "extra", "ctor-dtor-privacy", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "no-switch-enum", "undef", "no-old-style-cast")
 
 csbuild.DisablePrecompile()
 
 csbuild.AddOption("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
 csbuild.AddOption("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
-csbuild.AddOption("--vs-ver", action="store", default="vs2012", help="Visual studio version", choices=["vs2012", "vs2013"])
 csbuild.AddOption("--no-threads", action="store_true", help="Build without thread support")
+csbuild.AddOption("--no-unit-tests", action="store_true", help="Don't automatically run unit tests as part of build")
 csbuild.SetHeaderInstallSubdirectory("sprawl/{project.name}")
 
-if platform.system() == "Windows":
-	csbuild.SetUserData("subdir", csbuild.GetOption("vs_ver"))
-else:
-	csbuild.SetUserData("subdir", platform.system())
+csbuild.SetUserData("subdir", platform.system())
+
+if platform.system() == "Darwin":
+	csbuild.Toolchain("gcc").AddDefines("_XOPEN_SOURCE");
+	csbuild.Toolchain("gcc").SetCppStandardLibrary("libc++")
 
 csbuild.SetOutputDirectory("lib/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
 csbuild.SetIntermediateDirectory("Intermediate/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/{project.name}")
@@ -54,7 +52,8 @@ def collections():
 	csbuild.SetOutput("libsprawl_collections", csbuild.ProjectType.StaticLibrary)
 
 	csbuild.EnableHeaderInstall()
-	
+
+
 @csbuild.project("network", "network")
 def network():
 	csbuild.SetOutput("libsprawl_network", csbuild.ProjectType.StaticLibrary)
@@ -77,7 +76,12 @@ def timeProject():
 	csbuild.SetOutput("libsprawl_time", csbuild.ProjectType.StaticLibrary)
 
 	csbuild.Toolchain("gcc").AddExcludeFiles("time/*_windows.cpp")
-	csbuild.Toolchain("msvc").AddExcludeFiles("time/*_linux.cpp")
+	if platform.system() == "Darwin":
+		csbuild.Toolchain("gcc").AddExcludeFiles("time/*_linux.cpp")
+	else:
+		csbuild.Toolchain("gcc").AddExcludeFiles("time/*_osx.cpp")
+
+	csbuild.Toolchain("msvc").AddExcludeFiles("time/*_linux.cpp", "time/*_osx.cpp")
 
 	csbuild.EnableOutputInstall()
 	csbuild.EnableHeaderInstall()
@@ -98,10 +102,10 @@ def filesystem():
 def threading():
 	csbuild.SetOutput("libsprawl_threading", csbuild.ProjectType.StaticLibrary)
 
-	@csbuild.scope(csbuild.ScopeDef.Final)
-	def finalScope():
-		csbuild.Toolchain("gcc").Linker().AddLinkerFlags("-pthread")
-		csbuild.Toolchain("gcc").AddLibraries("pthread")
+	if platform.system() != "Darwin":
+		@csbuild.scope(csbuild.ScopeDef.Final)
+		def finalScope():
+			csbuild.Toolchain("gcc").Linker().AddLinkerFlags("-pthread")
 
 	csbuild.Toolchain("gcc").AddExcludeFiles("threading/*_windows.cpp")
 	csbuild.Toolchain("msvc").AddExcludeFiles("threading/*_linux.cpp")
@@ -160,6 +164,23 @@ def hash():
 	csbuild.EnableOutputInstall()
 	csbuild.EnableHeaderInstall()
 
+@csbuild.project("logging", "logging")
+def logging():
+	csbuild.SetOutput("libsprawl_logging", csbuild.ProjectType.StaticLibrary)
+
+	@csbuild.scope(csbuild.ScopeDef.Final)
+	def finalScope():
+		csbuild.Toolchain("gcc").AddLibraries(
+			"bfd",
+			"unwind",
+			"unwind-x86_64",
+		)
+
+	csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_windows.cpp")
+	csbuild.Toolchain("msvc").AddExcludeFiles("logging/*_linux.cpp")
+
+	csbuild.EnableOutputInstall()
+	csbuild.EnableHeaderInstall()
 
 @csbuild.project("common", "common")
 def common():
@@ -167,15 +188,36 @@ def common():
 
 	csbuild.EnableHeaderInstall()
 
-UnitTestDepends = ["serialization", "string", "hash", "time", "threading"]
+UnitTestDepends = ["serialization", "string", "hash", "time", "threading", "filesystem", "logging"]
 if MongoDir:
 	UnitTestDepends.append("serialization-mongo")
 
 @csbuild.project("UnitTests", "UnitTests", UnitTestDepends)
 def UnitTests():
+	csbuild.DisableChunkedBuild()
 	csbuild.SetOutput("SprawlUnitTest")
 	csbuild.SetOutputDirectory("bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
 	
+	csbuild.EnableOutputInstall()
+	
+	csbuild.AddIncludeDirectories(
+		"UnitTests/gtest",
+		"UnitTests/gtest/include",
+	)
+
+	csbuild.Toolchain("gcc").Compiler().AddWarnFlags("no-undef", "no-switch-enum", "no-missing-field-initializers")
+
+	csbuild.AddExcludeFiles(
+		"UnitTests/gtest/src/gtest-death-test.cc",
+		"UnitTests/gtest/src/gtest-filepath.cc",
+		"UnitTests/gtest/src/gtest-internal-inl.h",
+		"UnitTests/gtest/src/gtest-port.cc",
+		"UnitTests/gtest/src/gtest-printers.cc",
+		"UnitTests/gtest/src/gtest-test-part.cc",
+		"UnitTests/gtest/src/gtest-typed-test.cc",
+		"UnitTests/gtest/src/gtest.cc",
+	)
+
 	if MongoDir:
 		csbuild.AddIncludeDirectories(
 			"./serialization",
@@ -205,16 +247,17 @@ def UnitTests():
 			"UnitTests/UnitTests_MongoReplicable.cpp",
 		)
 
-	@csbuild.postMakeStep
-	def postMake(project):
-		unitTestExe = "bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
-		if platform.system() == "Windows":
-			time.sleep(2)
-		else:
-			while not os.access(unitTestExe, os.X_OK):
-				time.sleep(1)
+	if not csbuild.GetOption("no_unit_tests"):
+		@csbuild.postMakeStep
+		def postMake(project):
+			unitTestExe = "bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
+			if platform.system() == "Windows":
+				time.sleep(2)
+			else:
+				while not os.access(unitTestExe, os.X_OK):
+					time.sleep(1)
 
-		log.LOG_BUILD("Running unit tests...")
-		ret = subprocess.call([unitTestExe, "--all"]);
-		if ret != 0:
-			log.LOG_ERROR("Unit tests failed! Errors reported: {}".format(ret));
+			log.LOG_BUILD("Running unit tests...")
+			ret = subprocess.call([unitTestExe, "--all"]);
+			if ret != 0:
+				log.LOG_ERROR("Unit tests failed! Errors reported: {}".format(ret));
