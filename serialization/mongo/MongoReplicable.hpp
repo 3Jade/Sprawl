@@ -77,7 +77,7 @@ namespace sprawl
 
 		protected:
 			template<typename T2>
-			void serialize_impl( T2* var, const sprawl::String& name, bool PersistToDB)
+			void serialize_impl( T2* var, sprawl::String const& name, bool PersistToDB)
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -93,7 +93,7 @@ namespace sprawl
 				this->PopKey();
 			}
 
-			inline void serialize_impl(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB)
+			inline void serialize_impl(char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB)
 			{
 				this->m_serializer->Reset();
 				this->PushKey(name);
@@ -110,28 +110,28 @@ namespace sprawl
 			}
 
 		public:
-			virtual void serialize(mongo::OID* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::OID* var, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(mongo::BSONObj* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::BSONObj* var, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(mongo::Date_t* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::Date_t* var, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
@@ -145,82 +145,82 @@ namespace sprawl
 				return *this;
 			}
 
-			virtual void serialize(char* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
 				sprawl::String str(sprawl::StringRef(var, bytes));
 				serialize(&str, bytes, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
 		private:
-			virtual void PushKey(const sprawl::String& name, bool forArray = false) override;
+			virtual void PushKey(sprawl::String const& name, bool forArray = false) override;
 
 			virtual void PopKey() override;
 
 			struct BuildDeltaParams
 			{
-				const ReplicationBSONMap& objs;
-				const ReplicationMap& data;
-				const ReplicationMap& markedData;
-				const ReplicationSet& allArrays;
-				const ReplicationSet& markedArrays;
-				const ReplicationSet& allObjs;
-				const ReplicationSet& markedObjs;
+				ReplicationBSONMap const& objs;
+				ReplicationMap const& data;
+				ReplicationMap const& markedData;
+				ReplicationSet const& allArrays;
+				ReplicationSet const& markedArrays;
+				ReplicationSet const& allObjs;
+				ReplicationSet const& markedObjs;
 			};
 
-			std::vector<mongo::BSONObj> BuildDelta(const BuildDeltaParams& params);
+			std::vector<mongo::BSONObj> BuildDelta(BuildDeltaParams const& params);
 
 			ReplicationBSONMap m_objData;
 			ReplicationBSONMap m_markedObjData;
@@ -237,9 +237,9 @@ namespace sprawl
 		public:
 			using ReplicableDeserializer<MongoDeserializer>::serialize;
 
-			virtual void serialize(mongo::OID* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::OID* var, sprawl::String const& name, bool PersistToDB) override;
 
-			MongoReplicableDeserializer(const sprawl::String& data)
+			MongoReplicableDeserializer(sprawl::String const& data)
 				: ReplicableDeserializer<MongoDeserializer>(data)
 			{
 				//

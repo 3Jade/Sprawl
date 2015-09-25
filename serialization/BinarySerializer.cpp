@@ -164,7 +164,7 @@ namespace sprawl
 			}
 		}
 
-		void BinarySerializerBase::serialize(String* var, const uint32_t bytes, const String&, bool PersistToDB)
+		void BinarySerializerBase::serialize(String* var, const uint32_t bytes, String const&, bool PersistToDB)
 		{
 			if(IsLoading())
 			{
@@ -179,7 +179,7 @@ namespace sprawl
 			}
 		}
 
-		void BinarySerializerBase::serialize(std::string* var, const uint32_t bytes, const String&, bool PersistToDB)
+		void BinarySerializerBase::serialize(std::string* var, const uint32_t bytes, String const&, bool PersistToDB)
 		{
 			if(IsLoading())
 			{
@@ -222,7 +222,7 @@ namespace sprawl
 
 		SerializerBase* BinarySerializer::GetAnother() { return new BinarySerializer(false); }
 
-		SerializerBase* BinarySerializer::GetAnother(const String&) { return nullptr; }
+		SerializerBase* BinarySerializer::GetAnother(String const&) { return nullptr; }
 
 		BinarySerializer::BinarySerializer()
 			: BinarySerializerBase()
@@ -318,7 +318,7 @@ namespace sprawl
 
 		SerializerBase*BinaryDeserializer::GetAnother() { return nullptr; }
 
-		SerializerBase*BinaryDeserializer::GetAnother(const String& data) { return new BinaryDeserializer(data, false); }
+		SerializerBase*BinaryDeserializer::GetAnother(String const& data) { return new BinaryDeserializer(data, false); }
 
 		BinaryDeserializer::BinaryDeserializer()
 			: BinarySerializerBase()
@@ -335,7 +335,7 @@ namespace sprawl
 			Data(data, length);
 		}
 
-		BinaryDeserializer::BinaryDeserializer(const String& data, bool)
+		BinaryDeserializer::BinaryDeserializer(String const& data, bool)
 			: BinarySerializerBase()
 			, Deserializer()
 		{
@@ -350,14 +350,14 @@ namespace sprawl
 			Data(data, length);
 		}
 
-		BinaryDeserializer::BinaryDeserializer(const String& data)
+		BinaryDeserializer::BinaryDeserializer(String const& data)
 			: BinarySerializerBase()
 			, Deserializer()
 		{
 			Data(data);
 		}
 
-		void BinaryDeserializer::Data(const String& str)
+		void BinaryDeserializer::Data(String const& str)
 		{
 			if(m_data != NULL)
 			{

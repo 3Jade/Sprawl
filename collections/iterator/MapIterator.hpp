@@ -15,36 +15,36 @@ namespace sprawl
 			//
 		}
 
-		ValueType& operator*()
+		AccessorType& operator*()
 		{
-			return m_currentItem->m_value;
+			return *m_currentItem;
 		}
 
-		ValueType& operator->()
+		AccessorType* operator->()
 		{
-			return m_currentItem->m_value;
+			return m_currentItem;
 		}
 
 
-		ValueType const& operator*() const
+		AccessorType const& operator*() const
 		{
-			return m_currentItem->m_value;
+			return *m_currentItem;
 		}
 
-		ValueType const& operator->() const
+		AccessorType const* operator->() const
 		{
-			return m_currentItem->m_value;
+			return m_currentItem;
 		}
 
 		template<int i>
-		auto Key() const -> decltype(accessor_type(nullptr)->Accessor(Specialized<i>()).GetKey())
+		auto Key() const -> decltype(accessor_type(nullptr)->Accessor(Specialized<i>()).Key())
 		{
-			return m_currentItem->Accessor(Specialized<i>()).GetKey();
+			return m_currentItem->Accessor(Specialized<i>()).Key();
 		}
 
-		auto Key() const -> decltype(accessor_type(nullptr)->Accessor(Specialized<0>()).GetKey())
+		auto Key() const -> decltype(accessor_type(nullptr)->Accessor(Specialized<0>()).Key())
 		{
-			return m_currentItem->Accessor(Specialized<0>()).GetKey();
+			return m_currentItem->Accessor(Specialized<0>()).Key();
 		}
 
 		ValueType& Value()

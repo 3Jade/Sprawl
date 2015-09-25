@@ -1,63 +1,80 @@
 #include "../collections/List.hpp"
 #include "../collections/ForwardList.hpp"
 
-bool test_list()
+#include "gtest_printers.hpp"
+#include <gtest/gtest.h>
+
+class ListTest : public testing::Test
 {
-	bool success = true;
-
+protected:
+	virtual void SetUp() override
+	{
+		testList.PushBack(3);
+		testList.PushBack(5);
+		testList.PushFront(2);
+		testList.PushFront(1);
+	}
 	sprawl::collections::List<int> testList;
+};
 
-	testList.PushBack(3);
-	testList.PushBack(5);
-	testList.PushFront(2);
-	testList.PushFront(1);
+TEST_F(ListTest, BasicSetupWorks)
+{
+	EXPECT_EQ(size_t(4), testList.Size());
 
+	auto it = testList.begin();
+	EXPECT_EQ(1, it.Value());
+	++it;
+	EXPECT_EQ(2, it.Value());
+	++it;
+	EXPECT_EQ(3, it.Value());
+	++it;
+	EXPECT_EQ(5, it.Value());
+}
+
+TEST_F(ListTest, FrontWorks)
+{
+	ASSERT_EQ(1, testList.Front());
+}
+
+TEST_F(ListTest, BackWorks)
+{
+	ASSERT_EQ(5, testList.Back());
+}
+
+TEST_F(ListTest, IterationAndInsertWorks)
+{
 	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
-		if(it.Value() == 3)
+		if(it.Value() == 5)
 		{
 			testList.Insert(it, 4);
 			break;
 		}
 	}
 
-	if(testList.front() != 1)
-	{
-		printf("Failed testList.front()\n... ");
-		success = false;
-	}
-
-	if(testList.back() != 5)
-	{
-		printf("Failed testList.front()\n... ");
-		success = false;
-	}
 	int value = 0;
 
 	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
-		if(it.Value() <= value)
-		{
-			printf("Failed iteration (%d >= %d)\n... ", it.Value(), value);
-			success = false;
-		}
+		EXPECT_EQ(value + 1, it.Value());
 		value = it.Value();
 	}
+}
 
+TEST_F(ListTest, PopFrontWorks)
+{
 	testList.PopFront();
+	ASSERT_EQ(2, testList.Front());
+}
+
+TEST_F(ListTest, PopBackWorks)
+{
 	testList.PopBack();
+	ASSERT_EQ(3, testList.Back());
+}
 
-	if(testList.front() != 2)
-	{
-		printf("Failed testList.PopFront()\n... ");
-		success = false;
-	}
-
-	if(testList.back() != 4)
-	{
-		printf("Failed testList.PopBack()\n... ");
-		success = false;
-	}
+TEST_F(ListTest, EraseWorks)
+{
 
 	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
@@ -70,73 +87,110 @@ bool test_list()
 
 	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
-		if(it.Value() == 3)
+		ASSERT_NE(3, it.Value());
+	}
+}
+
+class ForwardListTest : public testing::Test
+{
+protected:
+	virtual void SetUp() override
+	{
+		testList.PushFront(5);
+		testList.PushFront(3);
+		testList.PushFront(2);
+		testList.PushFront(1);
+	}
+	sprawl::collections::ForwardList<int> testList;
+};
+
+TEST_F(ForwardListTest, BasicSetupWorks)
+{
+	EXPECT_EQ(size_t(4), testList.Size());
+
+	auto it = testList.begin();
+	EXPECT_EQ(1, it.Value());
+	++it;
+	EXPECT_EQ(2, it.Value());
+	++it;
+	EXPECT_EQ(3, it.Value());
+	++it;
+	EXPECT_EQ(5, it.Value());
+}
+
+TEST_F(ForwardListTest, FrontWorks)
+{
+	ASSERT_EQ(1, testList.Front());
+}
+
+TEST_F(ForwardListTest, IterationAndInsertWorks)
+{
+	for(auto it = testList.begin(); it != testList.end(); ++it)
+	{
+		if((it+1).Value() == 5)
 		{
-			printf("Failed erase\n... ");
-			success = false;
+			testList.InsertAfter(it, 4);
 			break;
 		}
 	}
 
-	sprawl::collections::ForwardList<int> testList2;
+	int value = 0;
 
-	testList2.PushFront(5);
-	testList2.PushFront(3);
-	testList2.PushFront(2);
-	testList2.PushFront(1);
-
-	for(auto it = testList2.begin(); it != testList2.end(); ++it)
+	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
-		if(it.Value() == 3)
-		{
-			testList2.Insert(it, 4);
-			break;
-		}
-	}
-
-	if(testList2.front() != 1)
-	{
-		printf("Failed testList2.front()\n... ");
-		success = false;
-	}
-
-	value = 0;
-
-	for(auto it = testList2.begin(); it != testList2.end(); ++it)
-	{
-		if(it.Value() <= value)
-		{
-			printf("Failed iteration (%d >= %d)\n... ", it.Value(), value);
-			success = false;
-		}
+		EXPECT_EQ(value + 1, it.Value());
 		value = it.Value();
 	}
+}
 
-	testList2.PopFront();
-	if(testList2.front() != 2)
-	{
-		printf("Failed testList2.PopFront()\n... ");
-		success = false;
-	}
+TEST_F(ForwardListTest, PopFrontWorks)
+{
+	testList.PopFront();
+	ASSERT_EQ(2, testList.Front());
+}
 
-	for(auto it = testList2.begin(); it != testList2.end(); ++it)
+TEST_F(ForwardListTest, EraseWorks)
+{
+
+	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
-		if(it.Value() == 2)
+		if((it+1).Value() == 3)
 		{
-			testList2.EraseAfter(it);
+			testList.EraseAfter(it);
 			break;
 		}
 	}
 
-	for(auto it = testList2.begin(); it != testList2.end(); ++it)
+	for(auto it = testList.begin(); it != testList.end(); ++it)
 	{
-		if(it.Value() == 3)
-		{
-			printf("Failed EraseAfter\n... ");
-			success = false;
-			break;
-		}
+		ASSERT_NE(3, it.Value());
+	}
+}
+
+TEST_F(ForwardListTest, CopyWorks)
+{
+
+	sprawl::collections::ForwardList<int> forwardListCopyTest;
+	forwardListCopyTest.PushFront(1);
+	forwardListCopyTest.PushFront(2);
+	forwardListCopyTest.PushFront(3);
+	forwardListCopyTest.PushFront(4);
+	forwardListCopyTest.PushFront(5);
+
+	int lastItem = 6;
+	for(auto& item : forwardListCopyTest)
+	{
+		EXPECT_EQ(lastItem - 1, item);
+		lastItem = item;
 	}
 
-	return success;
+	lastItem = 6;
+	sprawl::collections::ForwardList<int> listCopy(forwardListCopyTest);
+	for(auto& item : listCopy)
+	{
+		EXPECT_EQ(lastItem - 1, item);
+		lastItem = item;
+	}
+
+	EXPECT_EQ(1, lastItem);
 }

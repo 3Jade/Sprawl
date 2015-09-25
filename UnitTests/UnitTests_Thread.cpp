@@ -9,12 +9,14 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "gtest_printers.hpp"
+#include <gtest/gtest.h>
+
 sprawl::threading::Mutex mtx;
 sprawl::threading::Mutex mtx2;
 
 sprawl::threading::ConditionVariable cond;
 
-bool thread_success = true;
 sprawl::threading::Handle mainThread = sprawl::this_thread::GetHandle();
 
 sprawl::threading::ThreadManager manager;
@@ -27,11 +29,7 @@ sprawl::threading::ThreadLocal<int*> threadLocalPtr;
 
 void DoSomethingInAThread(int& i)
 {
-	if(sprawl::this_thread::GetHandle() == mainThread)
-	{
-		printf("Thread is still main thread.\n... ");
-		thread_success = false;
-	}
+	EXPECT_NE(mainThread, sprawl::this_thread::GetHandle()) << "Thread is still main thread.\n... ";
 
 	sprawl::threading::ScopedLock lock(mtx);
 	++i;
@@ -57,18 +55,12 @@ void DoSomethingInAThread2(int& i, char const* const type)
 		threadLocalPtr = threadLocalPtrCheck[sprawl::this_thread::GetHandle().GetUniqueId()];
 	}
 
-	if(*threadLocalValue != threadLocalCheck[sprawl::this_thread::GetHandle().GetUniqueId()] || *threadLocalPtr != threadLocalPtrCheck[sprawl::this_thread::GetHandle().GetUniqueId()])
-	{
-		printf("Thread local storage fail\n... ");
-		thread_success = false;
-	}
+	EXPECT_EQ(threadLocalCheck[sprawl::this_thread::GetHandle().GetUniqueId()], *threadLocalValue) << "Thread local storage failed";
+	EXPECT_EQ(threadLocalPtrCheck[sprawl::this_thread::GetHandle().GetUniqueId()], *threadLocalPtr) << "Thread local storage failed";
 
 	threadCheck[sprawl::this_thread::GetHandle().GetUniqueId()].insert(type);
-	if(threadCheck[sprawl::this_thread::GetHandle().GetUniqueId()].size() != 1)
-	{
-		printf("Thread manager running a task on the wrong thread\n... ");
-		thread_success = false;
-	}
+	EXPECT_EQ(size_t(1), threadCheck[sprawl::this_thread::GetHandle().GetUniqueId()].size()) << "Thread manager running a task on the wrong thread";
+
 	++i;
 	if(i >= 100)
 	{
@@ -140,12 +132,13 @@ sprawl::threading::Generator<int> numberGenerator(int start)
 			sprawl::threading::Coroutine::Yield(start++);
 		}
 	};
-	return sprawl::threading::Generator<int>(std::bind(generator, start));
+	return sprawl::threading::Generator<int>(generator, start);
 }
 
-bool test_thread()
+TEST(ThreadingTest, ThreadsAndMutexesWork)
 {
-	printf("(This should take 3-4 seconds)... ");
+	printf("(This should take a second)...\n");
+	fflush(stdout);
 	int i = 0;
 	sprawl::threading::Thread thread1(DoSomethingInAThread, std::ref(i));
 	sprawl::threading::Thread thread2(DoSomethingInAThread, std::ref(i));
@@ -168,12 +161,13 @@ bool test_thread()
 	thread4.Join();
 	thread5.Join();
 
-	if(i != 5)
-	{
-		printf("Thread increment failed.\n... ");
-		thread_success = false;
-	}
+	ASSERT_EQ(5, i) << "Thread increment failed.";
+}
 
+TEST(ThreadingTest, ThreadManagerWorks)
+{
+	printf("(This should take a second)...\n");
+	fflush(stdout);
 	int j = 0;
 	int k = 0;
 	manager.AddThreads(1, 5);
@@ -189,12 +183,99 @@ bool test_thread()
 	manager.Run(0);
 	manager.ShutDown();
 
-	if(j != 100 || k != 100)
+	EXPECT_EQ(100, j) << "ThreadManager failed to properly increment j";
+	EXPECT_EQ(100, k) << "ThreadManager failed to properly increment k";
+}
+
+int stage = 0;
+int stageValue = 0;
+
+void SetupStageOne()
+{
+	stage = 1;
+}
+
+void RunStageOne()
+{
 	{
-		printf("ThreadManager increment failed. %d %d\n... ", j, k);
-		thread_success = false;
+		sprawl::threading::ScopedLock lock(mtx);
+		EXPECT_EQ(1, stage);
+		stageValue += 1;
+	}
+	sprawl::this_thread::Sleep((rand() % 10) * sprawl::time::Resolution::Milliseconds);
+}
+
+void SetupStageTwo()
+{
+	stage = 2;
+}
+
+void RunStageTwo()
+{
+	{
+		sprawl::threading::ScopedLock lock(mtx);
+		EXPECT_EQ(2, stage);
+		stageValue *= 2;
+	}
+	sprawl::this_thread::Sleep((rand() % 10) * sprawl::time::Resolution::Milliseconds);
+}
+
+TEST(ThreadingTest, StagedThreadManagerWorks)
+{
+	enum Stages : uint64_t
+	{
+		StageOne_Setup,
+		StageOne_Run,
+		StageTwo_Setup,
+		StageTwo_Run,
+		Max
+	};
+
+	enum ThreadFlags : uint64_t
+	{
+		Any = 1
+	};
+
+	sprawl::threading::ThreadManager stagedManager;
+	stagedManager.SetNumStages(Stages::Max);
+	stagedManager.AddTaskStaged(StageOne_Setup, SetupStageOne, Any);
+	for(int i = 0; i < 100; ++i)
+	{
+		stagedManager.AddTaskStaged(StageOne_Run, RunStageOne, Any);
+	}
+	stagedManager.AddTaskStaged(StageTwo_Setup, SetupStageTwo, Any);
+	for(int i = 0; i < 20; ++i)
+	{
+		stagedManager.AddTaskStaged(StageTwo_Run, RunStageTwo, Any);
 	}
 
+	stagedManager.AddThreads(Any, 5);
+
+	stagedManager.Start(Any);
+
+	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(1, stage);
+	EXPECT_EQ(0, stageValue);
+	EXPECT_EQ(StageOne_Run, stagedManager.RunNextStage());
+	EXPECT_EQ(1, stage);
+	EXPECT_EQ(100, stageValue);
+	EXPECT_EQ(StageTwo_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(2, stage);
+	EXPECT_EQ(100, stageValue);
+	EXPECT_EQ(StageTwo_Run, stagedManager.RunNextStage());
+	EXPECT_EQ(2, stage);
+	EXPECT_EQ(100 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2, stageValue);
+
+	//Should start over now, but NOT rerun the old task...
+	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(2, stage);
+	EXPECT_EQ(100 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2, stageValue);
+
+	stagedManager.ShutDown();
+}
+
+TEST(CoroutineTest, BasicCoroutinesWork)
+{
 	sprawl::threading::Coroutine addCrt(add);
 	sprawl::threading::Coroutine multCrt(mult);
 
@@ -214,13 +295,12 @@ bool test_thread()
 		}
 	}
 	//Order of operations test - if the two functions didn't alternate as intended this will fail.
-	if(count != ((((((((((((((((((((1+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2))
-	{
-		printf("Coroutines failed. %d\n... ", count);
-		thread_success = false;
-	}
+	ASSERT_EQ( ((((((((((((((((((((1+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2)+2)*2), count ) << "Basic coroutines failed.";
+}
 
-	sprawl::threading::CoroutineWithChannel<int,int> addOverTimeCrt(std::bind(addOverTime, 1));
+TEST(CoroutineTest, BidirectionalChannelsWork)
+{
+	sprawl::threading::CoroutineWithChannel<int,int> addOverTimeCrt(addOverTime, 1);
 	int num = addOverTimeCrt.Start();
 	for(int j = 0; j < 10; ++j)
 	{
@@ -233,14 +313,13 @@ bool test_thread()
 			num = addOverTimeCrt(num);
 		}
 	}
-	if(num != 1 + 1 + 2 + 4 + 8 + 16 + 32 + 64 + 128 + 256 + 512)
-	{
-		printf("Coroutine with channel failed. %d\n... ", num);
-		thread_success = false;
-	}
+	ASSERT_EQ(1 + 1 + 2 + 4 + 8 + 16 + 32 + 64 + 128 + 256 + 512, num) << "Bidirectional channel failed.";
+}
 
-	sprawl::threading::CoroutineWithChannel<int, void> addOverTime2Crt(std::bind(addOverTime2, 1));
-	num = 1;
+TEST(CoroutineTest, SendOnlyChannelsWork)
+{
+	sprawl::threading::CoroutineWithChannel<int, void> addOverTime2Crt(addOverTime2, 1);
+	int num = 1;
 	addOverTime2Crt.Start();
 	for(int j = 0; j < 10; ++j)
 	{
@@ -253,14 +332,13 @@ bool test_thread()
 			addOverTime2Crt(num);
 		}
 	}
-	if(addOverTime2Value != 11)
-	{
-		printf("Coroutine with channel failed. %d\n... ", addOverTime2Value);
-		thread_success = false;
-	}
+	ASSERT_EQ(11, addOverTime2Value) << "Send-only channel failed";
+}
 
-	sprawl::threading::CoroutineWithChannel<void, int> addOverTime3Crt(std::bind(addOverTime3, 1));
-	num = 1;
+TEST(CoroutineTest, ReceiveOnlyChannelsWork)
+{
+	sprawl::threading::CoroutineWithChannel<void, int> addOverTime3Crt(addOverTime3, 1);
+	int num = 1;
 	for(int j = 0; j < 10; ++j)
 	{
 		if(j % 2 == 0)
@@ -272,33 +350,22 @@ bool test_thread()
 			num += addOverTime3Crt();
 		}
 	}
-	if(num != 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11)
-	{
-		printf("Coroutine with channel failed. %d\n... ", num);
-		thread_success = false;
-	}
+	ASSERT_EQ(1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 + 11, num) << "Receive-only channel failed";
+}
 
+TEST(CoroutineTest, GeneratorsWork)
+{
 	sprawl::threading::Generator<int> generator = numberGenerator(1);
 
 	for(int i = 1; i < 10; ++i)
 	{
 		if(i % 2 != 0)
 		{
-			if(generator.Resume() != i)
-			{
-				printf("Generator failed. %d\n... ", num);
-				thread_success = false;
-			}
+			EXPECT_EQ(i, generator.Resume()) << "Generator Resume() failed";
 		}
 		else
 		{
-			if(generator() != i)
-			{
-				printf("Generator failed. %d\n... ", num);
-				thread_success = false;
-			}
+			EXPECT_EQ(i, generator()) << "Generator operator() failed";
 		}
 	}
-
-	return thread_success;
 }

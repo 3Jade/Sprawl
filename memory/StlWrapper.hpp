@@ -22,7 +22,7 @@ namespace sprawl
 			typedef T* pointer;
 			typedef const T* const_pointer;
 			typedef T& reference;
-			typedef const T& const_reference;
+			typedef T const& const_reference;
 
 			typedef size_t size_type;
 			typedef ptrdiff_t difference_type;
@@ -51,17 +51,12 @@ namespace sprawl
 				return reinterpret_cast<value_type*>(&reinterpret_cast<char&>(val));
 			}
 
-			const value_type* address(const value_type& val) const
-			{
-				return reinterpret_cast<const value_type*>(&reinterpret_cast<const char&>(val));
-			}
-
 			StlWrapper()
 			{
 				//
 			}
 
-			StlWrapper(const StlWrapper<value_type>& /*other*/)
+			StlWrapper(StlWrapper<value_type> const& /*other*/)
 			{
 				//
 			}
@@ -73,7 +68,7 @@ namespace sprawl
 			}
 
 			template<class T2>
-			StlWrapper<value_type>& operator=(const StlWrapper<T2>& /*other*/)
+			StlWrapper<value_type>& operator=(StlWrapper<T2> const& /*other*/)
 			{
 				return (*this);
 			}
@@ -124,7 +119,7 @@ namespace sprawl
 				::new ((void *)ptr) T();
 			}
 
-			void construct(value_type* ptr, const value_type& other)
+			void construct(value_type* ptr, value_type const& other)
 			{
 				::new ((void *)ptr) T(other);
 			}

@@ -160,53 +160,53 @@ namespace sprawl
 			friend class MongoReplicableDeserializer;
 			friend class MongoReplicableSerializer;
 		public:
-			virtual void serialize(mongo::OID* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::OID* var, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(mongo::BSONObj* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::BSONObj* var, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(mongo::Date_t* var, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(mongo::Date_t* var, sprawl::String const& name, bool PersistToDB) override;
 
 
-			virtual void serialize(int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB)  override;
+			virtual void serialize(long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB)  override;
 
-			virtual void serialize(short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(float* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(float* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(double* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(long double* /*var*/, const uint32_t /*bytes*/, const sprawl::String& /*name*/, bool /*PersistToDB*/) override
+			virtual void serialize(long double* /*var*/, const uint32_t /*bytes*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) override
 			{
 				SPRAWL_ABORT_MSG("Mongo does not support objects of type long double. If you can accept the data loss, cast down to double.");
 			}
 
-			virtual void serialize(bool* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(bool* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(unsigned int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(unsigned int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(unsigned long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(unsigned long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(unsigned short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override;
+			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override;
 
-			virtual uint32_t StartObject(const sprawl::String& str, bool PersistToDB = true) override;
+			virtual uint32_t StartObject(sprawl::String const& str, bool PersistToDB = true) override;
 
 			virtual void EndObject() override;
 
-			virtual void StartArray(const sprawl::String& str, uint32_t& size, bool PersistToDB = true) override;
+			virtual void StartArray(sprawl::String const& str, uint32_t& size, bool PersistToDB = true) override;
 
 			virtual void EndArray() override;
 
@@ -251,8 +251,8 @@ namespace sprawl
 			bool m_bWithMetadata;
 			bool m_bError;
 		private:
-			MongoSerializerBase(const SerializerBase&);
-			MongoSerializerBase& operator=(const SerializerBase&);
+			MongoSerializerBase(SerializerBase const&);
+			MongoSerializerBase& operator=(SerializerBase const&);
 		};
 
 		class MongoSerializer : public MongoSerializerBase, public Serializer
@@ -309,7 +309,7 @@ namespace sprawl
 
 			virtual ~MongoSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(const sprawl::String& /*data*/) override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
+			virtual SerializerBase* GetAnother(sprawl::String const& /*data*/) override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 			//Anything binary (including BSON) doesn't work here, it makes Mongo freak out if an object is embedded as a key like this. So we'll embed JSON instead.
 			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
 		};
@@ -357,13 +357,13 @@ namespace sprawl
 				return *this;
 			}
 
-			void Data(const mongo::BSONObj& o)
+			void Data(mongo::BSONObj const& o)
 			{
 				m_obj = o;
 				m_bIsValid = true;
 			}
 
-			virtual void Data(const sprawl::String& str) override
+			virtual void Data(sprawl::String const& str) override
 			{
 				if(str[0] == '{')
 				{
@@ -389,13 +389,13 @@ namespace sprawl
 				m_bIsValid = true;
 			}
 
-			MongoDeserializer(const sprawl::String& data)
+			MongoDeserializer(sprawl::String const& data)
 			{
 				Data(data);
 				m_version = m_obj["DataVersion"].Int();
 			}
 
-			MongoDeserializer(const sprawl::String& data, bool)
+			MongoDeserializer(sprawl::String const& data, bool)
 			{
 				Data(data);
 				m_bWithMetadata = false;
@@ -413,13 +413,13 @@ namespace sprawl
 				m_bWithMetadata = false;
 			}
 
-			MongoDeserializer(const mongo::BSONObj& o)
+			MongoDeserializer(mongo::BSONObj const& o)
 			{
 				Data(o);
 				m_version = m_obj["DataVersion"].Int();
 			}
 
-			MongoDeserializer(const mongo::BSONObj& o, bool)
+			MongoDeserializer(mongo::BSONObj const& o, bool)
 			{
 				Data(o);
 				m_bWithMetadata = false;
@@ -442,7 +442,7 @@ namespace sprawl
 			sprawl::String m_dataStr;
 		protected:
 			//Anything binary (including BSON) doesn't work here, it makes Mongo freak out if an object is embedded as a key like this. So we'll embed JSON instead.
-			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new JSONDeserializer(data, false); }
+			virtual SerializerBase* GetAnother(sprawl::String const& data) override { return new JSONDeserializer(data, false); }
 			virtual SerializerBase* GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 		};
 

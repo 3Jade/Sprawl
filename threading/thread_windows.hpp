@@ -32,8 +32,8 @@ public:
 		}
 	}
 
-	bool operator==(Handle const& other) { return m_thread == other.m_thread; }
-	bool operator!=(Handle const& other) { return m_thread != other.m_thread; }
+	bool operator==(Handle const& other) const { return m_thread == other.m_thread; }
+	bool operator!=(Handle const& other) const { return m_thread != other.m_thread; }
 
 	int64_t GetUniqueId() const;
 	HANDLE& GetNativeHandle() { return m_thread; }

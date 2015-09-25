@@ -27,7 +27,7 @@ namespace sprawl
 			Holder();
 			Holder(const char* data);
 			Holder(const char* data, size_t length);
-			Holder(const StringLiteral& literal);
+			Holder(StringLiteral const& literal);
 
 			void IncRef();
 			bool DecRef();
@@ -59,22 +59,22 @@ namespace sprawl
 			mutable size_t m_hash;
 			mutable bool m_hashComputed;
 		private:
-			Holder(const Holder& other);
-			Holder& operator=(const Holder& other);
+			Holder(Holder const& other);
+			Holder& operator=(Holder const& other);
 		};
 
 		String();
 		String(const char* const data);
 		String(const char* const data, size_t length);
 
-		String(const String& other);
+		String(String const& other);
 		String(String&& other);
 
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
-		String(const std::string& stlString);
+		String(std::string const& stlString);
 #endif
 
-		String(const StringLiteral& stringLiteral);
+		String(StringLiteral const& stringLiteral);
 
 		~String();
 
@@ -97,38 +97,40 @@ namespace sprawl
 			return m_holder->m_length;
 		}
 
-		String& operator=(const String& other);
+		String& operator=(String const& other);
 		String& operator=(String&& other);
 
-		inline bool operator==(const String& other) const
+		inline bool operator==(String const& other) const
 		{
 			return (m_holder == other.m_holder) || ((m_holder->m_length == other.m_holder->m_length) && (SPRAWL_MEMCMP(m_holder->m_data, other.m_holder->m_data, m_holder->m_length) == 0));
 		}
 
-		bool operator!=(const String& other) const
+		bool operator!=(String const& other) const
 		{
 			return !operator==(other);
 		}
 
-		sprawl::String operator+(const sprawl::String& other) const;
+		sprawl::String operator+(sprawl::String const& other) const;
 
 		sprawl::String operator+(const char* other) const;
 
-		sprawl::String& operator+=(const sprawl::String& other);
+		sprawl::String& operator+=(sprawl::String const& other);
 
 		sprawl::String& operator+=(const char* other);
 
-		bool empty()
+		bool empty() const
 		{
 			return m_holder->m_length == 0;
 		}
 
-		bool operator<(const String& other) const;
+		bool operator<(String const& other) const;
 
-		const char& operator[](size_t index) const
+		char const& operator[](size_t index) const
 		{
 			return m_holder->m_data[index];
 		}
+
+		String GetOwned() const;
 
 		template<typename... Params>
 		String format(Params const& ...params)
@@ -346,6 +348,16 @@ namespace sprawl
 							curIdx += c - '0';
 						}
 					}
+					else
+					{
+						builder << '{';
+						if(curIdx != -1)
+						{
+							builder << curIdx;
+						}
+						builder << c;
+						inBracket = false;
+					}
 					continue;
 				}
 
@@ -378,8 +390,8 @@ namespace sprawl
 
 		const char* GetPtr() const { return m_ptr; }
 		size_t GetLength() const { return m_length; }
-		bool operator==(const StringLiteral& other) const { return m_ptr == other.m_ptr; }
-		bool operator!=(const StringLiteral& other) const { return m_ptr != other.m_ptr; }
+		bool operator==(StringLiteral const& other) const { return m_ptr == other.m_ptr; }
+		bool operator!=(StringLiteral const& other) const { return m_ptr != other.m_ptr; }
 
 	protected:
 		friend class String::Holder;
@@ -387,6 +399,12 @@ namespace sprawl
 		size_t m_length;
 	};
 	typedef StringLiteral StringRef;
+
+	template<typename... Params>
+	sprawl::String Format(const char* const text, Params&&... params)
+	{
+		return sprawl::String(sprawl::StringLiteral(text, strlen(text))).format(std::forward<Params>(params)...);
+	}
 }
 
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
@@ -398,7 +416,7 @@ namespace std
 		typedef sprawl::String argument_type;
 		typedef std::size_t value_type;
 
-		inline value_type operator()(const argument_type& str) const
+		inline value_type operator()(argument_type const& str) const
 		{
 			return str.GetHash();
 		}
@@ -410,10 +428,52 @@ namespace std
 		typedef sprawl::StringLiteral argument_type;
 		typedef std::size_t value_type;
 
-		inline value_type operator()(const argument_type& str) const
+		inline value_type operator()(argument_type const& str) const
 		{
 			return sprawl::murmur3::HashPointer(intptr_t(str.GetPtr()));
 		}
 	};
 }
+#endif
+
+#ifndef _WIN32
+#ifndef SPRAWL_NO_FORMAT_LITERAL
+namespace sprawl
+{
+	namespace detail
+	{
+		class FormatHelper
+		{
+		public:
+			template<size_t N>
+			FormatHelper(const char (&ptr)[N])
+				: m_str(StringLiteral(ptr))
+			{
+				//
+			}
+
+			explicit FormatHelper(const char* ptr, size_t length)
+			: m_str(StringLiteral(ptr, length))
+			{
+				//
+			}
+
+			template<typename... Params>
+			sprawl::String operator()(Params&&... params)
+			{
+				return m_str.format(std::forward<Params>(params)...);
+			}
+
+		private:
+			String m_str;
+		};
+	}
+}
+
+inline sprawl::detail::FormatHelper operator "" _format(const char *ptr, size_t length)
+{
+	return sprawl::detail::FormatHelper(ptr, length);
+}
+
+#endif
 #endif

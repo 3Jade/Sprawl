@@ -12,6 +12,7 @@ namespace sprawl
 #include "../time/time.hpp"
 #include "../collections/ForwardList.hpp"
 #include "../collections/List.hpp"
+#include "../collections/HashMap.hpp"
 
 #include "thread.hpp"
 #include "mutex.hpp"
@@ -22,6 +23,9 @@ class sprawl::threading::ThreadManager
 public:
 	typedef std::function<void()> Task;
 
+	ThreadManager();
+	~ThreadManager();
+
 	void AddThread(uint64_t threadFlags, char const* const threadName, uint64_t secondaryFlags = 0);
 	void AddThread(uint64_t threadFlags, uint64_t secondaryFlags = 0);
 
@@ -31,8 +35,16 @@ public:
 	void AddTask(Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
 	void AddTask(Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
 
+	void AddTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
+	void AddTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
+
+	void SetNumStages(uint64_t stageCount);
+
 	void AddFutureTask(Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
 	void AddFutureTask(Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
+
+	void AddFutureTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
+	void AddFutureTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
 
 	/**
 	 * @brief	Prevents the thread manager from executing a secondary task if there is a primary task queued within this many nanoseconds
@@ -45,6 +57,7 @@ public:
 	 * @param	thisThreadFlags	The flags that apply to the calling thread
 	 */
 	void Run(uint64_t thisThreadFlags, uint64_t secondaryFlags = 0);
+	void RunStaged(uint64_t thisThreadFlags, uint64_t secondaryFlags = 0);
 
 	/**
 	 * @brief	Start all threads but do not block on the calling thread.
@@ -54,8 +67,11 @@ public:
 	 * @param	thisThreadFlags	The flags that apply to the calling thread
 	 */
 	void Start(uint64_t thisThreadFlags, uint64_t secondaryFlags = 0);
+
+	uint64_t RunNextStage();
 	void Pump();
 	void Wait();
+	void Sync();
 	void Stop();
 	void ShutDown();
 private:
@@ -68,10 +84,12 @@ private:
 		int64_t when;
 	};
 
-	void pushTask_(TaskInfo&& info);
+	void pushTask_(TaskInfo&& info, uint64_t stage);
 	void eventLoop_(uint64_t flags, uint64_t secondaryFlags);
 
-	collections::List<TaskInfo> m_taskQueue;
+	collections::BasicHashMap<uint64_t, collections::List<TaskInfo>> m_taskQueue;
+	uint64_t m_currentStage;
+	uint64_t m_maxStage;
 	collections::ForwardList<Thread*> m_threads;
 	Mutex m_mutex;
 	ConditionVariable m_conditionVariable;
@@ -79,28 +97,9 @@ private:
 	uint64_t m_callingThreadSecondaryFlags;
 	int64_t m_secondaryTaskWindow;
 	bool m_running;
+
+	bool m_syncing;
+	ConditionVariable m_syncWait;
+	ConditionVariable m_threadSyncWait;
+	size_t m_numThreadsSynced;
 };
-
-/*class sprawl::threading::StagedThreadManager
-{
-public:
-	void AddThread(uint64_t threadFlags, char const* const threadName);
-	void AddThread(uint64_t threadFlags, bool staged = false);
-
-	void AddThreads(uint64_t threadFlags, int count, char const* const threadName);
-	void AddThreads(uint64_t threadFlags, int count);
-
-	void AddTask(Task&& task, uint64_t threadFlags, uint64_t stageFlags);
-	void AddTask(Task const& task, uint64_t threadFlags, uint64_t stageFlags);
-
-	void AddStage(uint64_t stageId, uint64_t stageFlags);
-	void InsertStage(uint64_t afterStageId, uint64_t stageId, uint64_t stageFlags);
-
-	void Run();
-
-	void Start(uint64_t thisThreadFlags);
-	void Pump();
-	void Wait();
-	void FinishStage();
-	void AdvanceStage();
-};*/

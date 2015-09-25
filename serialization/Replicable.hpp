@@ -52,7 +52,7 @@ namespace sprawl
 				//
 			}
 
-			ReplicationKey( const ReplicationKey& other );
+			ReplicationKey( ReplicationKey const& other );
 
 			uint32_t size() const
 			{
@@ -64,7 +64,7 @@ namespace sprawl
 				return m_data[index];
 			}
 
-			const int32_t& operator[](const uint32_t index) const
+			int32_t const& operator[](const uint32_t index) const
 			{
 				return m_data[index];
 			}
@@ -93,12 +93,12 @@ namespace sprawl
 				return m_data[m_size - 1];
 			}
 
-			const int32_t& front() const
+			int32_t const& front() const
 			{
 				return m_data[0];
 			}
 
-			const int32_t& back() const
+			int32_t const& back() const
 			{
 				return m_data[m_size - 1];
 			}
@@ -108,9 +108,9 @@ namespace sprawl
 				return (m_size == 0);
 			}
 
-			bool operator==( const ReplicationKey& other ) const;
+			bool operator==( ReplicationKey const& other ) const;
 
-			bool operator<( const ReplicationKey& other ) const;
+			bool operator<( ReplicationKey const& other ) const;
 
 			void clear()
 			{
@@ -127,21 +127,21 @@ namespace sprawl
 
 		struct RKeyHash
 		{
-			std::size_t operator()(const ReplicationKey& key) const
+			std::size_t operator()(ReplicationKey const& key) const
 			{
 				return sprawl::murmur3::Hash(key.m_data, key.m_size * sizeof(int32_t));
 			}
 		};
 
-		bool StartsWith(const ReplicationKey& x, const ReplicationKey& y);
+		bool StartsWith(ReplicationKey const& x, ReplicationKey const& y);
 
 		template<typename T>
 		class ReplicableBase : virtual public SerializerBase
 		{
 		protected:
-			typedef sprawl::memory::StlWrapper<std::pair<ReplicationKey, sprawl::String>> ReplicationMapAllocator;
-			typedef sprawl::memory::StlWrapper<std::pair<sprawl::String, int32_t>> StringToKeyAllocator;
-			typedef sprawl::memory::StlWrapper<std::pair<int32_t, sprawl::String>> KeyToStringAllocator;
+			typedef sprawl::memory::StlWrapper<std::pair<ReplicationKey const, sprawl::String>> ReplicationMapAllocator;
+			typedef sprawl::memory::StlWrapper<std::pair<sprawl::String const, int32_t>> StringToKeyAllocator;
+			typedef sprawl::memory::StlWrapper<std::pair<int32_t const, sprawl::String>> KeyToStringAllocator;
 			typedef std::map<ReplicationKey, sprawl::String, std::less<ReplicationKey>, ReplicationMapAllocator> ReplicationMap;
 			typedef std::unordered_map<sprawl::String, int32_t, std::hash<sprawl::String>, std::equal_to<sprawl::String>, StringToKeyAllocator> StringToKeyMap;
 			typedef std::unordered_map<int32_t, sprawl::String, std::hash<int32_t>, std::equal_to<int32_t>, KeyToStringAllocator> KeyToStringMap;
@@ -195,7 +195,7 @@ namespace sprawl
 
 			virtual bool IsReplicable() override { return true; }
 
-			void StartArray( const sprawl::String& name, uint32_t& size, bool b ) override
+			void StartArray( sprawl::String const& name, uint32_t& size, bool b ) override
 			{
 				PushKey(name, true);
 				if(IsLoading())
@@ -283,7 +283,7 @@ namespace sprawl
 				}
 			}
 
-			virtual uint32_t StartObject( const sprawl::String& name, bool b) override
+			virtual uint32_t StartObject( sprawl::String const& name, bool b) override
 			{
 				PushKey(name);
 				if(!m_marked)
@@ -293,7 +293,7 @@ namespace sprawl
 				return 0;
 			}
 
-			virtual uint32_t StartMap( const sprawl::String& name, bool b) override
+			virtual uint32_t StartMap( sprawl::String const& name, bool b) override
 			{
 				PushKey(name);
 				m_current_map_key.push_back(m_current_key);
@@ -353,7 +353,7 @@ namespace sprawl
 				return "";
 			}
 
-			StringSet GetDeletedKeys(const sprawl::String& name) override
+			StringSet GetDeletedKeys(sprawl::String const& name) override
 			{
 				StringSet deleted_keys;
 				PushKey(name);
@@ -377,7 +377,7 @@ namespace sprawl
 
 		protected:
 			template<typename T2>
-			void serialize_impl( T2* var, const sprawl::String& name, bool PersistToDB)
+			void serialize_impl( T2* var, sprawl::String const& name, bool PersistToDB)
 			{
 				m_serializer->Reset();
 				PushKey(name);
@@ -408,86 +408,86 @@ namespace sprawl
 			}
 
 		public:
-			virtual void serialize(int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB)  override
+			virtual void serialize(long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB)  override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(short int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(float* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(float* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(double* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(long double* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(long double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(bool* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(bool* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(std::string* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
-			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, const sprawl::String& name, bool PersistToDB) override
+			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
 				serialize_impl(var, name, PersistToDB);
 			}
 
 		protected:
-			virtual void PushKey(const sprawl::String& name, bool /*forArray*/ = false)
+			virtual void PushKey(sprawl::String const& name, bool /*forArray*/ = false)
 			{
 				if(!m_serializer->IsBinary() || (!m_current_map_key.empty() && m_current_key == m_current_map_key.back()))
 				{
@@ -522,7 +522,7 @@ namespace sprawl
 			typename ReplicableBase<T>::ReplicationMap m_data;
 			typename ReplicableBase<T>::ReplicationMap m_diffs;
 			std::set<ReplicationKey, std::less<ReplicationKey>, sprawl::memory::StlWrapper<ReplicationKey>> m_removed;
-			std::unordered_map<ReplicationKey, int16_t, RKeyHash, std::equal_to<ReplicationKey>, sprawl::memory::StlWrapper<ReplicationKey>> m_depth_tracker;
+			std::unordered_map<ReplicationKey, int16_t, RKeyHash, std::equal_to<ReplicationKey>, sprawl::memory::StlWrapper<std::pair<ReplicationKey const, int16_t>>> m_depth_tracker;
 			ReplicationKey m_current_key;
 			StringToKeyMap m_name_index;
 			int32_t m_highest_name;
@@ -693,7 +693,7 @@ namespace sprawl
 		class ReplicableDeserializer : public ReplicableBase<T>, public Deserializer
 		{
 		public:
-			ReplicableDeserializer(const sprawl::String& data)
+			ReplicableDeserializer(sprawl::String const& data)
 				: ReplicableBase<T>()
 				, Deserializer()
 			{
@@ -759,7 +759,7 @@ namespace sprawl
 				return "";
 			}
 
-			void Data(const sprawl::String& data)
+			void Data(sprawl::String const& data)
 			{
 				this->m_diffs.clear();
 				this->m_data.clear();
@@ -777,7 +777,7 @@ namespace sprawl
 				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
 			}
 		protected:
-			virtual SerializerBase* GetAnother(const sprawl::String& data) override { return new T(data, false); }
+			virtual SerializerBase* GetAnother(sprawl::String const& data) override { return new T(data, false); }
 			virtual SerializerBase* GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 		};
 

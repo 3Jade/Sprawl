@@ -38,6 +38,7 @@ namespace sprawl
 
 		StringBuilder& operator<<(char const elem);
 		StringBuilder& operator<<(char const* const elem);
+		StringBuilder& operator<<(char* const elem);
 		StringBuilder& operator<<(String const& elem);
 		StringBuilder& operator<<(StringLiteral const& elem);
 
@@ -63,6 +64,7 @@ namespace sprawl
 		void AppendElementToBuffer(bool const elem, char const* const modifiers);
 		void AppendElementToBuffer(char const elem, char const* const modifiers);
 		void AppendElementToBuffer(char const* const elem, char const* const modifiers);
+		void AppendElementToBuffer(char* const elem, char const* const modifiers);
 		void AppendElementToBuffer(String const& elem, char const* const modifiers);
 		void AppendElementToBuffer(StringLiteral const& elem, char const* const modifiers);
 #ifndef SPRAWL_STRING_NO_STL_COMPAT
@@ -104,6 +106,13 @@ namespace sprawl
 		size_t Size()
 		{
 			return m_pos;
+		}
+
+		void Reset()
+		{
+			m_pos = 0;
+			m_bufferPos = m_buffer;
+			m_remainingCapacity = m_bufferSize;
 		}
 
 		template<typename T>

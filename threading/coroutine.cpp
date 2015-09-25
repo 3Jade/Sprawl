@@ -1,16 +1,17 @@
 #include "coroutine.hpp"
 
 
-/*static*/ sprawl::threading::ThreadLocal<sprawl::threading::Coroutine*> sprawl::threading::Coroutine::ms_coroutineInitHelper;
-/*static*/ sprawl::threading::ThreadLocal<sprawl::threading::Coroutine> sprawl::threading::Coroutine::ms_thisThreadCoroutine;
+/*static*/ sprawl::threading::ThreadLocal<sprawl::threading::CoroutineBase*> sprawl::threading::CoroutineBase::ms_coroutineInitHelper;
+/*static*/ sprawl::threading::ThreadLocal<sprawl::threading::CoroutineBase> sprawl::threading::CoroutineBase::ms_thisThreadCoroutine;
 
-/*static*/ void sprawl::threading::Coroutine::Yield()
+/*static*/ void sprawl::threading::CoroutineBase::Yield()
 {
-	Coroutine routine = *Coroutine::ms_thisThreadCoroutine;
+	CoroutineBase routine = *CoroutineBase::ms_thisThreadCoroutine;
+	routine.releaseRef_();
 	routine.Pause();
 }
 
-sprawl::threading::Coroutine::Holder* sprawl::threading::Coroutine::Holder::Create()
+sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Holder::Create()
 {
 	typedef memory::DynamicPoolAllocator<sizeof(Holder)> holderAlloc;
 
@@ -19,7 +20,7 @@ sprawl::threading::Coroutine::Holder* sprawl::threading::Coroutine::Holder::Crea
 	return ret;
 }
 
-sprawl::threading::Coroutine::Holder* sprawl::threading::Coroutine::Holder::Create(std::function<void()> function, size_t stackSize)
+sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Holder::Create(std::function<void()> function, size_t stackSize)
 {
 	typedef memory::DynamicPoolAllocator<sizeof(Holder)> holderAlloc;
 
@@ -28,7 +29,7 @@ sprawl::threading::Coroutine::Holder* sprawl::threading::Coroutine::Holder::Crea
 	return ret;
 }
 
-void sprawl::threading::Coroutine::Holder::Release()
+void sprawl::threading::CoroutineBase::Holder::Release()
 {
 	typedef memory::DynamicPoolAllocator<sizeof(Holder)> holderAlloc;
 
@@ -36,78 +37,84 @@ void sprawl::threading::Coroutine::Holder::Release()
 	holderAlloc::free(this);
 }
 
-void sprawl::threading::Coroutine::Holder::IncRef()
+void sprawl::threading::CoroutineBase::Holder::IncRef()
 {
 	++m_refCount;
 }
 
-bool sprawl::threading::Coroutine::Holder::DecRef()
+bool sprawl::threading::CoroutineBase::Holder::DecRef()
 {
 	return (--m_refCount == 0);
 }
 
-sprawl::threading::Coroutine::Coroutine(std::function<void()> function, size_t stackSize)
-	: m_holder(Holder::Create(function, stackSize))
-{
-	if(!ms_thisThreadCoroutine)
-	{
-		ms_thisThreadCoroutine = Coroutine();
-	}
-}
-
-sprawl::threading::Coroutine::Coroutine()
+sprawl::threading::CoroutineBase::CoroutineBase()
 	: m_holder(Holder::Create())
+	, m_ownsHolder(true)
 {
 	// NOP
 }
 
-sprawl::threading::Coroutine::Coroutine(sprawl::threading::Coroutine::Holder* holder)
+sprawl::threading::CoroutineBase::CoroutineBase(sprawl::threading::CoroutineBase::Holder* holder)
 	: m_holder(holder)
+	, m_ownsHolder(true)
 {
 	if(m_holder && !ms_thisThreadCoroutine)
 	{
-		ms_thisThreadCoroutine = Coroutine();
+		ms_thisThreadCoroutine = CoroutineBase();
 	}
 }
 
-sprawl::threading::Coroutine::Coroutine(Coroutine const& other)
+sprawl::threading::CoroutineBase::CoroutineBase(CoroutineBase const& other)
 	: m_holder(other.m_holder)
+	, m_ownsHolder(true)
 {
 	m_holder->IncRef();
 }
 
-sprawl::threading::Coroutine& sprawl::threading::Coroutine::operator =(Coroutine const& other)
+sprawl::threading::CoroutineBase& sprawl::threading::CoroutineBase::operator =(CoroutineBase const& other)
 {
-	if(m_holder && m_holder->DecRef())
+	if(m_ownsHolder && m_holder && m_holder->DecRef())
 	{
 		m_holder->Release();
 	}
 	m_holder = other.m_holder;
-	m_holder->IncRef();
+	if(m_ownsHolder)
+	{
+		m_holder->IncRef();
+	}
 	return *this;
 }
 
-sprawl::threading::Coroutine::~Coroutine()
+sprawl::threading::CoroutineBase::~CoroutineBase()
 {
-	if(m_holder && m_holder->DecRef())
+	if(m_ownsHolder && m_holder && m_holder->DecRef())
 	{
 		m_holder->Release();
 	}
 }
 
-sprawl::threading::Coroutine::CoroutineState sprawl::threading::Coroutine::State()
+sprawl::threading::CoroutineBase::CoroutineState sprawl::threading::CoroutineBase::State()
 {
 	return m_holder->m_state;
 }
 
-void sprawl::threading::Coroutine::run_()
+void sprawl::threading::CoroutineBase::run_()
 {
 	m_holder->m_function();
 	m_holder->m_state = CoroutineState::Completed;
 	m_holder->m_priorCoroutine.reactivate_();
 }
 
-/*static*/ void sprawl::threading::Coroutine::entryPoint_()
+/*static*/ void sprawl::threading::CoroutineBase::entryPoint_()
 {
 	ms_coroutineInitHelper->run_();
+}
+
+void sprawl::threading::CoroutineBase::releaseRef_()
+{
+	if(m_holder && m_ownsHolder)
+	{
+		m_holder->DecRef();
+		m_ownsHolder = false;
+	}
 }

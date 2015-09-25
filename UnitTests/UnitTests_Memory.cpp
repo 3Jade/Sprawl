@@ -3,6 +3,21 @@
 #include <algorithm>
 #include "../threading/thread.hpp"
 #include "../string/String.hpp"
+#include "../time/time.hpp"
+
+#include "gtest_printers.hpp"
+#include <gtest/gtest.h>
+
+#if defined(_WIN32)
+	#define I64FMT "ll"
+#elif defined(__APPLE__)
+	#define I64FMT "ll"
+#else
+	#define I64FMT "l"
+#endif
+
+const int iterations_alloc = 10000;
+const int iterations_threaded = 1000;
 
 struct MyBigStruct
 {
@@ -54,6 +69,23 @@ struct MyTinyStruct
 				} \
 			} \
 		} \
+	} \
+	TEST(PoolAllocatorTest, DynamicPoolAllocator_##testType##_##chunkSize##_##SIZE) \
+	{ \
+		int64_t total = 0; \
+		int64_t high = 0; \
+		int64_t low = 0; \
+		for(int i = 0; i < iterations_alloc; ++i) \
+		{ \
+			int64_t start = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds); \
+			testType##_test_dynamic_##chunkSize##_##SIZE(); \
+			int64_t elapsed = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds) - start; \
+			total += elapsed; \
+			if(high == 0 || elapsed > high) high = elapsed; \
+			if(low == 0 || elapsed < low) low = elapsed; \
+		} \
+		printf("\t" #testType " (" #SIZE ") - %d runs. Best: %" I64FMT "d ns, Worst: %" I64FMT "d ns, Average: %" I64FMT "d ns\n", iterations_alloc, low, high, total / iterations_alloc); \
+		fflush(stdout); \
 	}
 
 #define ADD_TEST_STATIC_2(testType, SIZE, counter) \
@@ -87,44 +119,34 @@ struct MyTinyStruct
 				} \
 			} \
 		} \
+	} \
+	TEST(PoolAllocatorTest, StaticPoolAllocator_##testType##_##SIZE) \
+	{ \
+		int64_t total = 0; \
+		int64_t high = 0; \
+		int64_t low = 0; \
+		for(int i = 0; i < iterations_alloc; ++i) \
+		{ \
+			int64_t start = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds); \
+			testType##_test_static_##SIZE(); \
+			int64_t elapsed = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds) - start; \
+			total += elapsed; \
+			if(high == 0 || elapsed > high) high = elapsed; \
+			if(low == 0 || elapsed < low) low = elapsed; \
+		} \
+		printf("\t" #testType " (" #SIZE ") - %d runs. Best: %" I64FMT "d ns, Worst: %" I64FMT "d ns, Average: %" I64FMT "d ns\n", iterations_alloc, low, high, total / iterations_alloc); \
+		fflush(stdout); \
 	}
 
 #define ADD_TEST_DYNAMIC(testType, chunkSize, SIZE, counter) ADD_TEST_DYNAMIC_2(testType, chunkSize, SIZE, counter)
 #define ADD_TEST_STATIC(testType, SIZE, counter) ADD_TEST_STATIC_2(testType, SIZE, counter)
 
-#define ADD_TEST(type, chunkSize, arraySize) \
-	ADD_TEST_DYNAMIC(type, chunkSize, arraySize, __COUNTER__) \
-	ADD_TEST_STATIC(type, arraySize, __COUNTER__)
-
-#define RUN_TEST(type, chunkSize, arraySize) \
-	type##_test_dynamic_##chunkSize##_##arraySize(); \
-	type##_test_static_##arraySize()
-
 #define ADD_TESTS(type) \
-	ADD_TEST(type, 8, 32); 
-
-#include "../time/time.hpp"
-
-const int iterations_alloc = 10000;
-const int iterations_threaded = 1000;
-
-#define RUN_TESTS(type) \
-{ \
-	int64_t total = 0; \
-	int64_t high = 0; \
-	int64_t low = 0; \
-	for(int i = 0; i < iterations_alloc; ++i) \
-	{ \
-		int64_t start = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds); \
-		RUN_TEST(type, 8, 32);  \
-		int64_t elapsed = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds) - start; \
-		total += elapsed; \
-		if(high == 0 || elapsed > high) high = elapsed; \
-		if(low == 0 || elapsed < low) low = elapsed; \
-	} \
-	printf("\t" #type " - %d runs. Best: %ld ns, Worst: %ld ns, Average: %ld ns\n", iterations_alloc, low, high, total / iterations_alloc); \
-}
-
+	ADD_TEST_DYNAMIC(type, 8, 32, __COUNTER__) \
+	ADD_TEST_DYNAMIC(type, 512, 32, __COUNTER__) \
+	ADD_TEST_DYNAMIC(type, 4, 128, __COUNTER__) \
+	ADD_TEST_STATIC(type, 8, __COUNTER__) \
+	ADD_TEST_STATIC(type, 32, __COUNTER__)
 
 ADD_TESTS(MyBigStruct)
 ADD_TESTS(MyMediumStruct)
@@ -132,8 +154,7 @@ ADD_TESTS(MySmallStruct)
 ADD_TESTS(MyTinyStruct)
 ADD_TESTS(int64_t)
 
-bool success = true;
-
+#ifdef SPRAWL_MULTITHREADED
 void alloc_dealloc_sprawl_strings()
 {
 	for(int i = 0; i < 1000; ++i)
@@ -142,44 +163,31 @@ void alloc_dealloc_sprawl_strings()
 
 		{
 			sprawl::String str("blah blah blah blah");
-			if(str != "blah blah blah blah")
-			{
-				success = false;
-			}
-		}
-		{
-			sprawl::String str("bleh bleh bleh bleh");
-			if(str != "bleh bleh bleh bleh")
-			{
-				success = false;
-			}
-		}
-		{
-			sprawl::String str("");
-			if(str != "")
-			{
-				success = false;
-			}
+			EXPECT_FALSE(str.empty());
+			EXPECT_EQ(sprawl::String("blah blah blah blah"), str);
 		}
 
-		if(outerStr != "outer")
 		{
-			success = false;
+			sprawl::String str("bleh bleh bleh bleh");
+			EXPECT_FALSE(str.empty());
+			EXPECT_EQ(sprawl::String("bleh bleh bleh bleh"), str);
 		}
+
+		{
+			sprawl::String str("");
+			EXPECT_TRUE(str.empty());
+			EXPECT_EQ(sprawl::String(""), str);
+		}
+
+		EXPECT_FALSE(outerStr.empty());
+		EXPECT_EQ(sprawl::String("outer"), outerStr);
 	}
 }
 
-bool test_memory()
+TEST(PoolAllocatorTest, TestAllocatorThreadSafe)
 {
-	puts("");
-	puts("");
-	RUN_TESTS(MyBigStruct);
-	RUN_TESTS(MyMediumStruct);
-	RUN_TESTS(MySmallStruct);
-	RUN_TESTS(MyTinyStruct);
-	RUN_TESTS(int64_t);
-
-#ifdef SPRAWL_MULTITHREADED
+	printf("(This should take a second)...\n");
+	fflush(stdout);
 	sprawl::threading::Thread thread1(alloc_dealloc_sprawl_strings);
 	sprawl::threading::Thread thread2(alloc_dealloc_sprawl_strings);
 	sprawl::threading::Thread thread3(alloc_dealloc_sprawl_strings);
@@ -208,10 +216,6 @@ bool test_memory()
 		if(high == 0 || elapsed > high) high = elapsed;
 		if(low == 0 || elapsed < low) low = elapsed;
 	}
-	printf("\tThreaded string allod/dealloc - %d runs. Best: %ld us, Worst: %ld us, Average: %ld us\n", iterations_threaded, low, high, total / iterations_threaded);
-#endif
-
-	puts("");
-	printf(" ... ");
-	return success;
+	printf("\tThreaded string allod/dealloc - %d runs. Best: %" I64FMT "d us, Worst: %" I64FMT "d us, Average: %" I64FMT "d us\n", iterations_threaded, low, high, total / iterations_threaded);
 }
+#endif

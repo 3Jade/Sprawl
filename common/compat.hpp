@@ -39,3 +39,11 @@
 #	define SPRAWL_FORCEINLINE inline __forceinline
 #	define SPRAWL_CONSTEXPR const
 #endif
+
+#define SPRAWL_CONCAT_2(left, right) left ## right
+#define SPRAWL_CONCAT(left, right) SPRAWL_CONCAT_2(left, right)
+
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif

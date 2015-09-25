@@ -52,7 +52,7 @@ namespace sprawl
 		class SockExcept: public std::exception
 		{
 		public:
-			SockExcept(const std::string& arg) :
+			SockExcept(std::string const& arg) :
 				str(arg)
 			{
 			}
@@ -96,7 +96,7 @@ namespace sprawl
 				return false;
 			}
 
-			virtual void Send(const std::string& str)
+			virtual void Send(std::string const& str)
 			{
 				send(desc, str.c_str(), str.length(), 0);
 			}
@@ -192,7 +192,7 @@ namespace sprawl
 				return ret;
 			}
 
-			virtual void Send(const std::string& /*str*/, FailType /*behavior*/)
+			virtual void Send(std::string const& /*str*/, FailType /*behavior*/)
 			{
 				throw SockExcept("TCP connections cannot specify failure type.");
 			}
@@ -249,14 +249,14 @@ namespace sprawl
 		class StatedUDPConnection : public StatedConnection<T>
 		{
 		public:
-			virtual void Send(const std::string& str) override final
+			virtual void Send(std::string const& str) override final
 			{
 				Send(str, FailType::ignore);
 			}
 
 			struct packet
 			{
-				packet(uint32_t _id, FailType _behavior, const std::string& _content) : ID(_id), behavior(_behavior), content(_content)
+				packet(uint32_t _id, FailType _behavior, std::string const& _content) : ID(_id), behavior(_behavior), content(_content)
 				{
 					gettimeofday(&sent_time, nullptr);
 				}
@@ -266,14 +266,14 @@ namespace sprawl
 				const std::string content;
 			};
 
-			virtual void Send(const std::string& str, FailType behavior) override final
+			virtual void Send(std::string const& str, FailType behavior) override final
 			{
 				SendPacketWithID(str, behavior, current_id);
 				current_id++;
 			}
 			virtual ~StatedUDPConnection(){}
 		protected:
-			virtual void SendPacketWithID(const std::string& str, FailType behavior, int32_t sendid)
+			virtual void SendPacketWithID(std::string const& str, FailType behavior, int32_t sendid)
 			{
 			
 				boost::interprocess::scoped_lock<boost::mutex> locker;
@@ -527,7 +527,7 @@ namespace sprawl
 			{
 				freeaddrinfo(servinfo);
 			}
-			void Connect(const std::string& addr, int port)
+			void Connect(std::string const& addr, int port)
 			{
 				struct addrinfo* p;
 				if(port < 1 || port > 65535)
@@ -638,11 +638,11 @@ namespace sprawl
 			{
 				return con->GetPacket();
 			}
-			void Send(const std::string& str)
+			void Send(std::string const& str)
 			{
 				con->Send(str);
 			}
-			void Send(const std::string& str, FailType behavior)
+			void Send(std::string const& str, FailType behavior)
 			{
 				if(C == ConnectionType::TCP)
 				{

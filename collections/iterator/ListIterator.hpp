@@ -13,8 +13,8 @@ namespace sprawl
 		class ForwardList;
 	}
 
-	template<typename ValueType, typename WrapperType>
-	class ListIterator : public std::iterator<std::forward_iterator_tag, ValueType, std::ptrdiff_t, ValueType*, ValueType&>
+	template<typename ValueType, typename WrapperType, typename tag>
+	class ListIterator : public std::iterator<tag, ValueType, std::ptrdiff_t, ValueType*, ValueType&>
 	{
 	public:
 		typedef WrapperType* accessor_type;
@@ -55,33 +55,33 @@ namespace sprawl
 			return m_currentItem->m_value;
 		}
 
-		ListIterator<ValueType, WrapperType>& operator++()
+		ListIterator<ValueType, WrapperType, tag>& operator++()
 		{
 			m_currentItem = m_currentItem ? m_currentItem->next : nullptr;
 			return *this;
 		}
 
-		ListIterator<ValueType, WrapperType> operator++(int)
+		ListIterator<ValueType, WrapperType, tag> operator++(int)
 		{
-			ListIterator<ValueType, WrapperType> tmp(*this);
+			ListIterator<ValueType, WrapperType, tag> tmp(*this);
 			++(*this);
 			return tmp;
 		}
 
-		ListIterator<ValueType, WrapperType> const& operator++() const
+		ListIterator<ValueType, WrapperType, tag> const& operator++() const
 		{
 			m_currentItem = m_currentItem ? m_currentItem->next : nullptr;
 			return *this;
 		}
 
-		ListIterator<ValueType, WrapperType> const operator++(int) const
+		ListIterator<ValueType, WrapperType, tag> const operator++(int) const
 		{
-			ListIterator<ValueType, WrapperType> tmp(*this);
+			ListIterator<ValueType, WrapperType, tag> tmp(*this);
 			++(*this);
 			return tmp;
 		}
 
-		ListIterator<ValueType, WrapperType> operator+(int steps)
+		ListIterator<ValueType, WrapperType, tag> operator+(int steps)
 		{
 			WrapperType* item = m_currentItem;
 			for(int i = 0; i < steps; ++i)
@@ -92,10 +92,10 @@ namespace sprawl
 				}
 				item = item->next;
 			}
-			return ListIterator<ValueType, WrapperType>(item);
+			return ListIterator<ValueType, WrapperType, tag>(item);
 		}
 
-		ListIterator<ValueType, WrapperType> const operator+(int steps) const
+		ListIterator<ValueType, WrapperType, tag> const operator+(int steps) const
 		{
 			WrapperType* item = m_currentItem;
 			for(int i = 0; i < steps; ++i)
@@ -106,15 +106,69 @@ namespace sprawl
 				}
 				item = item->next;
 			}
-			return ListIterator<ValueType, WrapperType>(item);
+			return ListIterator<ValueType, WrapperType, tag>(item);
 		}
 
-		bool operator==(ListIterator<ValueType, WrapperType> const& rhs) const
+		ListIterator<ValueType, WrapperType, tag>& operator--()
+		{
+			m_currentItem = m_currentItem ? m_currentItem->prev : nullptr;
+			return *this;
+		}
+
+		ListIterator<ValueType, WrapperType, tag> operator--(int)
+		{
+			ListIterator<ValueType, WrapperType, tag> tmp(*this);
+			--(*this);
+			return tmp;
+		}
+
+		ListIterator<ValueType, WrapperType, tag> const& operator--() const
+		{
+			m_currentItem = m_currentItem ? m_currentItem->prev : nullptr;
+			return *this;
+		}
+
+		ListIterator<ValueType, WrapperType, tag> const operator--(int) const
+		{
+			ListIterator<ValueType, WrapperType, tag> tmp(*this);
+			--(*this);
+			return tmp;
+		}
+
+		ListIterator<ValueType, WrapperType, tag> operator-(int steps)
+		{
+			WrapperType* item = m_currentItem;
+			for(int i = 0; i < steps; ++i)
+			{
+				if(!item)
+				{
+					break;
+				}
+				item = item->prev;
+			}
+			return ListIterator<ValueType, WrapperType, tag>(item);
+		}
+
+		ListIterator<ValueType, WrapperType, tag> const operator-(int steps) const
+		{
+			WrapperType* item = m_currentItem;
+			for(int i = 0; i < steps; ++i)
+			{
+				if(!item)
+				{
+					break;
+				}
+				item = item->prev;
+			}
+			return ListIterator<ValueType, WrapperType, tag>(item);
+		}
+
+		bool operator==(ListIterator<ValueType, WrapperType, tag> const& rhs) const
 		{
 			return m_currentItem == rhs.m_currentItem;
 		}
 
-		bool operator!=(ListIterator<ValueType, WrapperType> const& rhs) const
+		bool operator!=(ListIterator<ValueType, WrapperType, tag> const& rhs) const
 		{
 			return !this->operator==(rhs);
 		}
@@ -139,14 +193,14 @@ namespace sprawl
 			return m_currentItem != nullptr && m_currentItem->next != nullptr;
 		}
 
-		ListIterator<ValueType, WrapperType> Next()
+		ListIterator<ValueType, WrapperType, tag> Next()
 		{
-			return ListIterator<ValueType, WrapperType>(m_currentItem ? m_currentItem->next : nullptr);
+			return ListIterator<ValueType, WrapperType, tag>(m_currentItem ? m_currentItem->next : nullptr);
 		}
 
-		ListIterator<ValueType, WrapperType> const Next() const
+		ListIterator<ValueType, WrapperType, tag> const Next() const
 		{
-			return ListIterator<ValueType, WrapperType>(m_currentItem ? m_currentItem->next : nullptr);
+			return ListIterator<ValueType, WrapperType, tag>(m_currentItem ? m_currentItem->next : nullptr);
 		}
 
 		operator bool()

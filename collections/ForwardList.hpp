@@ -17,8 +17,8 @@ class sprawl::collections::ForwardList
 {
 public:
 	typedef detail::ForwardListItem<T> ItemType;
-	typedef ListIterator<T, ItemType> iterator;
-	typedef ListIterator<T, ItemType> const const_iterator;
+	typedef ListIterator<T, ItemType, std::forward_iterator_tag> iterator;
+	typedef ListIterator<T, ItemType, std::forward_iterator_tag> const const_iterator;
 
 	ForwardList()
 		: m_first(nullptr)
@@ -33,21 +33,26 @@ public:
 	}
 
 	ForwardList(ForwardList const& other)
-	    : m_first(nullptr)
-	    , m_size(0)
+		: m_first(nullptr)
+		, m_size(0)
 	{
-	    for(auto& value : other)
-	    {
-		PushFront(value);
-	    }
+		m_first = new ItemType(other.m_first->m_value);
+		ItemType* item = m_first;
+		ItemType* otherItem = other.m_first;
+		while(otherItem->next)
+		{
+			item->next = new ItemType(otherItem->next->m_value);
+			item = item->next;
+			otherItem = otherItem->next;
+		}
 	}
 
 	ForwardList(ForwardList&& other)
-	    : m_first(other.m_first)
-	    , m_size(other.m_size)
+		: m_first(other.m_first)
+		, m_size(other.m_size)
 	{
-	    other.m_first = nullptr;
-	    other.m_size = nullptr;
+		other.m_first = nullptr;
+		other.m_size = 0;
 	}
 
 	void PushFront(T const& item)
@@ -70,6 +75,7 @@ public:
 		if(m_first == nullptr)
 		{
 			m_first = newItem;
+			++m_size;
 		}
 		else
 		{
@@ -84,18 +90,18 @@ public:
 		delete item;
 	}
 
-	void Insert(const_iterator& insertAfter, T const& item)
+	void InsertAfter(const_iterator& insertAfter, T const& item)
 	{
 		ItemType* newItem = new ItemType(item);
-		ItemType* insertAfterItem = insertAfter.m_currentItem;
-		insertAfter_(newItem, insertAfterItem);
+		ItemType* insertItem = insertAfter.m_currentItem;
+		insertAfter_(newItem, insertItem);
 	}
 
-	void Insert(const_iterator& insertAfter, T&& item)
+	void InsertAfter(const_iterator& insertAfter, T&& item)
 	{
 		ItemType* newItem = new ItemType(std::move(item));
-		ItemType* insertAfterItem = insertAfter.m_currentItem;
-		insertAfter_(newItem, insertAfterItem);
+		ItemType* insertItem = insertAfter.m_currentItem;
+		insertAfter_(newItem, insertItem);
 	}
 
 	void EraseAfter(const_iterator& iter)
@@ -125,7 +131,12 @@ public:
 		return m_size == 0;
 	}
 
-	T& front()
+	T& Front()
+	{
+		return m_first->m_value;
+	}
+
+	T const& Front() const
 	{
 		return m_first->m_value;
 	}
