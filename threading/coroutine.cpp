@@ -13,7 +13,7 @@
 
 sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Holder::Create()
 {
-	typedef memory::DynamicPoolAllocator<sizeof(Holder)> holderAlloc;
+	typedef memory::PoolAllocator<sizeof(Holder)> holderAlloc;
 
 	Holder* ret = (Holder*)holderAlloc::alloc();
 	new(ret) Holder();
@@ -22,7 +22,7 @@ sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Hold
 
 sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Holder::Create(std::function<void()> function, size_t stackSize)
 {
-	typedef memory::DynamicPoolAllocator<sizeof(Holder)> holderAlloc;
+	typedef memory::PoolAllocator<sizeof(Holder)> holderAlloc;
 
 	Holder* ret = (Holder*)holderAlloc::alloc();
 	new(ret) Holder(function, stackSize);
@@ -31,7 +31,7 @@ sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Hold
 
 void sprawl::threading::CoroutineBase::Holder::Release()
 {
-	typedef memory::DynamicPoolAllocator<sizeof(Holder)> holderAlloc;
+	typedef memory::PoolAllocator<sizeof(Holder)> holderAlloc;
 
 	this->~Holder();
 	holderAlloc::free(this);
@@ -78,7 +78,7 @@ sprawl::threading::CoroutineBase& sprawl::threading::CoroutineBase::operator =(C
 		m_holder->Release();
 	}
 	m_holder = other.m_holder;
-	if(m_ownsHolder)
+	if(m_ownsHolder && m_holder)
 	{
 		m_holder->IncRef();
 	}
@@ -95,7 +95,7 @@ sprawl::threading::CoroutineBase::~CoroutineBase()
 
 sprawl::threading::CoroutineBase::CoroutineState sprawl::threading::CoroutineBase::State()
 {
-	return m_holder->m_state;
+	return m_holder ? m_holder->m_state : CoroutineState::Invalid;
 }
 
 void sprawl::threading::CoroutineBase::run_()
@@ -117,4 +117,9 @@ void sprawl::threading::CoroutineBase::releaseRef_()
 		m_holder->DecRef();
 		m_ownsHolder = false;
 	}
+}
+
+size_t sprawl::threading::CoroutineBase::StackSize()
+{
+	return m_holder->m_stackSize;
 }

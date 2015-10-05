@@ -30,7 +30,7 @@ namespace sprawl
 				template<int i = 0>
 				using const_iterator = TreeIterator<ValueType, mapped_type, i>;
 
-				typedef sprawl::memory::DynamicPoolAllocator<sizeof(mapped_type)> allocator;
+				typedef sprawl::memory::PoolAllocator<sizeof(mapped_type)> allocator;
 
 				template<typename RequestedKeyType>
 				inline void Get(RequestedKeyType const&, Specialized<Idx>)
@@ -51,6 +51,11 @@ namespace sprawl
 				}
 
 				inline void Print(Specialized<Idx>)
+				{
+					ValueType::error_invalid_key_index_combination();
+				}
+
+				inline bool VerifyProperties(Specialized<Idx>)
 				{
 					ValueType::error_invalid_key_index_combination();
 				}
@@ -201,7 +206,7 @@ namespace sprawl
 				template<int i = 0>
 				using const_iterator = TreeIterator<ValueType, mapped_type, i>;
 
-				typedef sprawl::memory::DynamicPoolAllocator<sizeof(mapped_type)> allocator;
+				typedef sprawl::memory::PoolAllocator<sizeof(mapped_type)> allocator;
 
 				using Base::Get;
 				inline ValueType& Get(typename Accessor::key_type const& key, Specialized<Idx> = Specialized<Idx>())
@@ -229,7 +234,17 @@ namespace sprawl
 
 					sprawl::StringBuilder builder;
 					typename Accessor::key_type key = m_thisKeyRootNode->Accessor(spec).Key();
+
+					if(m_thisKeyRootNode->Color(spec) == detail::RedBlackColor::Red)
+					{
+						builder << "\033[1;31m";
+					}
+					else
+					{
+						builder << "\033[1;30m";
+					}
 					builder << key;
+					builder << "\033[0m";
 					printf("%s\n", builder.Str().c_str());
 
 					if(m_thisKeyRootNode->Left(spec) != nullptr)
@@ -237,6 +252,37 @@ namespace sprawl
 						printNode_(m_thisKeyRootNode->Left(spec), false, "");
 					}
 					printf("\n\n");
+				}
+
+				using Base::VerifyProperties;
+				inline bool VerifyProperties(Specialized<Idx>)
+				{
+					if(!m_thisKeyRootNode)
+					{
+						return true;
+					}
+					if(m_thisKeyRootNode->Color(spec) != detail::RedBlackColor::Black)
+					{
+						printf("Root node is not black.\n");
+						Print(spec);
+						return false;
+					}
+
+					if(!verifyRedBlackProperties_(m_thisKeyRootNode))
+					{
+						printf("Red black properties do not match:\n");
+						Print(spec);
+						return false;
+					}
+
+					int blackPath = -1;
+					if(!verifyBalance_(m_thisKeyRootNode, 0, blackPath))
+					{
+						printf("Tree is not property balanced.\n");
+						Print(spec);
+						return false;
+					}
+					return true;
 				}
 
 				using Base::GetOrInsert;
@@ -337,7 +383,7 @@ namespace sprawl
 				inline iterator<Idx> begin(Specialized<Idx> = Specialized<Idx>())
 				{
 					mapped_type* left = m_thisKeyRootNode;
-					while(left->Left(spec) != nullptr)
+					while(left && left->Left(spec) != nullptr)
 					{
 						left = left->Left(spec);
 					}
@@ -407,6 +453,11 @@ namespace sprawl
 					erase_(get_(key));
 				}
 
+				inline void Erase(const_iterator<Idx>& it)
+				{
+					erase_(&*it);
+				}
+
 				virtual ~BinaryTree_Impl()
 				{
 					Clear();
@@ -432,6 +483,11 @@ namespace sprawl
 					, m_thisKeyRootNode(other.m_thisKeyRootNode)
 				{
 					other.m_thisKeyRootNode = nullptr;
+				}
+
+				inline detail::RedBlackColor nodeColor_(mapped_type* node)
+				{
+					return node ? node->Color(spec) : detail::RedBlackColor::Black;
 				}
 
 				inline mapped_type* sibling_(mapped_type* node)
@@ -533,120 +589,205 @@ namespace sprawl
 
 				void erase_(mapped_type* item)
 				{
+					if(item == nullptr)
+					{
+						return;
+					}
+
 					if(item->Right(spec) != nullptr && item->Left(spec) != nullptr)
 					{
-						mapped_type* node = item;
+						mapped_type* node = item->Left(spec);
 						while(node->Right(spec) != nullptr)
 						{
 							node = node->Right(spec);
 						}
-
-						item->SetValue(std::move(node->Value()));
+						*item = *node;
 						item = node;
 					}
 
 					mapped_type* child = item->Right(spec) ? item->Right(spec) : item->Left(spec);
+					mapped_type* deletedItem = item;
 
-					if(item->Color(spec) == detail::RedBlackColor::Black)
+					if(nodeColor_(item) == detail::RedBlackColor::Black)
 					{
-						item->SetColor(spec, child->Color(spec));
-						while(item != nullptr)
+						if(nodeColor_(child) == detail::RedBlackColor::Red)
 						{
-							if(item->Parent(spec) == nullptr)
+							child->SetColor(spec, detail::RedBlackColor::Black);
+						}
+						else
+						{
+							item->SetColor(spec, nodeColor_(child));
+							do
 							{
-								break;
-							}
-
-							mapped_type* sibling = sibling_(item);
-							mapped_type* parent = item->Parent(spec);
-							if(sibling->Color(spec) == detail::RedBlackColor::Red)
-							{
-								parent->SetColor(spec, detail::RedBlackColor::Red);
-								sibling->SetColor(spec, detail::RedBlackColor::Black);
-								if(item == parent->Left(spec))
+								if(item->Parent(spec) == nullptr)
 								{
-									rotateLeft_(parent);
+									break;
 								}
-								else
+
+								mapped_type* sibling = sibling_(item);
+								mapped_type* parent = item->Parent(spec);
+								if(nodeColor_(sibling) == detail::RedBlackColor::Red)
 								{
+									parent->SetColor(spec, detail::RedBlackColor::Red);
+									sibling->SetColor(spec, detail::RedBlackColor::Black);
+									if(item == parent->Left(spec))
+									{
+										rotateLeft_(parent);
+									}
+									else
+									{
+										rotateRight_(parent);
+									}
+
+									//After a rotate, these values are stale and need to be refetched.
+									sibling = sibling_(item);
+									parent = item->Parent(spec);
+								}
+
+								if(
+								nodeColor_(parent) == detail::RedBlackColor::Black && sibling
+								&& nodeColor_(sibling) == detail::RedBlackColor::Black
+								&& nodeColor_(sibling->Left(spec)) == detail::RedBlackColor::Black
+								&& nodeColor_(sibling->Right(spec)) == detail::RedBlackColor::Black
+								)
+								{
+									sibling->SetColor(spec, detail::RedBlackColor::Red);
+									item = parent;
+									continue;
+								}
+
+								if(
+								nodeColor_(parent) == detail::RedBlackColor::Red && sibling
+								&& nodeColor_(sibling) == detail::RedBlackColor::Black
+								&& nodeColor_(sibling->Left(spec)) == detail::RedBlackColor::Black
+								&& nodeColor_(sibling->Right(spec)) == detail::RedBlackColor::Black
+								)
+								{
+									sibling->SetColor(spec, detail::RedBlackColor::Red);
+									parent->SetColor(spec, detail::RedBlackColor::Black);
+									break;
+								}
+
+								if(
+								item == parent->Left(spec) && sibling
+								&& nodeColor_(sibling) == detail::RedBlackColor::Black
+								&& nodeColor_(sibling->Left(spec)) == detail::RedBlackColor::Red
+								&& nodeColor_(sibling->Right(spec)) == detail::RedBlackColor::Black
+								)
+								{
+									sibling->SetColor(spec, detail::RedBlackColor::Red);
+									sibling->Left(spec)->SetColor(spec, detail::RedBlackColor::Black);
+									rotateRight_(sibling);
+								}
+								else if(
+								item == parent->Right(spec) && sibling
+								&& nodeColor_(sibling) == detail::RedBlackColor::Black
+								&& nodeColor_(sibling->Right(spec)) == detail::RedBlackColor::Red
+								&& nodeColor_(sibling->Left(spec)) == detail::RedBlackColor::Black
+								)
+								{
+									sibling->SetColor(spec, detail::RedBlackColor::Red);
+									sibling->Right(spec)->SetColor(spec, detail::RedBlackColor::Black);
+									rotateLeft_(sibling);
+								}
+
+								//After a rotate, these values are stale and need to be refetched.
+								sibling = sibling_(item);
+								parent = item->Parent(spec);
+
+								if(sibling)
+								{
+									sibling->SetColor(spec, nodeColor_(parent));
+									parent->SetColor(spec, detail::RedBlackColor::Black);
+									if(item == parent->Left(spec))
+									{
+										sibling->Right(spec)->SetColor(spec, detail::RedBlackColor::Black);
+										rotateLeft_(parent);
+										break;
+									}
+
+									sibling->Left(spec)->SetColor(spec, detail::RedBlackColor::Black);
 									rotateRight_(parent);
 								}
-							}
-
-							if(
-								parent->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Left(spec)->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Right(spec)->Color(spec) == detail::RedBlackColor::Black
-							)
-							{
-								sibling->SetColor(spec, detail::RedBlackColor::Red);
-								item = item->Parent(spec);
-								continue;
-							}
-
-							if(
-								parent->Color(spec) == detail::RedBlackColor::Red
-								&& sibling->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Left(spec)->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Right(spec)->Color(spec) == detail::RedBlackColor::Black
-							)
-							{
-								sibling->SetColor(spec, detail::RedBlackColor::Red);
-								parent->SetColor(spec, detail::RedBlackColor::Black);
 								break;
-							}
-
-							if(
-								item == parent->Left(spec)
-								&& sibling->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Left(spec)->Color(spec) == detail::RedBlackColor::Red
-								&& sibling->Right(spec)->Color(spec) == detail::RedBlackColor::Black
-							)
-							{
-								sibling->SetColor(spec, detail::RedBlackColor::Red);
-								sibling->Left(spec)->SetColor(spec, detail::RedBlackColor::Black);
-								rotateRight_(sibling);
-							}
-							else if(
-								item == parent->Right(spec)
-								&& sibling->Color(spec) == detail::RedBlackColor::Black
-								&& sibling->Right(spec)->Color(spec) == detail::RedBlackColor::Red
-								&& sibling->Left(spec)->Color(spec) == detail::RedBlackColor::Black
-							)
-							{
-								sibling->SetColor(spec, detail::RedBlackColor::Red);
-								sibling->Right(spec)->SetColor(spec, detail::RedBlackColor::Black);
-								rotateLeft_(sibling);
-							}
-
-							sibling->SetColor(spec, parent->Color(spec));
-							parent->SetColor(spec, detail::RedBlackColor::Black);
-							if(item == parent->Left(spec))
-							{
-								sibling->Right(spec)->SetColor(spec, detail::RedBlackColor::Black);
-								rotateLeft_(parent);
-								break;
-							}
-
-							sibling->Left(spec)->SetColor(spec, detail::RedBlackColor::Black);
-							rotateRight_(parent);
-							break;
+							} while(item != nullptr);
 						}
 					}
 
-					replaceNode_(item, child);
-					Base::erase_(item);
+					replaceNode_(deletedItem, child);
+					Base::erase_(deletedItem);
 				}
 
 				mapped_type* m_thisKeyRootNode;
 
 			private:
+				bool verifyRedBlackProperties_(mapped_type* node)
+				{
+					if(node == NULL)
+						return true;
+					if(nodeColor_(node) == detail::RedBlackColor::Red)
+					{
+						if(nodeColor_(node->Left(spec)) != detail::RedBlackColor::Black)
+						{
+							return false;
+						}
+
+						if(nodeColor_(node->Right(spec)) != detail::RedBlackColor::Black)
+						{
+							return false;
+						}
+
+						if(nodeColor_(node->Parent(spec)) != detail::RedBlackColor::Black)
+						{
+							return false;
+						}
+					}
+					if(!verifyRedBlackProperties_(node->Left(spec)))
+					{
+						return false;
+					}
+					if(!verifyRedBlackProperties_(node->Right(spec)))
+					{
+						return false;
+					}
+					return true;
+				}
+
+				bool verifyBalance_(mapped_type* node, int blackCount, int& blackPath)
+				{
+					if(nodeColor_(node) == detail::RedBlackColor::Black)
+					{
+						++blackCount;
+					}
+					if(node == nullptr)
+					{
+						if(blackPath == -1)
+						{
+							blackPath = blackCount;
+						}
+						else if(blackPath != blackCount)
+						{
+							printf("%d != %d\n", blackPath, blackCount);
+							return false;
+						}
+						return true;
+					}
+					if(!verifyBalance_(node->Left(spec), blackCount, blackPath))
+					{
+						return false;
+					}
+					if(!verifyBalance_(node->Right(spec), blackCount, blackPath))
+					{
+						return false;
+					}
+					return true;
+				}
+
 				inline void printNode_(mapped_type* node, bool right = false, sprawl::String indent = "")
 				{
 					if(node->Right(spec) != nullptr)
 					{
-						printNode_(node->Right(spec), true, indent + (right ? "        " : " |      "));
+						printNode_(node->Right(spec), true, indent + (right ? "		" : " |	  "));
 					}
 
 					printf("%s", indent.c_str());
@@ -662,12 +803,21 @@ namespace sprawl
 
 					sprawl::StringBuilder builder;
 					typename Accessor::key_type key = node->Accessor(spec).Key();
+					if(node->Color(spec) == detail::RedBlackColor::Red)
+					{
+						builder << "\033[1;31m";
+					}
+					else
+					{
+						builder << "\033[1;30m";
+					}
 					builder << key;
+					builder << "\033[0m";
 					printf("----- %s\n", builder.Str().c_str());
 
 					if(node->Left(spec) != nullptr)
 					{
-						printNode_(node->Left(spec), false, indent + (right ? " |      " : "        "));
+						printNode_(node->Left(spec), false, indent + (right ? " |	  " : "		"));
 					}
 				}
 
@@ -728,14 +878,14 @@ namespace sprawl
 							return;
 						}
 
-						if(newItem->Parent(spec)->Color(spec) == detail::RedBlackColor::Black)
+						if(nodeColor_(newItem->Parent(spec)) == detail::RedBlackColor::Black)
 						{
 							return;
 						}
 
 						mapped_type* uncle = uncle_(newItem);
 
-						if(uncle != nullptr && uncle->Color(spec) == detail::RedBlackColor::Red)
+						if(uncle != nullptr && nodeColor_(uncle) == detail::RedBlackColor::Red)
 						{
 							newItem->Parent(spec)->SetColor(spec, detail::RedBlackColor::Black);
 							uncle->SetColor(spec, detail::RedBlackColor::Black);
@@ -790,14 +940,13 @@ namespace sprawl
 					}
 					return nullptr;
 				}
-
 				inline mapped_type* getUpperBound_(typename Accessor::key_type const& key)
 				{
 					mapped_type* node = m_thisKeyRootNode;
 					mapped_type* foundNode = nullptr;
 					while(node)
 					{
-						if(key < node->Accessor(spec).Key())
+						if(key < node->Accessor(spec).Key() && !(key == node->Accessor(spec).Key()))
 						{
 							foundNode = node;
 							node = node->Left(spec);
@@ -816,19 +965,18 @@ namespace sprawl
 					mapped_type* foundNode = nullptr;
 					while(node)
 					{
-						if(key == node->Accessor(spec).Key())
+						if(node->Accessor(spec).Key() < key)
 						{
-							return node;
-						}
-
-						if(key < node->Accessor(spec).Key())
-						{
-							node = node->Left(spec);
+							node = node->Right(spec);
 						}
 						else
 						{
+							if(key == node->Accessor(spec).Key())
+							{
+								return node;
+							}
 							foundNode = node;
-							node = node->Right(spec);
+							node = node->Left(spec);
 						}
 					}
 
@@ -1031,6 +1179,12 @@ namespace sprawl
 				return Erase(val, Specialized<i>());
 			}
 
+			template<int i>
+			inline void Erase(typename Base::template const_iterator<i>& it)
+			{
+				return Erase(it);
+			}
+
 			template<int i = 0>
 			inline typename Base::template iterator<i> begin()
 			{
@@ -1072,6 +1226,13 @@ namespace sprawl
 			inline void Print()
 			{
 				Base::Print(Specialized<i>());
+			}
+
+			using Base::VerifyProperties;
+			template<int i = 0>
+			inline bool VerifyProperties()
+			{
+				return Base::VerifyProperties(Specialized<i>());
 			}
 
 			BinaryTree()

@@ -31,6 +31,7 @@
 
 #include "Serializer.hpp"
 #include "../collections/HashMap.hpp"
+#include "../collections/Vector.hpp"
 #include <vector>
 
 namespace sprawl
@@ -41,18 +42,18 @@ namespace sprawl
 		{
 		public:
 			StringData( char const* const data, size_t length )
-			: m_data( data )
-			, m_length( length )
-			, m_commitData( nullptr )
+				: m_data( data )
+				, m_length( length )
+				, m_commitData( nullptr )
 			{
 				//
 			}
 
 
 			StringData( char const* const data )
-			: m_data( data )
-			, m_length( strlen( data ) )
-			, m_commitData( nullptr )
+				: m_data( data )
+				, m_length( strlen( data ) )
+				, m_commitData( nullptr )
 			{
 				//
 			}
@@ -73,9 +74,9 @@ namespace sprawl
 			}
 
 			StringData( StringData const& other )
-			: m_data( other.m_data )
-			, m_length( other.m_length )
-			, m_commitData( other.m_commitData )
+				: m_data( other.m_data )
+				, m_length( other.m_length )
+				, m_commitData( other.m_commitData )
 			{
 				if( m_commitData )
 				{
@@ -155,7 +156,6 @@ namespace sprawl
 		class JSONToken
 		{
 		public:
-
 			static long long ToInt(StringData const& str);
 			static unsigned long long ToUInt(StringData const& str);
 			static long double ToDouble(StringData const& str);
@@ -175,9 +175,9 @@ namespace sprawl
 				Null = 7,
 			};
 
-			StringData const& GetKey() const
+			sprawl::String GetKey() const
 			{
-				return m_key;
+				return sprawl::StringLiteral(m_key.c_str(), m_key.length());
 			}
 
 			long long Int() const
@@ -329,11 +329,11 @@ namespace sprawl
 
 			JSONToken const& operator[]( sprawl::String const& key ) const;
 
-			JSONToken const& operator[]( size_t index ) const;
+			JSONToken const& operator[]( ssize_t index ) const;
 
 			JSONToken& operator[]( sprawl::String const& key );
 
-			JSONToken& operator[]( size_t index );
+			JSONToken& operator[]( ssize_t index );
 
 			JSONType Type()
 			{
@@ -473,17 +473,22 @@ namespace sprawl
 			JSONToken(JSONToken const& other);
 			JSONToken& operator=(JSONToken const& other);
 
-			JSONToken& FirstChild()
+			StringData const& KeyData() const
 			{
-				auto it = m_holder->m_objectChildren->begin();
-				if(it)
-				{
-					return *it.Value();
-				}
-				return staticEmpty;
+				return m_key;
 			}
 
+			typedef sprawl::collections::HashMap<JSONToken, sprawl::ConstMemberAccessor<JSONToken, StringData const&, &JSONToken::KeyData>> TokenMap;
+			class iterator;
+
+			iterator begin();
+			iterator end();
+
+			JSONToken ShallowCopy();
+			JSONToken DeepCopy();
+
 		protected:
+			friend class sprawl::collections::Vector<JSONToken>;
 			JSONToken( StringData const& myKey, char const*& data, JSONType expectedType );
 			JSONToken( JSONType statedType, sprawl::String const& data );
 			JSONToken( JSONType statedType, bool data );
@@ -491,14 +496,23 @@ namespace sprawl
 			JSONToken( JSONType statedType, unsigned long long data );
 			JSONToken( JSONType statedType );
 			JSONToken( JSONType statedType, long double data );
+			JSONToken( StringData const& myKey, JSONType statedType, sprawl::String const& data );
+			JSONToken( StringData const& myKey, JSONType statedType, bool data );
+			JSONToken( StringData const& myKey, JSONType statedType, long long data );
+			JSONToken( StringData const& myKey, JSONType statedType, unsigned long long data );
+			JSONToken( StringData const& myKey, JSONType statedType );
+			JSONToken( StringData const& myKey, JSONType statedType, long double data );
+			JSONToken( StringData const& myKey, JSONToken const& other );
 
 			static JSONToken* Create();
 			static void Free(JSONToken* token);
 
 		private:
 			void BuildJSONString(sprawl::StringBuilder& outString, bool pretty, int tabDepth);
-			void EnsureOwnership();
-			void IncRef() { ++m_holder->refCount; }
+			void IncRef()
+			{
+				++m_holder->refCount;
+			}
 			void DecRef()
 			{
 				if(--m_holder->refCount == 0)
@@ -515,16 +529,12 @@ namespace sprawl
 			void ParseArray(char const*& data);
 			void ParseObject(char const*& data);
 
-			typedef sprawl::collections::HashMap<JSONToken*, sprawl::PtrConstMemberAccessor<JSONToken, StringData const&, &JSONToken::GetKey>> TokenMap;
-			typedef TokenMap::iterator iterator;
-
 			struct Holder
 			{
 				StringData m_data;
 				JSONType m_type;
-				TokenMap *m_objectChildren;
-				TokenMap::iterator m_iter;
-				std::vector<JSONToken> *m_arrayChildren;
+				TokenMap* m_objectChildren;
+				sprawl::collections::Vector<JSONToken> m_arrayChildren;
 				int refCount;
 
 				bool Unique() { return refCount == 1; }
@@ -539,6 +549,215 @@ namespace sprawl
 			Holder* m_holder;
 			StringData m_key;
 			static JSONToken staticEmpty;
+		};
+
+		class JSONToken::iterator
+		{
+		public:
+			iterator(sprawl::collections::Vector<JSONToken>::iterator it)
+				: mapIter(nullptr)
+				, arrayIter(it)
+				, type(JSONType::Array)
+			{
+				//
+			}
+			iterator(TokenMap::iterator it)
+				: mapIter(it)
+				, arrayIter(nullptr, nullptr)
+				, type(JSONType::Object)
+			{
+				//
+			}
+
+			iterator(std::nullptr_t)
+				: mapIter(nullptr)
+				, arrayIter(nullptr, nullptr)
+				, type(JSONType::Empty)
+			{
+				//
+			}
+
+			JSONToken& operator*()
+			{
+				if(type == JSONType::Array)
+				{
+					return *arrayIter;
+				}
+				return mapIter->Value();
+			}
+
+			JSONToken* operator->()
+			{
+				if(type == JSONType::Array)
+				{
+					return &*arrayIter;
+				}
+				return &mapIter->Value();
+			}
+
+
+			JSONToken const& operator*() const
+			{
+				if(type == JSONType::Array)
+				{
+					return *arrayIter;
+				}
+				return mapIter->Value();
+			}
+
+			JSONToken const* operator->() const
+			{
+				if(type == JSONType::Array)
+				{
+					return &*arrayIter;
+				}
+				return &mapIter->Value();
+			}
+
+			JSONType Type()
+			{
+				return type;
+			}
+
+			ssize_t Index() const
+			{
+				if(type == JSONType::Array)
+				{
+					return arrayIter.Index();
+				}
+				return -1;
+			}
+
+			sprawl::String Key() const
+			{
+				if(type == JSONType::Array)
+				{
+					return "";
+				}
+				return sprawl::String(mapIter->Key().c_str(), mapIter->Key().length());
+			}
+
+			JSONToken& Value()
+			{
+				if(type == JSONType::Array)
+				{
+					return *arrayIter;
+				}
+				return mapIter->Value();
+			}
+
+			JSONToken const& Value() const
+			{
+				if(type == JSONType::Array)
+				{
+					return *arrayIter;
+				}
+				return mapIter->Value();
+			}
+
+			iterator& operator++()
+			{
+				if(type == JSONType::Array)
+				{
+					++arrayIter;
+				}
+				else
+				{
+					++mapIter;
+				}
+				return *this;
+			}
+
+			iterator operator++(int)
+			{
+				iterator tmp(*this);
+				++(*this);
+				return tmp;
+			}
+
+			iterator const& operator++() const
+			{
+				if(type == JSONType::Array)
+				{
+					++arrayIter;
+				}
+				else
+				{
+					++mapIter;
+				}
+				return *this;
+			}
+
+			iterator const operator++(int) const
+			{
+				iterator tmp(*this);
+				++(*this);
+				return tmp;
+			}
+
+			bool operator==(iterator const& rhs) const
+			{
+				if(type == JSONType::Array)
+				{
+					return arrayIter == rhs.arrayIter;
+				}
+				return mapIter == rhs.mapIter;
+			}
+
+			bool operator!=(iterator const& rhs) const
+			{
+				return !this->operator==(rhs);
+			}
+
+			operator bool() const
+			{
+				return Valid();
+			}
+
+			bool operator!() const
+			{
+				return !Valid();
+			}
+
+			bool Valid() const
+			{
+				if(type == JSONType::Empty)
+				{
+					return false;
+				}
+				else if(type == JSONType::Array)
+				{
+					return arrayIter.Valid();
+				}
+				return mapIter.Valid();
+			}
+
+			bool More() const
+			{
+				if(type == JSONType::Empty)
+				{
+					return false;
+				}
+				else if(type == JSONType::Array)
+				{
+					return arrayIter.More();
+				}
+				return mapIter.More();
+			}
+
+			iterator Next()
+			{
+				return ++(*this);
+			}
+
+			iterator const Next() const
+			{
+				return ++(*this);
+			}
+		private:
+			JSONToken::TokenMap::iterator mapIter;
+			sprawl::collections::Vector<JSONToken>::iterator arrayIter;
+			JSONType type;
 		};
 
 		class JSONSerializerBase : virtual public SerializerBase
@@ -610,7 +829,7 @@ namespace sprawl
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
 						}
 						token.Val(*var);
-						m_currentObjectIndex.back() = &token.NextSibling();
+						++m_currentObjectIndex.back();
 					}
 				}
 			}
@@ -643,7 +862,7 @@ namespace sprawl
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
 						}
 						token.Val(var, bytes);
-						m_currentObjectIndex.back() = &token.NextSibling();
+						++m_currentObjectIndex.back();
 					}
 				}
 			}
@@ -678,7 +897,7 @@ namespace sprawl
 							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
 						}
 						token.Val(str);
-						m_currentObjectIndex.back() = &token.NextSibling();
+						++m_currentObjectIndex.back();
 					}
 
 					var->assign(str.c_str(), str.length());
@@ -779,7 +998,7 @@ namespace sprawl
 					{
 						m_currentToken.push_back(&token[str]);
 					}
-					m_currentObjectIndex.push_back(&m_currentToken.back()->FirstChild());
+					m_currentObjectIndex.push_back(m_currentToken.back()->begin());
 					return uint32_t(m_currentToken.back()->Size());
 				}
 				else
@@ -804,7 +1023,7 @@ namespace sprawl
 					m_currentObjectIndex.pop_back();
 					if(m_currentToken.back()->Type() == JSONToken::JSONType::Object)
 					{
-						m_currentObjectIndex.back() = &m_currentObjectIndex.back()->NextSibling();
+						++m_currentObjectIndex.back();
 					}
 					else
 					{
@@ -850,7 +1069,7 @@ namespace sprawl
 					m_currentArrayIndex.pop_back();
 					if(m_currentToken.back()->Type() == JSONToken::JSONType::Object)
 					{
-						m_currentObjectIndex.back() = &m_currentObjectIndex.back()->NextSibling();
+						++m_currentObjectIndex.back();
 					}
 					else
 					{
@@ -861,7 +1080,7 @@ namespace sprawl
 
 			sprawl::String GetNextKey()
 			{
-				return m_currentObjectIndex.back()->GetKey().toString();
+				return m_currentObjectIndex.back()->GetKey();
 			}
 
 		protected:
@@ -877,7 +1096,7 @@ namespace sprawl
 				, m_bWithMetadata(true)
 			{
 				m_currentToken.push_back(&m_rootToken);
-				m_currentObjectIndex.push_back(&m_rootToken.FirstChild());
+				m_currentObjectIndex.push_back(m_rootToken.begin());
 			}
 
 			virtual ~JSONSerializerBase()
@@ -888,7 +1107,7 @@ namespace sprawl
 			JSONToken m_rootToken;
 			std::vector<JSONToken*> m_currentToken;
 			std::vector<int> m_currentArrayIndex;
-			std::vector<JSONToken*> m_currentObjectIndex;
+			std::vector<JSONToken::iterator> m_currentObjectIndex;
 
 			bool m_prettyPrint;
 

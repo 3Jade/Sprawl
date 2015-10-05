@@ -7,7 +7,7 @@
 #endif
 
 #ifndef SPRAWL_STRINGBUILDER_FAVOR_SPEED_OVER_MEMORY
-#	define SPRAWL_STRINGBUILDER_FAVOR_SPEED_OVER_MEMORY 0
+#	define SPRAWL_STRINGBUILDER_FAVOR_SPEED_OVER_MEMORY 1
 #endif
 
 namespace sprawl
@@ -94,7 +94,7 @@ namespace sprawl
 			{
 				char buf[15];
 				sprintf(buf, "%%%sp", modifiers);
-				checked_snprintf(buf, (void*)elem);
+				checkedSnprintf_(buf, (void*)elem);
 			}
 		}
 
@@ -115,10 +115,13 @@ namespace sprawl
 			m_remainingCapacity = m_bufferSize;
 		}
 
-		template<typename T>
-		void checked_snprintf(char const* const pattern, T elem);
-
 	private:
+
+		template<typename T>
+		void checkedSnprintf_(char const* const pattern, T elem);
+
+		void checkGrow_(size_t amount);
+
 		static SPRAWL_CONSTEXPR size_t staticBufferSize = SPRAWL_STATIC_STRING_SIZE;
 
 		char m_staticBuffer[staticBufferSize];

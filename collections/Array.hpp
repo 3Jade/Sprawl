@@ -131,7 +131,7 @@ public:
 		return cend();
 	}
 
-	void Fill(const T& value)
+	void Fill(T const& value)
 	{
 		for(ssize_t i = 0; i < size; ++i)
 		{

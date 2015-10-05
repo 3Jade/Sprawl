@@ -92,7 +92,7 @@ namespace sprawl
 
 	String::Holder* String::Holder::CreateHolder()
 	{
-		typedef memory::DynamicPoolAllocator<sizeof(String::Holder)> holderAlloc;
+		typedef memory::PoolAllocator<sizeof(String::Holder)> holderAlloc;
 
 		String::Holder* ret = (String::Holder*)holderAlloc::alloc();
 		return ret;
@@ -100,7 +100,7 @@ namespace sprawl
 
 	void String::Holder::FreeHolder(Holder* holder)
 	{
-		typedef memory::DynamicPoolAllocator<sizeof(String::Holder)> holderAlloc;
+		typedef memory::PoolAllocator<sizeof(String::Holder)> holderAlloc;
 
 		holder->~Holder();
 		holderAlloc::free(holder);

@@ -108,7 +108,15 @@ def threading():
 			csbuild.Toolchain("gcc").Linker().AddLinkerFlags("-pthread")
 
 	csbuild.Toolchain("gcc").AddExcludeFiles("threading/*_windows.cpp")
-	csbuild.Toolchain("msvc").AddExcludeFiles("threading/*_linux.cpp")
+	if platform.system() == "Darwin":
+		csbuild.Toolchain("gcc").AddExcludeFiles("threading/event_linux.cpp")
+	else:
+		csbuild.Toolchain("gcc").AddExcludeFiles("threading/event_osx.cpp")
+
+	csbuild.Toolchain("msvc").AddExcludeFiles(
+		"threading/*_linux.cpp",
+		"threading/*_osx.cpp"
+	)
 
 	csbuild.EnableOutputInstall()
 	csbuild.EnableHeaderInstall()
@@ -170,14 +178,25 @@ def logging():
 
 	@csbuild.scope(csbuild.ScopeDef.Final)
 	def finalScope():
-		csbuild.Toolchain("gcc").AddLibraries(
-			"bfd",
-			"unwind",
-			"unwind-x86_64",
+		if platform.system() != "Darwin":
+			csbuild.Toolchain("gcc").AddLibraries(
+				"bfd",
+				"unwind",
+				"unwind-x86_64",
+			)
+		csbuild.Toolchain("msvc").AddLibraries(
+			"DbgHelp"
 		)
 
 	csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_windows.cpp")
-	csbuild.Toolchain("msvc").AddExcludeFiles("logging/*_linux.cpp")
+	if platform.system() == "Darwin":
+		csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_linux.cpp")
+	else:
+		csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_osx.cpp")
+	csbuild.Toolchain("msvc").AddExcludeFiles(
+		"logging/*_linux.cpp",
+		"logging/*_osx.cpp"
+	)
 
 	csbuild.EnableOutputInstall()
 	csbuild.EnableHeaderInstall()

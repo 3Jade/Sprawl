@@ -3,7 +3,8 @@
 
 #include "../threading/threadmanager.hpp"
 #include "../collections/HashMap.hpp"
-#include "../collections/BinaryTree.hpp"
+#include <map>
+#include <set>
 #include "../filesystem/filesystem.hpp"
 #include "../filesystem/path.hpp"
 #include <time.h>
@@ -53,6 +54,7 @@ namespace LoggingStatic
 		SetConsoleTextAttribute( handle, colorArray[0] );
 	}
 
+#define snprintf _snprintf
 #else
 	#include <unistd.h>
 
@@ -103,18 +105,45 @@ namespace LoggingStatic
 
 	static sprawl::threading::ThreadManager logManager_;
 	static bool useManager_ = false;
-	static sprawl::collections::BasicHashMap<sprawl::String, sprawl::filesystem::File> fileMap_;
+
+	struct FileData
+	{
+		FileData(sprawl::filesystem::File const& file_, sprawl::String const& filename_)
+			: file(file_)
+			, size(0)
+			, filename(filename_)
+			, mutex()
+		{
+
+		}
+
+		FileData(FileData&& other)
+			: file(std::move(other.file))
+			, size(other.size)
+			, filename(std::move(other.filename))
+			, mutex(std::move(other.mutex))
+		{
+			other.size = 0;
+		}
+
+		sprawl::filesystem::File file;
+		size_t size;
+		sprawl::String filename;
+		sprawl::threading::Mutex mutex;
+	};
+
+	static sprawl::collections::BasicHashMap<sprawl::String, FileData> fileMap_;
 
 	static sprawl::logging::RenameMethod renameMethod_ = sprawl::logging::RenameMethod::Timestamp;
 	static int renameArg_ = int(sprawl::time::Resolution::Milliseconds);
 
-	static size_t maxFileSize_ = 500000;
+	static size_t maxFileSize_ = 500 * 1024 * 1024;
 
-	static sprawl::String format_ = sprawl::String("{} [{}] ({}) {} ({}:{}:{})") + sprawl::filesystem::LineSeparator();
+	static sprawl::String format_ = sprawl::String("{} {} [{}] {} [{}] ({}:{}:{})") + sprawl::filesystem::LineSeparator();
 
-	static void addToThreadManager_(std::shared_ptr<sprawl::logging::Message> const& message, sprawl::filesystem::File const& file, sprawl::threading::ThreadManager& manager, int64_t threadFlag, sprawl::String const& filename)
+	static void addToThreadManager_(sprawl::logging::Handler const& handler, std::shared_ptr<sprawl::logging::Message> const& message, sprawl::threading::ThreadManager& manager, int64_t threadFlag)
 	{
-		manager.AddTask(std::bind(sprawl::logging::PrintMessageToFile, message, file, filename), threadFlag);
+		manager.AddTask(std::bind(handler, message), threadFlag);
 	}
 
 	static sprawl::String modifyFilename_(sprawl::String const& filename)
@@ -151,65 +180,190 @@ namespace LoggingStatic
 	static sprawl::String strftimeFormat_ = "%Y-%m-%dT%H:%M:%S";
 	static sprawl::time::Resolution maxResolution_ = sprawl::time::Resolution::Microseconds;
 
-	static sprawl::collections::BasicHashMap<sprawl::String, sprawl::threading::Mutex> fileMutexes_;
-
 	static int resolutionSize_ = 6;
 
 	static sprawl::collections::BasicHashMap<FILE*, sprawl::threading::Mutex> streamMutexes_;
 
 	static sprawl::logging::Handler defaultHandler_ = sprawl::logging::PrintToStdout();
-	static sprawl::collections::BasicBinaryTree<sprawl::String, sprawl::collections::Vector<sprawl::logging::Handler>> handlers_;
+	static std::map<sprawl::String, sprawl::collections::Vector<sprawl::logging::Handler>> handlers_;
 
 	static sprawl::logging::Options defaultOptions_;
 	static sprawl::collections::BasicHashMap<int, sprawl::logging::Options> options_;
 
-	static sprawl::collections::BinarySet<sprawl::String> disabledCategories_;
+	static std::set<sprawl::String> disabledCategories_;
 
 	static int minLevel_ = 0;
 
-	template<typename T>
-	static typename T::template const_iterator<0> getClosestParentCategory_(T& map, sprawl::String const& categoryStr)
+	template<typename Key, typename Value>
+	static typename std::map<Key, Value>::const_iterator getClosestParentCategory_(std::map<Key, Value>& map, sprawl::String const& categoryStr)
 	{
-		auto it = map.find(categoryStr);
-		if(!it.Valid())
+		if(map.empty())
 		{
-			it = map.LowerBound(categoryStr);
+			return map.end();
 		}
-		if(it.Valid())
+		auto it = map.find(categoryStr);
+		if(it == map.end())
 		{
-			sprawl::String checkStr = it.Key();
-			while(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
+			it = map.upper_bound(categoryStr);
+			if(it == map.begin())
 			{
-				if(categoryStr == checkStr)
-				{
-					return it;
-					break;
-				}
-				else if(categoryStr.length() > checkStr.length())
-				{
-					if(categoryStr[checkStr.length()] == ':')
-					{
-						if(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
-						{
-							return it;
-							break;
-						}
-					}
-				}
+				return map.end();
+			}
+			else if(it == map.end())
+			{
+				it = (++map.rbegin()).base();
+			}
+			else
+			{
 				--it;
-				if(!it.Valid())
-				{
-					break;
-				}
-				checkStr = it.Key();
 			}
 		}
+
+		sprawl::String checkStr = it->first;
+		while(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
+		{
+			if(categoryStr == checkStr)
+			{
+				return it;
+			}
+			else if(categoryStr.length() > checkStr.length())
+			{
+				if(categoryStr[checkStr.length()] == ':')
+				{
+					if(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
+					{
+						return it;
+					}
+				}
+			}
+			if(it == map.begin())
+			{
+				return map.end();
+			}
+			--it;
+			checkStr = it->first;
+		}
 		return map.end();
+	}
+
+	template<typename T>
+	static typename std::set<T>::const_iterator getClosestParentCategory_(std::set<T>& map, sprawl::String const& categoryStr)
+	{
+		if(map.empty())
+		{
+			return map.end();
+		}
+		auto it = map.find(categoryStr);
+		if(it == map.end())
+		{
+			it = map.upper_bound(categoryStr);
+			if(it == map.begin())
+			{
+				return map.end();
+			}
+			else if(it == map.end())
+			{
+				it = (++map.rbegin()).base();
+			}
+			else
+			{
+				--it;
+			}
+		}
+		sprawl::String checkStr = *it;
+		while(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
+		{
+			if(categoryStr == checkStr)
+			{
+				return it;
+			}
+			else if(categoryStr.length() > checkStr.length())
+			{
+				if(categoryStr[checkStr.length()] == ':')
+				{
+					if(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
+					{
+						return it;
+					}
+				}
+			}
+			if(it == map.begin())
+			{
+				return map.end();
+			}
+			--it;
+			checkStr = *it;
+		}
+		return map.end();
+	}
+
+	struct ExtraInfoCallbackPair
+	{
+		std::function<void*()> Get;
+		std::function<void(void*, sprawl::StringBuilder&)> Print;
+	};
+
+	static sprawl::collections::BasicHashMap<int, sprawl::collections::Vector<ExtraInfoCallbackPair>> extraInfoCallbacks_;
+
+
+	static void printMessageToFile_(std::shared_ptr<sprawl::logging::Message> const& message, LoggingStatic::FileData& fileData)
+	{
+		sprawl::String strMessage = message->ToString();
+		sprawl::String extraData = message->CollectExtraData();
+
+		{
+			sprawl::threading::ScopedLock(fileData.mutex);
+			if(fileData.size + strMessage.length() + extraData.length() > LoggingStatic::maxFileSize_)
+			{
+				fileData.file.Close();
+				fileData.file = sprawl::filesystem::Open(LoggingStatic::modifyFilename_(fileData.filename), "w");
+			}
+			fileData.file.Write(strMessage);
+
+			if(!extraData.empty())
+			{
+				fileData.file.Write(extraData);
+			}
+
+			fileData.size += strMessage.length() + extraData.length();
+		}
+
+		if(message->messageOptions->logToStdout)
+		{
+			LoggingStatic::setColor_(message->messageOptions->color, stdout);
+			fwrite(strMessage.c_str(), 1, strMessage.length(), stdout);
+			LoggingStatic::resetColor_(stdout);
+		}
+		if(message->messageOptions->logToStderr)
+		{
+			LoggingStatic::setColor_(message->messageOptions->color, stderr);
+			fwrite(strMessage.c_str(), 1, strMessage.length(), stderr);
+			LoggingStatic::resetColor_(stderr);
+		}
+	}
+
+	static void printMessageToStream_(std::shared_ptr<sprawl::logging::Message> const& message, FILE* stream)
+	{
+		sprawl::String strMessage = message->ToString();
+		sprawl::String extraData = message->CollectExtraData();
+
+		{
+			sprawl::threading::ScopedLock(LoggingStatic::streamMutexes_.GetOrInsert(stream));
+			LoggingStatic::setColor_(message->messageOptions->color, stream);
+			fwrite(strMessage.c_str(), 1, strMessage.length(), stream);
+			LoggingStatic::resetColor_(stream);
+
+
+			if(!extraData.empty())
+			{
+				fwrite(extraData.c_str(), 1, extraData.length(), stream);
+			}
+		}
 	}
 }
 
 
-void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::String const& message, sprawl::String const& file, sprawl::String const& function, int line)
+void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::String const& message, sprawl::String const& file, sprawl::String const& function, String const& line)
 {
 	if(level < LoggingStatic::minLevel_)
 	{
@@ -217,18 +371,36 @@ void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::Str
 	}
 
 	Options* options;
-	if(LoggingStatic::options_.Has(level))
+	auto it = LoggingStatic::options_.find(level);
+	if(it.Valid())
 	{
-		options = &LoggingStatic::options_.Get(level);
+		options = &it.Value();
 	}
 	else
 	{
 		options = &LoggingStatic::defaultOptions_;
 	}
-	LoggingStatic::defaultHandler_(std::make_shared<Message>(sprawl::time::Now(sprawl::time::Resolution::Nanoseconds), levelStr, "", message, file, function, line, options));
+
+	std::shared_ptr<Message> messagePtr = std::make_shared<Message>(sprawl::time::Now(sprawl::time::Resolution::Nanoseconds), sprawl::this_thread::GetHandle().GetUniqueId(), level, levelStr, "", message, file, function, line, &LoggingStatic::defaultOptions_);
+	if(options->includeBacktrace)
+	{
+		messagePtr->backtrace = Backtrace::Get();
+	}
+
+	auto it2 = LoggingStatic::extraInfoCallbacks_.find(level);
+	if(it2.Valid())
+	{
+		auto& callbacks = it2.Value();
+		for(auto& callbackPair : callbacks)
+		{
+			messagePtr->extraInfo.PushBack(callbackPair.Get());
+		}
+	}
+
+	LoggingStatic::defaultHandler_(messagePtr);
 }
 
-void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::logging::Category const& category, sprawl::String const& message, sprawl::String const& file, sprawl::String const&  function, int line)
+void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::logging::Category const& category, sprawl::String const& message, sprawl::String const& file, sprawl::String const& function, String const& line)
 {
 	if(level < LoggingStatic::minLevel_)
 	{
@@ -236,9 +408,10 @@ void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::log
 	}
 
 	Options* options;
-	if(LoggingStatic::options_.Has(level))
+	auto it = LoggingStatic::options_.find(level);
+	if(it.Valid())
 	{
-		options = &LoggingStatic::options_.Get(level);
+		options = &it.Value();
 	}
 	else
 	{
@@ -248,22 +421,38 @@ void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::log
 	sprawl::String categoryStr = category.Str();
 
 	auto disableIt = LoggingStatic::getClosestParentCategory_(LoggingStatic::disabledCategories_, categoryStr);
-	if(disableIt.Valid())
+	if(disableIt != LoggingStatic::disabledCategories_.end())
 	{
 		return;
 	}
-
-	auto it = LoggingStatic::getClosestParentCategory_(LoggingStatic::handlers_, categoryStr);
-	if(it.Valid())
+	std::shared_ptr<Message> messagePtr = std::make_shared<Message>(sprawl::time::Now(sprawl::time::Resolution::Nanoseconds), sprawl::this_thread::GetHandle().GetUniqueId(), level, levelStr, categoryStr, message, file, function, line, options);
+	if(options->includeBacktrace)
 	{
-		for(auto& handler : it.Value())
+		messagePtr->backtrace = Backtrace::Get();
+	}
+
+
+	auto it2 = LoggingStatic::extraInfoCallbacks_.find(level);
+	if(it2.Valid())
+	{
+		auto& callbacks = it2.Value();
+		for(auto& callbackPair : callbacks)
 		{
-			handler(std::make_shared<Message>(sprawl::time::Now(sprawl::time::Resolution::Nanoseconds), levelStr, categoryStr, message, file, function, line, options));
+			messagePtr->extraInfo.PushBack(callbackPair.Get());
+		}
+	}
+
+	auto it3 = LoggingStatic::getClosestParentCategory_(LoggingStatic::handlers_, categoryStr);
+	if(it3 != LoggingStatic::handlers_.end())
+	{
+		for(auto& handler : it3->second)
+		{
+			handler(messagePtr);
 		}
 	}
 	else
 	{
-		LoggingStatic::defaultHandler_(std::make_shared<Message>(sprawl::time::Now(sprawl::time::Resolution::Nanoseconds), levelStr, categoryStr, message, file, function, line, options));
+		LoggingStatic::defaultHandler_(messagePtr);
 	}
 }
 
@@ -289,7 +478,7 @@ void sprawl::logging::DisableCategory(Category const& category)
 
 void sprawl::logging::DisableCategory(sprawl::String const& categoryStr)
 {
-	LoggingStatic::disabledCategories_.Insert(categoryStr);
+	LoggingStatic::disabledCategories_.insert(categoryStr);
 }
 
 void sprawl::logging::EnableCategory(Category const& category)
@@ -299,7 +488,7 @@ void sprawl::logging::EnableCategory(Category const& category)
 
 void sprawl::logging::EnableCategory(sprawl::String const& categoryStr)
 {
-	LoggingStatic::disabledCategories_.Erase(categoryStr);
+	LoggingStatic::disabledCategories_.erase(categoryStr);
 }
 
 void sprawl::logging::SetFormat(sprawl::String const& format)
@@ -309,9 +498,10 @@ void sprawl::logging::SetFormat(sprawl::String const& format)
 	{
 		int i = 0;
 		LoggingStatic::idx_.Insert("timestamp", i++);
+		LoggingStatic::idx_.Insert("threadid", i++);
 		LoggingStatic::idx_.Insert("level", i++);
-		LoggingStatic::idx_.Insert("category", i++);
 		LoggingStatic::idx_.Insert("message", i++);
+		LoggingStatic::idx_.Insert("category", i++);
 		LoggingStatic::idx_.Insert("file", i++);
 		LoggingStatic::idx_.Insert("function", i++);
 		LoggingStatic::idx_.Insert("line", i++);
@@ -391,17 +581,30 @@ void sprawl::logging::AddCategoryHandler(Category const& category, Handler const
 	sprawl::collections::Vector<Handler> handlers;
 	handlers.PushBack(handler);
 
-	if(type == CategoryCombinationType::Combined)
+	if(type == CategoryCombinationType::Combined && !LoggingStatic::handlers_.empty())
 	{
-		auto it = LoggingStatic::handlers_.LowerBound(categoryStr);
-		if(it.Valid())
+		auto it = LoggingStatic::handlers_.upper_bound(categoryStr);
+
+		if(it == LoggingStatic::handlers_.begin())
 		{
-			sprawl::String checkStr = it.Key();
+			it = LoggingStatic::handlers_.end();
+		}
+		else if(it == LoggingStatic::handlers_.end())
+		{
+			it = (++LoggingStatic::handlers_.rbegin()).base();
+		}
+		else
+		{
+			--it;
+		}
+		if(it != LoggingStatic::handlers_.end())
+		{
+			sprawl::String checkStr = it->first;
 			while(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
 			{
 				if(categoryStr == checkStr)
 				{
-					for(auto& absorbedHandler : it.Value())
+					for(auto& absorbedHandler : it->second)
 					{
 						handlers.PushBack(absorbedHandler);
 					}
@@ -412,67 +615,23 @@ void sprawl::logging::AddCategoryHandler(Category const& category, Handler const
 					{
 						if(sprawl::String(sprawl::StringRef(categoryStr.c_str(), checkStr.length())) == checkStr)
 						{
-							for(auto& absorbedHandler : it.Value())
+							for(auto& absorbedHandler : it->second)
 							{
 								handlers.PushBack(absorbedHandler);
 							}
 						}
 					}
 				}
-				--it;
-				if(!it.Valid())
+				if(it == LoggingStatic::handlers_.begin())
 				{
 					break;
 				}
-				checkStr = it.Key();
+				--it;
+				checkStr = it->first;
 			}
 		}
 	}
-	LoggingStatic::handlers_.Insert(categoryStr, handlers);
-}
-
-void sprawl::logging::PrintMessageToFile(std::shared_ptr<sprawl::logging::Message> const& message, sprawl::filesystem::File& file, sprawl::String const& filename)
-{
-	sprawl::String strMessage = message->ToString();
-
-	{
-		sprawl::threading::ScopedLock(LoggingStatic::fileMutexes_.GetOrInsert(filename));
-		if(file.FileSize() + strMessage.length() > LoggingStatic::maxFileSize_)
-		{
-			file.Close();
-			file = sprawl::filesystem::Open(LoggingStatic::modifyFilename_(filename), "w");
-		}
-		file.Write(strMessage);
-	}
-
-	file.Flush();
-
-	if(message->messageOptions->logToStdout)
-	{
-		LoggingStatic::setColor_(message->messageOptions->color, stdout);
-		fwrite(strMessage.c_str(), 1, strMessage.length(), stdout);
-		LoggingStatic::resetColor_(stdout);
-		fflush(stdout);
-	}
-	if(message->messageOptions->logToStderr)
-	{
-		LoggingStatic::setColor_(message->messageOptions->color, stderr);
-		fwrite(strMessage.c_str(), 1, strMessage.length(), stderr);
-		LoggingStatic::resetColor_(stderr);
-		fflush(stderr);
-	}
-}
-
-void sprawl::logging::PrintMessageToStream(std::shared_ptr<sprawl::logging::Message> const& message, FILE* stream)
-{
-	sprawl::String strMessage = message->ToString();
-	{
-		sprawl::threading::ScopedLock(LoggingStatic::streamMutexes_.GetOrInsert(stream));
-		LoggingStatic::setColor_(message->messageOptions->color, stream);
-		fwrite(strMessage.c_str(), 1, strMessage.length(), stream);
-		LoggingStatic::resetColor_(stream);
-		fflush(stream);
-	}
+	LoggingStatic::handlers_.emplace(categoryStr, handlers);
 }
 
 sprawl::logging::Handler sprawl::logging::PrintToFile(sprawl::String const& filename)
@@ -482,12 +641,12 @@ sprawl::logging::Handler sprawl::logging::PrintToFile(sprawl::String const& file
 	{
 		sprawl::String modifiedFilename = LoggingStatic::modifyFilename_(filename);
 		file = sprawl::filesystem::Open(modifiedFilename, "w");
-		LoggingStatic::fileMap_.Insert(filename, file);
+		LoggingStatic::fileMap_.Insert(filename, LoggingStatic::FileData(file, filename));
 	}
-	return std::bind(PrintMessageToFile, std::placeholders::_1, std::ref(LoggingStatic::fileMap_.Get(filename)), filename);
+	return std::bind(LoggingStatic::printMessageToFile_, std::placeholders::_1, std::ref(LoggingStatic::fileMap_.Get(filename)));
 }
 
-sprawl::logging::Handler sprawl::logging::PrintToFile_Threaded(sprawl::String const& filename)
+sprawl::logging::Handler sprawl::logging::RunHandler_Threaded(Handler const& handler)
 {
 	static bool managerInitialized_ = false;
 	if(!managerInitialized_)
@@ -496,29 +655,22 @@ sprawl::logging::Handler sprawl::logging::PrintToFile_Threaded(sprawl::String co
 		managerInitialized_ = true;
 	}
 	LoggingStatic::useManager_ = true;
-	return PrintToFile_ThreadManager(filename, LoggingStatic::logManager_, LoggingStatic::LOG_THREAD);
+	return RunHandler_ThreadManager(handler, LoggingStatic::logManager_, LoggingStatic::LOG_THREAD);
 }
 
-sprawl::logging::Handler sprawl::logging::PrintToFile_ThreadManager(sprawl::String const& filename, sprawl::threading::ThreadManager& manager, int64_t threadFlag)
+sprawl::logging::Handler sprawl::logging::RunHandler_ThreadManager(Handler const& handler, sprawl::threading::ThreadManager& manager, int64_t threadFlag)
 {
-	sprawl::filesystem::File file;
-	if(!LoggingStatic::fileMap_.Has(filename))
-	{
-		sprawl::String modifiedFilename = LoggingStatic::modifyFilename_(filename);
-		file = sprawl::filesystem::Open(modifiedFilename, "w");
-		LoggingStatic::fileMap_.Insert(filename, file);
-	}
-	return std::bind(LoggingStatic::addToThreadManager_, std::placeholders::_1, std::ref(LoggingStatic::fileMap_.Get(filename)), std::ref(manager), threadFlag, filename);
+	return std::bind(LoggingStatic::addToThreadManager_, handler, std::placeholders::_1, std::ref(manager), threadFlag);
 }
 
 sprawl::logging::Handler sprawl::logging::PrintToStdout()
 {
-	return std::bind(PrintMessageToStream, std::placeholders::_1, stdout);
+	return std::bind(LoggingStatic::printMessageToStream_, std::placeholders::_1, stdout);
 }
 
 sprawl::logging::Handler sprawl::logging::PrintToStderr()
 {
-	return std::bind(PrintMessageToStream, std::placeholders::_1, stderr);
+	return std::bind(LoggingStatic::printMessageToStream_, std::placeholders::_1, stderr);
 }
 
 void sprawl::logging::SetRenameMethod(RenameMethod method, int arg)
@@ -534,6 +686,7 @@ void sprawl::logging::SetMaxFilesize(size_t maxSizeBytes)
 
 void sprawl::logging::Init()
 {
+	Backtrace::Init();
 	if(LoggingStatic::useManager_)
 	{
 		LoggingStatic::logManager_.Start(0);
@@ -546,6 +699,12 @@ void sprawl::logging::Flush()
 	{
 		LoggingStatic::logManager_.Sync();
 	}
+	for(auto& kvp : LoggingStatic::fileMap_)
+	{
+		kvp.Value().file.Flush();
+	}
+	fflush(stdout);
+	fflush(stderr);
 }
 
 void sprawl::logging::Stop()
@@ -564,45 +723,53 @@ void sprawl::logging::ShutDown()
 		LoggingStatic::logManager_.ShutDown();
 	}
 	LoggingStatic::options_.Clear();
-	LoggingStatic::handlers_.Clear();
+	LoggingStatic::handlers_.clear();
 	LoggingStatic::streamMutexes_.Clear();
-	LoggingStatic::fileMutexes_.Clear();
 
 	LoggingStatic::renameMethod_ = sprawl::logging::RenameMethod::Timestamp;
 	LoggingStatic::renameArg_ = int(sprawl::time::Resolution::Milliseconds);
 
-	LoggingStatic::maxFileSize_ = 500000;
+	LoggingStatic::maxFileSize_ = 500 * 1024 * 1024;
 
-	LoggingStatic::format_ = sprawl::String("{} [{}] ({}) {} ({}:{}:{})") + sprawl::filesystem::LineSeparator();
+	LoggingStatic::format_ = sprawl::String("{} {} [{}] {} [{}] ({}:{}:{})") + sprawl::filesystem::LineSeparator();
 
 	LoggingStatic::fileMap_.Clear();
 
 	LoggingStatic::useManager_ = false;
+
+	LoggingStatic::disabledCategories_.clear();
+	LoggingStatic::extraInfoCallbacks_.Clear();
+	Backtrace::ShutDown();
 }
 
 sprawl::String sprawl::logging::Message::ToString()
 {
-	int64_t seconds = sprawl::time::Convert(timestamp, sprawl::time::Resolution::Nanoseconds, sprawl::time::Resolution::Seconds);
-
 	sprawl::String timestampStr;
 
 	if (!LoggingStatic::strftimeFormat_.empty())
 	{
+		int64_t seconds = sprawl::time::Convert(timestamp, sprawl::time::Resolution::Nanoseconds, sprawl::time::Resolution::Seconds);
+
 		char buffer[128];
 
-		struct tm* tmInfo;
+		struct tm tmInfo;
 		time_t asTimeT = time_t(seconds);
 
-		tmInfo = localtime(&asTimeT);
+#ifdef _WIN32
+		localtime_s(&tmInfo, &asTimeT);
+#else
+		localtime_r(&asTimeT, &tmInfo);
+#endif
 
-		strftime(buffer, sizeof(buffer), LoggingStatic::strftimeFormat_.c_str(), tmInfo);
+		strftime(buffer, sizeof(buffer), LoggingStatic::strftimeFormat_.c_str(), &tmInfo);
 
 		if(LoggingStatic::maxResolution_ < sprawl::time::Resolution::Seconds)
 		{
 			int64_t secsAsMaxRes = sprawl::time::Convert(seconds, sprawl::time::Resolution::Seconds, LoggingStatic::maxResolution_);
 			int64_t nanosecsAsMaxRes = sprawl::time::Convert(timestamp, sprawl::time::Resolution::Nanoseconds, LoggingStatic::maxResolution_);
-			sprawl::String formatStr = sprawl::Format("{{}.{{:0{}}", LoggingStatic::resolutionSize_);
-			timestampStr = formatStr.format(buffer, nanosecsAsMaxRes - secsAsMaxRes);
+			char buf2[128];
+			snprintf(buf2, 128, "%s.%0*" SPRAWL_I64FMT "d", buffer, LoggingStatic::resolutionSize_, nanosecsAsMaxRes - secsAsMaxRes);
+			timestampStr = buf2;
 		}
 		else
 		{
@@ -610,5 +777,90 @@ sprawl::String sprawl::logging::Message::ToString()
 		}
 	}
 
-	return LoggingStatic::format_.format(timestampStr, messageOptions->nameOverride != nullptr ? messageOptions->nameOverride : level, category, message, sprawl::path::Basename(file), function, line);
+	return LoggingStatic::format_.format(timestampStr, threadid, messageOptions->nameOverride != nullptr ? messageOptions->nameOverride : level, message, category, sprawl::path::Basename(file), function, line);
+}
+
+void sprawl::logging::BacktraceToString(Backtrace const& backtrace, sprawl::StringBuilder& builder)
+{
+	for(size_t i = 0; i < backtrace.Size(); ++i)
+	{
+		FormatStackFrame(backtrace.GetFrame(i), true, builder);
+	}
+}
+
+void sprawl::logging::FormatStackFrame(Backtrace::Frame const& frame, bool printMemoryData, sprawl::StringBuilder& builder)
+{
+	if(printMemoryData)
+	{
+		builder << "        [0x";
+		builder.AppendElementToBuffer(frame.address, "x");
+		builder << "] " << frame.func << " (+0x";
+		builder.AppendElementToBuffer(frame.offset, "x");
+		builder << ")";
+	}
+	else
+	{
+		builder << "        " << frame.func;
+	}
+
+	builder << sprawl::filesystem::LineSeparator();
+
+	builder << "        Line: " << frame.line << " (+/-1), File: " << frame.baseFile << ", in module: " << frame.module << sprawl::filesystem::LineSeparator();
+
+	if(frame.text[0] != '\0')
+	{
+		builder << "            " << frame.text;
+	}
+	else if(sprawl::path::Exists(frame.file))
+	{
+		sprawl::filesystem::File f = sprawl::filesystem::Open(frame.file, "r");
+
+		if (f.Valid())
+		{
+			for (int i = 1; i <= frame.line + 1; i++)
+			{
+				sprawl::String str = f.ReadLine();
+
+				if (i >= frame.line - 1)
+				{
+					builder << "            <" << i << ">" << str;
+				}
+			}
+		}
+		else
+		{
+			builder << "            Code unavailable." << sprawl::filesystem::LineSeparator();
+		}
+	}
+	else
+	{
+		builder << "            Code unavailable." << sprawl::filesystem::LineSeparator();
+	}
+
+	builder << "            " << sprawl::filesystem::LineSeparator();
+}
+
+void sprawl::logging::AddExtraInfoCallback(int logLevel, std::function<void*()> collect, std::function<void(void* data, sprawl::StringBuilder& builder)> print)
+{
+	LoggingStatic::extraInfoCallbacks_[logLevel].PushBack({collect, print});
+}
+
+sprawl::String sprawl::logging::Message::CollectExtraData()
+{
+	sprawl::StringBuilder builder;
+	if(messageOptions->includeBacktrace)
+	{
+		BacktraceToString(backtrace, builder);
+	}
+	auto it = LoggingStatic::extraInfoCallbacks_.find(levelInt);
+	if(it.Valid())
+	{
+		auto& callbacks = it.Value();
+		for(size_t i = 0, size = extraInfo.Size(); i < size; ++i)
+		{
+			callbacks[i].Print(extraInfo[i], builder);
+			builder << sprawl::filesystem::LineSeparator();
+		}
+	}
+	return builder.Str();
 }

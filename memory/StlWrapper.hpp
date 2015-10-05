@@ -11,7 +11,7 @@ namespace sprawl
 {
 	namespace memory
 	{
-		template<typename T, typename allocator=DynamicPoolAllocator<sizeof(T), 32> >
+		template<typename T, typename allocator=PoolAllocator<sizeof(T)> >
 		class StlWrapper
 		{
 		public:

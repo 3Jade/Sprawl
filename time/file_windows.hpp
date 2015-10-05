@@ -1,4 +1,0 @@
-#ifndef FILE_WINDOWS_HPP
-#define FILE_WINDOWS_HPP
-
-#endif // FILE_WINDOWS_HPP

@@ -41,11 +41,6 @@ namespace sprawl
 					return m_value;
 				}
 
-				void SetValue(ValueType&& newValue)
-				{
-					m_value = std::move(newValue);
-				}
-
 				ValueType& operator*()
 				{
 					return m_value;
@@ -160,26 +155,6 @@ namespace sprawl
 					//
 				}
 
-				inline size_t Idx(Specialized<index>)
-				{
-					return -1;
-				}
-
-				inline void SetIndex(Specialized<index>, size_t)
-				{
-					//
-				}
-
-				inline size_t GetHash(Specialized<index>)
-				{
-					return -1;
-				}
-
-				inline void SetHash(Specialized<index>, size_t)
-				{
-					//
-				}
-
 				ValueType m_value;
 			};
 
@@ -215,7 +190,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -227,7 +201,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -239,7 +212,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -258,7 +230,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -273,7 +244,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -288,7 +258,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -303,7 +272,6 @@ namespace sprawl
 					, m_rightThisAccessor(nullptr)
 					, m_parentThisAccessor(nullptr)
 					, m_colorThisAccessor(RedBlackColor::Red)
-					, m_thisIdx(0)
 				{
 					//
 				}
@@ -372,39 +340,12 @@ namespace sprawl
 					m_colorThisAccessor = color;
 				}
 
-				using Base::Idx;
-				inline size_t Idx(Specialized<index>)
-				{
-					return m_thisIdx;
-				}
-
-				using Base::SetIndex;
-				inline void SetIndex(Specialized<index>, size_t idx)
-				{
-					m_thisIdx = idx;
-				}
-
-				using Base::GetHash;
-				inline size_t GetHash(Specialized<index>)
-				{
-					return m_thisHash;
-				}
-
-				using Base::SetHash;
-				inline void SetHash(Specialized<index>, size_t hash)
-				{
-					m_thisHash = hash;
-				}
-
 				AccessorType m_thisAccessor;
 
 				MostInheritedType* m_leftThisAccessor;
 				MostInheritedType* m_rightThisAccessor;
 				MostInheritedType* m_parentThisAccessor;
 				RedBlackColor m_colorThisAccessor;
-
-				size_t m_thisIdx;
-				size_t m_thisHash;
 			};
 
 			template<typename ValueType, typename... Accessors>

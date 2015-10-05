@@ -1,6 +1,7 @@
 #pragma once
 #include <iterator>
 #include "../../common/specialized.hpp"
+#include "../../common/compat.hpp"
 
 namespace sprawl
 {
@@ -12,7 +13,7 @@ template<typename ValueType, typename ParentType>
 class sprawl::VectorIterator : public std::iterator<std::random_access_iterator_tag, ValueType, std::ptrdiff_t, ValueType*, ValueType&>
 {
 public:
-	VectorIterator(ValueType* item, ParentType* parent)
+	VectorIterator(ValueType* item, ParentType const* parent)
 		: m_currentItem(item)
 		, m_parent(parent)
 	{
@@ -48,6 +49,11 @@ public:
 	ValueType const& Value() const
 	{
 		return *m_currentItem;
+	}
+
+	ssize_t Index() const
+	{
+		return m_currentItem - m_parent->begin().m_currentItem;
 	}
 
 	VectorIterator<ValueType, ParentType>& operator++()
@@ -169,27 +175,27 @@ public:
 		return m_currentItem[index];
 	}
 
-	bool operator<(VectorIterator<ValueType, ParentType> const& rhs)
+	bool operator<(VectorIterator<ValueType, ParentType> const& rhs) const
 	{
 		return m_currentItem < rhs.m_currentItem;
 	}
 
-	bool operator>(VectorIterator<ValueType, ParentType> const& rhs)
+	bool operator>(VectorIterator<ValueType, ParentType> const& rhs) const
 	{
 		return m_currentItem > rhs.m_currentItem;
 	}
 
-	bool operator<=(VectorIterator<ValueType, ParentType> const& rhs)
+	bool operator<=(VectorIterator<ValueType, ParentType> const& rhs) const
 	{
 		return m_currentItem <= rhs.m_currentItem;
 	}
 
-	bool operator>=(VectorIterator<ValueType, ParentType> const& rhs)
+	bool operator>=(VectorIterator<ValueType, ParentType> const& rhs) const
 	{
 		return m_currentItem >= rhs.m_currentItem;
 	}
 
 protected:
 	mutable ValueType* m_currentItem;
-	ParentType* m_parent;
+	ParentType const* m_parent;
 };

@@ -22,6 +22,14 @@ sprawl::threading::CoroutineBase::Holder::Holder()
 	getcontext(&m_context);
 }
 
+/*virtual*/ sprawl::threading::CoroutineBase::Holder::~Holder()
+{
+	if(m_stack)
+	{
+		munmap(m_stack, m_stackSize);
+	}
+}
+
 sprawl::threading::CoroutineBase::Holder::Holder(std::function<void()> function, size_t stackSize)
 	: m_function(function)
 	, m_stackSize(stackSize == 0 ? 1024 * 1024 : stackSize)
@@ -56,6 +64,7 @@ void sprawl::threading::CoroutineBase::Resume()
 	m_holder->m_priorCoroutine.m_holder->m_state = CoroutineState::Paused;
 
 	ms_coroutineInitHelper = this;
+
 	swapcontext(&m_holder->m_priorCoroutine.m_holder->m_context, &m_holder->m_context);
 }
 

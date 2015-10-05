@@ -10,13 +10,17 @@ namespace sprawl
 #include <functional>
 
 #include "../time/time.hpp"
-#include "../collections/ForwardList.hpp"
-#include "../collections/List.hpp"
+#include "../collections/Vector.hpp"
+#include "../collections/ConcurrentQueue.hpp"
+#include "../collections/BinaryTree.hpp"
 #include "../collections/HashMap.hpp"
 
 #include "thread.hpp"
 #include "mutex.hpp"
 #include "condition_variable.hpp"
+#include "event.hpp"
+
+#include <atomic>
 
 class sprawl::threading::ThreadManager
 {
@@ -26,11 +30,11 @@ public:
 	ThreadManager();
 	~ThreadManager();
 
-	void AddThread(uint64_t threadFlags, char const* const threadName, uint64_t secondaryFlags = 0);
-	void AddThread(uint64_t threadFlags, uint64_t secondaryFlags = 0);
+	void AddThread(uint64_t threadFlags, char const* const threadName);
+	void AddThread(uint64_t threadFlags);
 
-	void AddThreads(uint64_t threadFlags, int count, char const* const threadName, uint64_t secondaryFlags = 0);
-	void AddThreads(uint64_t threadFlags, int count, uint64_t secondaryFlags = 0);
+	void AddThreads(uint64_t threadFlags, int count, char const* const threadName);
+	void AddThreads(uint64_t threadFlags, int count);
 
 	void AddTask(Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
 	void AddTask(Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
@@ -38,7 +42,7 @@ public:
 	void AddTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
 	void AddTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
 
-	void SetNumStages(uint64_t stageCount);
+	void SetMaxStage(uint64_t maxStage);
 
 	void AddFutureTask(Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
 	void AddFutureTask(Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
@@ -47,17 +51,11 @@ public:
 	void AddFutureTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
 
 	/**
-	 * @brief	Prevents the thread manager from executing a secondary task if there is a primary task queued within this many nanoseconds
-	 * @param	windowInNanoseconds	Number of free nanoseconds before the next primary task required before a thread can execute a secondary task
-	 */
-	void SetSecondaryTaskWindow(int64_t windowInNanoseconds);
-
-	/**
 	 * @brief	Start all threads and include the calling thread in a loop controlled by the thread manager
 	 * @param	thisThreadFlags	The flags that apply to the calling thread
 	 */
-	void Run(uint64_t thisThreadFlags, uint64_t secondaryFlags = 0);
-	void RunStaged(uint64_t thisThreadFlags, uint64_t secondaryFlags = 0);
+	void Run(uint64_t thisThreadFlags);
+	void RunStaged(uint64_t thisThreadFlags);
 
 	/**
 	 * @brief	Start all threads but do not block on the calling thread.
@@ -66,40 +64,129 @@ public:
 	 *			that get queued up for it.
 	 * @param	thisThreadFlags	The flags that apply to the calling thread
 	 */
-	void Start(uint64_t thisThreadFlags, uint64_t secondaryFlags = 0);
+	void Start(uint64_t thisThreadFlags);
 
 	uint64_t RunNextStage();
 	void Pump();
 	void Wait();
-	void Sync();
+	uint64_t Sync();
 	void Stop();
 	void ShutDown();
 private:
 	struct TaskInfo
 	{
+		TaskInfo();
 		TaskInfo(Task&& what_, uint64_t where_, int64_t when_);
 		TaskInfo(Task const& what_, uint64_t where_, int64_t when_);
+		TaskInfo(Task&& what_, uint64_t where_, int64_t when_, int64_t stage);
+		TaskInfo(Task const& what_, uint64_t where_, int64_t when_, int64_t stage);
+		TaskInfo(TaskInfo&& other);
+		TaskInfo& operator=(TaskInfo&& other);
+
 		Task what;
 		uint64_t where;
 		int64_t when;
+		std::atomic<bool> taken;
+		uint64_t stage;
+		inline int64_t When()
+		{
+			return when;
+		}
 	};
 
-	void pushTask_(TaskInfo&& info, uint64_t stage);
-	void eventLoop_(uint64_t flags, uint64_t secondaryFlags);
+	struct ThreadData
+	{
+		explicit ThreadData(uint64_t flags_)
+			: flags(flags_)
+			, mailbox()
+		{
 
-	collections::BasicHashMap<uint64_t, collections::List<TaskInfo>> m_taskQueue;
+		}
+
+		uint64_t flags;
+		Event mailbox;
+	};
+
+	struct ThreadInfo
+	{
+		ThreadInfo(ThreadData* data_, std::function<void()> fn)
+			: data(data_)
+			, thread(new Thread(fn))
+		{
+
+		}
+
+		ThreadInfo(ThreadData* data_, char const* const threadName, std::function<void()> fn)
+			: data(data_)
+			, thread(new Thread(threadName, fn))
+		{
+
+		}
+
+		ThreadInfo(ThreadData* data_)
+			: data(data_)
+			, thread(nullptr)
+		{
+
+		}
+
+		ThreadInfo(ThreadInfo&& other)
+			: data(other.data)
+			, thread(other.thread)
+		{
+			other.data = nullptr;
+			other.thread = nullptr;
+		}
+
+		~ThreadInfo()
+		{
+			if(data)
+			{
+				delete data;
+			}
+			if(thread)
+			{
+				delete thread;
+			}
+		}
+
+		ThreadData* data;
+		Thread* thread;
+	};
+
+	struct FlagGroup
+	{
+		collections::Vector<Event*> events;
+		collections::ConcurrentQueue<TaskInfo*> taskQueue;
+	};
+
+	void pump_();
+	void pushTask_(TaskInfo* info);
+	void eventLoop_(ThreadData* threadData);
+	void mailMan_();
+
+	collections::ConcurrentQueue<TaskInfo*> m_taskQueue;
+	collections::BasicHashMap<int64_t, FlagGroup*> m_flagGroups;
+	Event* m_mainThreadMailbox;
+	collections::ConcurrentQueue<TaskInfo*>* m_mainThreadQueue;
+
+	collections::Vector<ThreadInfo> m_threads;
+	Thread m_mailmanThread;
+	std::atomic<bool> m_running;
 	uint64_t m_currentStage;
 	uint64_t m_maxStage;
-	collections::ForwardList<Thread*> m_threads;
-	Mutex m_mutex;
-	ConditionVariable m_conditionVariable;
-	uint64_t m_callingThreadFlags;
-	uint64_t m_callingThreadSecondaryFlags;
-	int64_t m_secondaryTaskWindow;
-	bool m_running;
 
-	bool m_syncing;
-	ConditionVariable m_syncWait;
-	ConditionVariable m_threadSyncWait;
-	size_t m_numThreadsSynced;
+	enum class SyncState
+	{
+		None,
+		Mailman,
+		Threads,
+	};
+
+	std::atomic<SyncState> m_syncState;
+	Event m_workerSyncEvent;
+	Event m_mailmanSyncEvent;
+	std::atomic<size_t> m_syncCount;
+
+	Event m_mailReady;
 };

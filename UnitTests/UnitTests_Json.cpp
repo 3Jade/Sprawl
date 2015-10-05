@@ -93,12 +93,16 @@ TEST_F(JsonTokenTest, JsonTokensWork)
 	ASSERT_EQ(expectedTokValue, tok.ToJSONString());
 }
 
-TEST_F(JsonTokenTest, CopyOnWriteWorks)
+TEST_F(JsonTokenTest, CopyingWorks)
 {
 	sprawl::String expectedTokValue = "{ \"test1\" : 1, \"test2\" : -2, \"object\" : { \"test1\" : 1, \"test2\" : -2, \"Tok\" : null }, \"array\" : [ -1, 2 ] }";
 	sprawl::String expectedTok2Value = "{ \"test1\" : -1, \"test2\" : 2, \"object\" : { \"test1\" : -1, \"test2\" : 2, \"Tok2\" : null }, \"array\" : [ 1, -2 ] }";
+	//With shallow copy, test1 and test2 will be unchanged, nested objects will mirror tok
+	sprawl::String expectedTok3Value = "{ \"test1\" : 1, \"test2\" : 2, \"object\" : { \"test1\" : 1, \"test2\" : -2, \"Tok\" : null }, \"array\" : [ -1, 2 ] }";
 
-	sprawl::serialization::JSONToken tok2 = tok;
+	sprawl::serialization::JSONToken tok2 = tok.DeepCopy();
+	sprawl::serialization::JSONToken tok3 = tok.ShallowCopy();
+
 	tok2["test1"] = sprawl::serialization::JSONToken::number((long long)-1);
 	tok["test2"] = sprawl::serialization::JSONToken::number((long long)-2);
 	tok2["object"]["test1"] = sprawl::serialization::JSONToken::number((long long)-1);
@@ -110,6 +114,7 @@ TEST_F(JsonTokenTest, CopyOnWriteWorks)
 
 	ASSERT_EQ(expectedTokValue, tok.ToJSONString());
 	ASSERT_EQ(expectedTok2Value, tok2.ToJSONString());
+	ASSERT_EQ(expectedTok3Value, tok3.ToJSONString());
 }
 
 class JsonSerializerTest : public testing::Test

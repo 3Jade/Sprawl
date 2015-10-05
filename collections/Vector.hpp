@@ -88,7 +88,10 @@ public:
 
 	Vector& operator=(Vector const& other)
 	{
-		cleanup_();
+		for(ssize_t i = 0; i < m_size; ++i)
+		{
+			m_array[i].~T();
+		}
 		m_size = 0;
 		Reserve(other.m_size);
 
