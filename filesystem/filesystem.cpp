@@ -132,6 +132,10 @@ sprawl::String sprawl::filesystem::File::Read(int numBytes)
 	{
 		numBytes = FileSize() - Tell();
 	}
+	if(numBytes < 0)
+	{
+		return "";
+	}
 	char* buffer = (char*)malloc(numBytes);
 	size_t size = fread(buffer, 1, numBytes, m_file);
 	sprawl::String ret(buffer, size);
@@ -144,6 +148,10 @@ sprawl::String sprawl::filesystem::File::ReadLine(int numBytes)
 	if(numBytes == -1)
 	{
 		numBytes = FileSize() - Tell();
+	}
+	if(numBytes < 0)
+	{
+		return "";
 	}
 	numBytes += 1;
 	char* buffer = (char*)malloc(numBytes);

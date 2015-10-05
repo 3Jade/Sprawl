@@ -27,6 +27,16 @@ namespace sprawl
 
 		template<typename ReturnType>
 		using Generator = CoroutineWithChannel<void, ReturnType>;
+
+		namespace detail
+		{
+			template<class T, class = decltype(std::declval<T>()())>
+			std::true_type  HasEmptyOperatorParensTest(const T&);
+
+			std::false_type HasEmptyOperatorParensTest(...);
+
+			template<class T> using HasEmptyOperatorParens = decltype(HasEmptyOperatorParensTest(std::declval<T>()));
+		}
 	}
 }
 
@@ -36,6 +46,7 @@ public:
 
 	enum class CoroutineState
 	{
+		Invalid,
 		Created,
 		Executing,
 		Paused,
@@ -69,6 +80,7 @@ public:
 	void operator()() { Resume(); }
 
 	CoroutineState State();
+	size_t StackSize();
 protected:
 	static ThreadLocal<CoroutineBase*> ms_coroutineInitHelper;
 	static ThreadLocal<CoroutineBase> ms_thisThreadCoroutine;
@@ -109,7 +121,7 @@ struct sprawl::threading::CoroutineBase::Holder
 	static Holder* Create();
 	virtual void Release();
 
-	virtual ~Holder() {}
+	virtual ~Holder();
 protected:
 	Holder();
 	Holder(std::function<void()> function, size_t stackSize);
@@ -124,8 +136,20 @@ public:
 		//
 	}
 
-	Coroutine(std::function<void ()> function, size_t stackSize = 0)
+	Coroutine(std::function<void()> function, size_t stackSize = 0)
 		: CoroutineBase(CoroutineBase::Holder::Create(function, stackSize))
+	{
+		//
+	}
+
+	Coroutine(std::nullptr_t npt, size_t stackSize = 0)
+		: CoroutineBase(CoroutineBase::Holder::Create(npt, stackSize))
+	{
+		//
+	}
+
+	Coroutine(CoroutineBase const& other)
+		: CoroutineBase(other)
 	{
 		//
 	}
@@ -134,8 +158,9 @@ public:
 		typename Callable,
 		typename... Params,
 		typename = typename std::enable_if<
-			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			!detail::HasEmptyOperatorParens<Callable>::value
 			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_same<std::nullptr_t, Callable>::value
 		>::type
 	>
 	Coroutine(Callable && callable, Params &&... params)
@@ -149,8 +174,14 @@ template<typename SendType, typename ReceiveType>
 class sprawl::threading::CoroutineWithChannel : public sprawl::threading::CoroutineBase
 {
 public:
-	CoroutineWithChannel(std::function<void ()> function, size_t stackSize = 0)
+	CoroutineWithChannel(std::function<void()> function, size_t stackSize = 0)
 		: CoroutineBase(ChannelHolder::Create(function, stackSize))
+	{
+		// NOP
+	}
+
+	CoroutineWithChannel(std::nullptr_t npt, size_t stackSize = 0)
+		: CoroutineBase(ChannelHolder::Create(npt, stackSize))
 	{
 		// NOP
 	}
@@ -165,14 +196,21 @@ public:
 		typename Callable,
 		typename... Params,
 		typename = typename std::enable_if<
-			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			!detail::HasEmptyOperatorParens<Callable>::value
 			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_same<std::nullptr_t, Callable>::value
 		>::type
 	>
 	CoroutineWithChannel(Callable && callable, Params &&... params)
 		: CoroutineBase(ChannelHolder::Create(std::bind(std::forward<Callable>(callable), std::forward<Params>(params)...), 0))
 	{
 		//
+	}
+
+	CoroutineWithChannel()
+		: CoroutineBase()
+	{
+		// NOP
 	}
 
 	SendType& Receive(ReceiveType const& value)
@@ -230,7 +268,7 @@ private:
 	{
 		static ChannelHolder* Create(std::function<void()> function, size_t stackSize)
 		{
-			typedef memory::DynamicPoolAllocator<sizeof(ChannelHolder)> holderAlloc;
+			typedef memory::PoolAllocator<sizeof(ChannelHolder)> holderAlloc;
 
 			ChannelHolder* ret = (ChannelHolder*)holderAlloc::alloc();
 			new(ret) ChannelHolder(function, stackSize);
@@ -239,7 +277,7 @@ private:
 
 		virtual void Release() override
 		{
-			typedef memory::DynamicPoolAllocator<sizeof(ChannelHolder)> holderAlloc;
+			typedef memory::PoolAllocator<sizeof(ChannelHolder)> holderAlloc;
 
 			this->~ChannelHolder();
 			holderAlloc::free(this);
@@ -268,8 +306,20 @@ public:
 		// NOP
 	}
 
+	CoroutineWithChannel(std::nullptr_t npt, size_t stackSize = 0)
+		: CoroutineBase(ChannelHolder::Create(npt, stackSize))
+	{
+		// NOP
+	}
+
 	CoroutineWithChannel(CoroutineBase const& other)
 		: CoroutineBase(other)
+	{
+		// NOP
+	}
+
+	CoroutineWithChannel()
+		: CoroutineBase()
 	{
 		// NOP
 	}
@@ -278,8 +328,9 @@ public:
 		typename Callable,
 		typename... Params,
 		typename = typename std::enable_if<
-			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			!detail::HasEmptyOperatorParens<Callable>::value
 			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_same<std::nullptr_t, Callable>::value
 		>::type
 	>
 	CoroutineWithChannel(Callable && callable, Params &&... params)
@@ -324,7 +375,7 @@ private:
 	{
 		static ChannelHolder* Create(std::function<void()> function, size_t stackSize = 0)
 		{
-			typedef memory::DynamicPoolAllocator<sizeof(ChannelHolder)> holderAlloc;
+			typedef memory::PoolAllocator<sizeof(ChannelHolder)> holderAlloc;
 
 			ChannelHolder* ret = (ChannelHolder*)holderAlloc::alloc();
 			new(ret) ChannelHolder(function, stackSize);
@@ -333,7 +384,7 @@ private:
 
 		virtual void Release() override
 		{
-			typedef memory::DynamicPoolAllocator<sizeof(ChannelHolder)> holderAlloc;
+			typedef memory::PoolAllocator<sizeof(ChannelHolder)> holderAlloc;
 
 			this->~ChannelHolder();
 			holderAlloc::free(this);
@@ -360,8 +411,20 @@ public:
 		// NOP
 	}
 
+	CoroutineWithChannel(std::nullptr_t npt, size_t stackSize = 0)
+		: CoroutineBase(ChannelHolder::Create(npt, stackSize))
+	{
+		// NOP
+	}
+
 	CoroutineWithChannel(CoroutineBase const& other)
 		: CoroutineBase(other)
+	{
+		// NOP
+	}
+
+	CoroutineWithChannel()
+		: CoroutineBase()
 	{
 		// NOP
 	}
@@ -370,8 +433,9 @@ public:
 		typename Callable,
 		typename... Params,
 		typename = typename std::enable_if<
-			!std::is_same<std::function<void ()>, typename std::remove_reference<Callable>::type>::value
+			!detail::HasEmptyOperatorParens<Callable>::value
 			&& !std::is_base_of<CoroutineBase, typename std::remove_reference<Callable>::type>::value
+			&& !std::is_same<std::nullptr_t, Callable>::value
 		>::type
 	>
 	CoroutineWithChannel(Callable && callable, Params &&... params)
@@ -413,7 +477,7 @@ private:
 	{
 		static ChannelHolder* Create(std::function<void()> function, size_t stackSize)
 		{
-			typedef memory::DynamicPoolAllocator<sizeof(ChannelHolder)> holderAlloc;
+			typedef memory::PoolAllocator<sizeof(ChannelHolder)> holderAlloc;
 
 			ChannelHolder* ret = (ChannelHolder*)holderAlloc::alloc();
 			new(ret) ChannelHolder(function, stackSize);
@@ -422,7 +486,7 @@ private:
 
 		virtual void Release() override
 		{
-			typedef memory::DynamicPoolAllocator<sizeof(ChannelHolder)> holderAlloc;
+			typedef memory::PoolAllocator<sizeof(ChannelHolder)> holderAlloc;
 
 			this->~ChannelHolder();
 			holderAlloc::free(this);

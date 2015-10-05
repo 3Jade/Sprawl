@@ -8,14 +8,6 @@
 #include "gtest_printers.hpp"
 #include <gtest/gtest.h>
 
-#if defined(_WIN32)
-	#define I64FMT "ll"
-#elif defined(__APPLE__)
-	#define I64FMT "ll"
-#else
-	#define I64FMT "l"
-#endif
-
 const int iterations_alloc = 10000;
 const int iterations_threaded = 1000;
 
@@ -38,10 +30,10 @@ struct MyTinyStruct
 	int64_t data[64];
 };
 
-#define ADD_TEST_DYNAMIC_2(testType, chunkSize, SIZE, counter) \
-	static void testType##_test_dynamic_##chunkSize##_##SIZE() \
+#define ADD_TEST_DYNAMIC_2(testType, SIZE, counter) \
+	static void testType##_test_dynamic_##SIZE() \
 	{ \
-		typedef sprawl::memory::DynamicPoolAllocator<sizeof(testType), chunkSize> allocator##counter; \
+		typedef sprawl::memory::PoolAllocator<sizeof(testType)> allocator##counter; \
 		 \
 		testType* arr##counter[SIZE]; \
 		 \
@@ -70,7 +62,7 @@ struct MyTinyStruct
 			} \
 		} \
 	} \
-	TEST(PoolAllocatorTest, DynamicPoolAllocator_##testType##_##chunkSize##_##SIZE) \
+	static void PoolAllocator_##testType##_##SIZE() \
 	{ \
 		int64_t total = 0; \
 		int64_t high = 0; \
@@ -78,75 +70,28 @@ struct MyTinyStruct
 		for(int i = 0; i < iterations_alloc; ++i) \
 		{ \
 			int64_t start = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds); \
-			testType##_test_dynamic_##chunkSize##_##SIZE(); \
+			testType##_test_dynamic_##SIZE(); \
 			int64_t elapsed = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds) - start; \
 			total += elapsed; \
 			if(high == 0 || elapsed > high) high = elapsed; \
 			if(low == 0 || elapsed < low) low = elapsed; \
 		} \
-		printf("\t" #testType " (" #SIZE ") - %d runs. Best: %" I64FMT "d ns, Worst: %" I64FMT "d ns, Average: %" I64FMT "d ns\n", iterations_alloc, low, high, total / iterations_alloc); \
+		printf("\t" #testType " (" #SIZE ") - %d runs. Best: %" SPRAWL_I64FMT "d ns, Worst: %" SPRAWL_I64FMT "d ns, Average: %" SPRAWL_I64FMT "d ns\n", iterations_alloc, low, high, total / iterations_alloc); \
 		fflush(stdout); \
-	}
-
-#define ADD_TEST_STATIC_2(testType, SIZE, counter) \
-	static void testType##_test_static_##SIZE() \
-	{ \
-		typedef sprawl::memory::StaticPoolAllocator<sizeof(testType), sizeof(testType) * SIZE> allocator##counter; \
-		 \
-		testType* arr##counter[SIZE]; \
-		 \
-		size_t nums##counter[SIZE]; \
-		 \
-		for(int i = 0; i < SIZE; ++i) \
-		{ \
-			nums##counter[i] = i; \
-		} \
-		 \
-		for(int j = 0; j < 1; ++j) \
-		{ \
-			std::random_shuffle(&nums##counter[0], &nums##counter[SIZE]); \
-			{ \
-				for(int i = 0; i < SIZE; ++i) \
-				{ \
-					arr##counter[nums##counter[i]] = (testType*)allocator##counter::alloc(); \
-				} \
-			} \
-			std::random_shuffle(&nums##counter[0], &nums##counter[SIZE]); \
-			{ \
-				for(int i = SIZE; i > 0; --i) \
-				{ \
-					allocator##counter::free(arr##counter[nums##counter[i-1]]); \
-				} \
-			} \
-		} \
+		fprintf(stderr, "Success"); \
+		exit(0); \
 	} \
-	TEST(PoolAllocatorTest, StaticPoolAllocator_##testType##_##SIZE) \
+	TEST(PoolAllocatorDeathTest, PoolAllocator_##testType##_##SIZE) \
 	{ \
-		int64_t total = 0; \
-		int64_t high = 0; \
-		int64_t low = 0; \
-		for(int i = 0; i < iterations_alloc; ++i) \
-		{ \
-			int64_t start = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds); \
-			testType##_test_static_##SIZE(); \
-			int64_t elapsed = sprawl::time::Now(sprawl::time::Resolution::Nanoseconds) - start; \
-			total += elapsed; \
-			if(high == 0 || elapsed > high) high = elapsed; \
-			if(low == 0 || elapsed < low) low = elapsed; \
-		} \
-		printf("\t" #testType " (" #SIZE ") - %d runs. Best: %" I64FMT "d ns, Worst: %" I64FMT "d ns, Average: %" I64FMT "d ns\n", iterations_alloc, low, high, total / iterations_alloc); \
-		fflush(stdout); \
+		ASSERT_EXIT(PoolAllocator_##testType##_##SIZE(), testing::ExitedWithCode(0), "Success"); \
 	}
 
-#define ADD_TEST_DYNAMIC(testType, chunkSize, SIZE, counter) ADD_TEST_DYNAMIC_2(testType, chunkSize, SIZE, counter)
-#define ADD_TEST_STATIC(testType, SIZE, counter) ADD_TEST_STATIC_2(testType, SIZE, counter)
+#define ADD_TEST_DYNAMIC(testType, SIZE, counter) ADD_TEST_DYNAMIC_2(testType, SIZE, counter)
 
 #define ADD_TESTS(type) \
-	ADD_TEST_DYNAMIC(type, 8, 32, __COUNTER__) \
-	ADD_TEST_DYNAMIC(type, 512, 32, __COUNTER__) \
-	ADD_TEST_DYNAMIC(type, 4, 128, __COUNTER__) \
-	ADD_TEST_STATIC(type, 8, __COUNTER__) \
-	ADD_TEST_STATIC(type, 32, __COUNTER__)
+	ADD_TEST_DYNAMIC(type, 8, __COUNTER__) \
+	ADD_TEST_DYNAMIC(type, 32, __COUNTER__) \
+	ADD_TEST_DYNAMIC(type, 128, __COUNTER__)
 
 ADD_TESTS(MyBigStruct)
 ADD_TESTS(MyMediumStruct)
@@ -216,6 +161,6 @@ TEST(PoolAllocatorTest, TestAllocatorThreadSafe)
 		if(high == 0 || elapsed > high) high = elapsed;
 		if(low == 0 || elapsed < low) low = elapsed;
 	}
-	printf("\tThreaded string allod/dealloc - %d runs. Best: %" I64FMT "d us, Worst: %" I64FMT "d us, Average: %" I64FMT "d us\n", iterations_threaded, low, high, total / iterations_threaded);
+	printf("\tThreaded string allod/dealloc - %d runs. Best: %" SPRAWL_I64FMT "d us, Worst: %" SPRAWL_I64FMT "d us, Average: %" SPRAWL_I64FMT "d us\n", iterations_threaded, low, high, total / iterations_threaded);
 }
 #endif

@@ -28,9 +28,15 @@ sprawl::threading::CoroutineBase::Holder::Holder()
 	m_stackPointer = GetCurrentFiber();
 }
 
-sprawl::threading::CoroutineBase::Holder::Holder(std::function<void()> function, size_t /*stackSize*/)
+/*virtual*/ sprawl::threading::CoroutineBase::Holder::~Holder()
+{
+    // NOP
+}
+
+
+sprawl::threading::CoroutineBase::Holder::Holder(std::function<void()> function, size_t stackSize)
 	: m_function(function)
-	, m_stackSize(0)
+	, m_stackSize(stackSize)
 	, m_stack(nullptr)
 	, m_stackPointer(nullptr)
 	, m_state(CoroutineState::Created)

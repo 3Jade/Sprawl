@@ -193,7 +193,8 @@ TEST(FilesystemTest, FileSymlinkWorks)
 	f.Close();
 
 	ASSERT_TRUE(sprawl::path::Exists("test.txt"));
-	sprawl::filesystem::MakeSymlink("test.txt", "test2.txt");
+
+	ASSERT_TRUE(sprawl::filesystem::MakeSymlink("test.txt", "test2.txt")) << strerror(errno);
 
 	ASSERT_TRUE(sprawl::path::Exists("test2.txt"));
 	EXPECT_TRUE(sprawl::path::IsLink("test2.txt"));
@@ -219,7 +220,7 @@ TEST(FilesystemTest, DirectorySymlinkWorks)
 	f.Close();
 
 	ASSERT_TRUE(sprawl::path::Exists(file1));
-	sprawl::filesystem::MakeSymlink("test", "test2");
+	ASSERT_TRUE(sprawl::filesystem::MakeSymlink("test", "test2")) << strerror(errno);
 
 	ASSERT_TRUE(sprawl::path::Exists(file2));
 	EXPECT_FALSE(sprawl::path::IsLink(file2));

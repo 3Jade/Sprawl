@@ -224,11 +224,11 @@ TEST(ThreadingTest, StagedThreadManagerWorks)
 {
 	enum Stages : uint64_t
 	{
-		StageOne_Setup,
-		StageOne_Run,
-		StageTwo_Setup,
-		StageTwo_Run,
-		Max
+		AnyStage = 0,
+		StageOne_Setup = 1 << 0,
+		StageOne_Run = 1 << 1,
+		StageTwo_Setup = 1 << 2,
+		StageTwo_Run = 1 << 3,
 	};
 
 	enum ThreadFlags : uint64_t
@@ -237,7 +237,7 @@ TEST(ThreadingTest, StagedThreadManagerWorks)
 	};
 
 	sprawl::threading::ThreadManager stagedManager;
-	stagedManager.SetNumStages(Stages::Max);
+	stagedManager.SetMaxStage(Stages::StageTwo_Run);
 	stagedManager.AddTaskStaged(StageOne_Setup, SetupStageOne, Any);
 	for(int i = 0; i < 100; ++i)
 	{
@@ -368,4 +368,30 @@ TEST(CoroutineTest, GeneratorsWork)
 			EXPECT_EQ(i, generator()) << "Generator operator() failed";
 		}
 	}
+}
+
+void DoAThing()
+{
+
+}
+
+void DoAThing2(int)
+{
+
+}
+
+TEST(CoroutineTest, StackSizeInitializedProperly)
+{
+	sprawl::threading::Coroutine c1(nullptr, 200);
+	ASSERT_EQ(200ul, c1.StackSize());
+
+	std::function<void()> fn(nullptr);
+	sprawl::threading::Coroutine c2(fn, 200);
+	ASSERT_EQ(200ul, c2.StackSize());
+
+	sprawl::threading::Coroutine c3(DoAThing, 200);
+	ASSERT_EQ(200ul, c3.StackSize());
+
+	sprawl::threading::Coroutine c4(std::bind(DoAThing2, 3), 200);
+	ASSERT_EQ(200ul, c4.StackSize());
 }

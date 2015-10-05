@@ -4,6 +4,7 @@
 #include "../logging/Logging.hpp"
 #include "../filesystem/filesystem.hpp"
 #include "../filesystem/path.hpp"
+#include "../threading/thread.hpp"
 #include "gtest_printers.hpp"
 #include <gtest/gtest.h>
 
@@ -34,7 +35,7 @@ TEST(LoggingTest, BasicLoggingToFileWorks)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -44,7 +45,7 @@ TEST(LoggingTest, BasicLoggingToFileWorks)
 TEST(LoggingTest, ThreadedLoggingToFileWorks)
 {
 	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
-	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile_Threaded("test.log"));
+	sprawl::logging::SetDefaultHandler(sprawl::logging::RunHandler_Threaded(sprawl::logging::PrintToFile("test.log")));
 	sprawl::logging::Init();
 
 	int line = __LINE__;
@@ -57,7 +58,7 @@ TEST(LoggingTest, ThreadedLoggingToFileWorks)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -122,7 +123,7 @@ TEST(LoggingTest, PrintToStdoutWorks)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -165,7 +166,7 @@ TEST(LoggingTest, PrintToStderrWorks)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -176,6 +177,8 @@ TEST(LoggingTest, CategoryHandlersWork)
 {
 	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
 	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	ASSERT_TRUE(sprawl::String("Test::Test2") < sprawl::String("Test::Test3"));
+	ASSERT_FALSE(sprawl::String("Test::Test3") < sprawl::String("Test::Test2"));
 	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test"), sprawl::logging::PrintToFile("test2.log"));
 	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test", "Test"), sprawl::logging::PrintToFile("test3.log"), sprawl::logging::CategoryCombinationType::Exclusive);
 	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test", "Test3"), sprawl::logging::PrintToFile("test4.log"));
@@ -206,7 +209,7 @@ TEST(LoggingTest, CategoryHandlersWork)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (NotTest) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line4 + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [NotTest] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line4 + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -215,19 +218,19 @@ TEST(LoggingTest, CategoryHandlersWork)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test2) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line2 + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test2] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line2 + 1, sprawl::filesystem::LineSeparator()),
 		f.ReadLine()
 	);
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line3 + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line3 + 1, sprawl::filesystem::LineSeparator()),
 		f.ReadLine()
 	);
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test3) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line5 + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test3] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line5 + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -236,7 +239,7 @@ TEST(LoggingTest, CategoryHandlersWork)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -245,7 +248,7 @@ TEST(LoggingTest, CategoryHandlersWork)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test3) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line5 + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test3] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line5 + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -299,13 +302,13 @@ TEST(LoggingTest, OptionsWork)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[Information!] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [Information!] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.ReadLine()
 	);
 
 	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
 	EXPECT_EQ(
-		sprawl::String("[DEBUG] (Test::Test) This is also my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 2, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [DEBUG] This is also my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 2, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -314,7 +317,7 @@ TEST(LoggingTest, OptionsWork)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[Information!] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [Information!] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -348,12 +351,12 @@ TEST(LoggingTest, FileRecyclingWorks)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
 		f.ReadLine()
 	);
 	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 2, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 2, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -362,7 +365,7 @@ TEST(LoggingTest, FileRecyclingWorks)
 	//Skip timestamp.
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
-		sprawl::String("[INFO] (Test::Test) This is my message. (") + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -442,6 +445,304 @@ TEST(LoggingTest, ParentCategoryFilterWorks)
 	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
 	EXPECT_EQ(0, f.FileSize());
 	EXPECT_EQ(sprawl::String(""), f.Read());
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+#if !defined(_WIN32) || defined(_DEBUG) || SPRAWL_64_BIT
+
+TEST(LoggingTest, BacktracesPrintSomethingWhichIsToSayTheyPrintAnythingAtAll)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+
+	sprawl::logging::Options options;
+	options.includeBacktrace = true;
+	sprawl::logging::SetLevelOptions(LogLevel::INFO, options);
+
+	sprawl::logging::Init();
+
+	int line = __LINE__;
+	LOG(INFO, sprawl::logging::Category("Test", "Test"), "This is my message.");
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+	//Not bothering to try and PARSE backtraces, let's just make sure there's more in the file than this one line.
+	EXPECT_LT(f.Tell(), f.FileSize());
+	puts(f.Read().c_str());
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+#endif
+
+TEST(LoggingTest, LogIfWorks)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	sprawl::logging::Init();
+
+	LOG_IF(false, INFO, sprawl::logging::Category("Test", "Test"), "This is not my message.");
+	int line = __LINE__;
+	LOG_IF(true, INFO, sprawl::logging::Category("Test", "Test"), "This is my message.");
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+TEST(LoggingTest, LogEveryNWorks)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	sprawl::logging::Init();
+
+	int line = __LINE__;
+	for(int i = 0; i < 20; ++i)
+	{
+		LOG_EVERY_N(5, INFO, sprawl::logging::Category("Test", "Test"), sprawl::Format("This is my message: {}", i));
+	}
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 0 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 5 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 10 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 15 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+TEST(LoggingTest, LogIfEveryNWorks)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	sprawl::logging::Init();
+
+	int line = __LINE__;
+	for(int i = 0; i < 20; ++i)
+	{
+		LOG_IF_EVERY_N(i % 10 == 0, 5, INFO, sprawl::logging::Category("Test", "Test"), sprawl::Format("This is my message: {}", i));
+	}
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 0 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 10 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
+
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+TEST(LoggingTest, LogFirstNWorks)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	sprawl::logging::Init();
+
+	int line = __LINE__;
+	for(int i = 0; i < 20; ++i)
+	{
+		LOG_FIRST_N(5, INFO, sprawl::logging::Category("Test", "Test"), sprawl::Format("This is my message: {}", i));
+	}
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 0 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 1 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 2 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 3 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 4 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+TEST(LoggingTest, LogIfFirstNWorks)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	sprawl::logging::Init();
+
+	int line = __LINE__;
+	for(int i = 0; i < 20; ++i)
+	{
+		LOG_IF_FIRST_N(i % 2 == 0, 5, INFO, sprawl::logging::Category("Test", "Test"), sprawl::Format("This is my message: {}", i));
+	}
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 0 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 2 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 4 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 6 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message: 8 [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 3, sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
+	f.Close();
+	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
+}
+
+TEST(LoggingDeathTest, LogAssertWorks)
+{
+	//Don't actually care about it being threadsafe, this is to silence a stupid warning that won't go away otherwise on linux.
+	::testing::FLAGS_gtest_death_test_style = "threadsafe";
+
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToStderr());
+	sprawl::logging::Init();
+
+	EXPECT_DEATH(LOG_ASSERT(false, INFO, sprawl::logging::Category("Test", "Test"), "I'M DEAD!"), "Assertion failed: .*");
+	EXPECT_DEATH(LOG_ASSERT(false, INFO, sprawl::logging::Category("Test", "Test"), "I'M DEAD!"), "I'M DEAD!");
+	EXPECT_EXIT(
+		{
+			LOG_ASSERT(true, INFO, sprawl::logging::Category("Test", "Test"), "I'M DEAD!");
+			LOG(INFO, sprawl::logging::Category("Test", "Test"), "I'm alive!");
+			exit(0);
+		},
+		testing::ExitedWithCode(0),
+		"I'm alive!"
+	);
+
+	sprawl::logging::ShutDown();
+}
+
+void* GetMessage_()
+{
+	return (void*)"Extra error info";
+}
+
+void PrintMessage(void* message, sprawl::StringBuilder& builder)
+{
+	builder << (char const* const)(message);
+}
+
+TEST(LoggingTest, ExtraInfoWorks)
+{
+	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
+	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
+	sprawl::logging::AddExtraInfoCallback(LogLevel::INFO, GetMessage_, PrintMessage);
+	sprawl::logging::Init();
+
+	int line = __LINE__;
+	LOG(INFO, sprawl::logging::Category("Test", "Test"), "This is my message.");
+
+	sprawl::logging::ShutDown();
+	ASSERT_TRUE(sprawl::path::Exists("test.log"));
+
+	sprawl::filesystem::File f = sprawl::filesystem::Open("test.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message. [Test::Test] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line + 1, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+	EXPECT_EQ(
+		sprawl::Format("Extra error info{}", sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
 	f.Close();
 	EXPECT_TRUE(sprawl::filesystem::Remove("test.log"));
 }

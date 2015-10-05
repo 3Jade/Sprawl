@@ -12,12 +12,12 @@ namespace sprawl
 {
 	namespace collections
 	{
-		template<typename T, size_t blockSize = 32>
+		template<typename T, size_t blockSize = 8192>
 		class ConcurrentQueue;
 	}
 }
 
-template<typename T, size_t blockSize /*= 32*/>
+template<typename T, size_t blockSize>
 class sprawl::collections::ConcurrentQueue
 {
 public:
@@ -94,7 +94,7 @@ public:
 			//If this fails, another thread beat us to the value at this position.
 			//At this point we try again with the next value.
 			ElementState expected = ElementState::READY;
-			if(element->state.compare_exchange_strong(expected, ElementState::CONSUMED, std::memory_order_acq_rel))
+			if(element->state.compare_exchange_strong(expected, ElementState::CONSUMED, std::memory_order_seq_cst))
 			{
 				break;
 			}
@@ -104,7 +104,7 @@ public:
 			if(pos == readPos && expected == ElementState::CONSUMED)
 			{
 				size_t attemptIncrement = readPos;
-				m_readPos.compare_exchange_strong(attemptIncrement, attemptIncrement + 1, std::memory_order_acq_rel);
+				m_readPos.compare_exchange_strong(attemptIncrement, attemptIncrement + 1, std::memory_order_seq_cst);
 				++readPos;
 			}
 		}
@@ -147,7 +147,7 @@ private:
 		// Reserve a position before doing anything.
 		// Incrementing before storing is safe because of the "state" value in each item that gets set later
 		// and doing it with a fetch_add here avoids CAS
-		size_t pos = m_writePos.fetch_add(1, std::memory_order_acq_rel);
+		size_t pos = m_writePos.fetch_add(1, std::memory_order_seq_cst);
 
 		// The buffer will return null if we happened to grab a buffer that's been filled, completely acquired, and is set for deallocation.
 		// That's a very unlikely case.
@@ -157,7 +157,7 @@ private:
 			// Only one thread should perform the reallocation, the others should wait. CAS on this bool is used to pick the thread.
 			// If it's already captured by another thread, it'll return false because m_reallocatingBuffer won't match the expected 'false' value
 			bool notReallocating = false;
-			if(SPRAWL_UNLIKELY(m_reallocatingBuffer.compare_exchange_strong(notReallocating, true, std::memory_order_acq_rel)))
+			if(SPRAWL_UNLIKELY(m_reallocatingBuffer.compare_exchange_strong(notReallocating, true, std::memory_order_seq_cst)))
 			{
 				// Won the reallocation lottery!
 				// If we got in here, one of two things has happened:
@@ -336,7 +336,7 @@ private:
 		SPRAWL_FORCEINLINE void ConsumeBlock()
 		{
 			// Decrement the used block count. If the used block count reahes 0, release the last reference we're holding to mark this for deletion by GC.
-			if(SPRAWL_UNLIKELY(usedBlocks.fetch_sub(1, std::memory_order_acq_rel) == 0))
+			if(SPRAWL_UNLIKELY(usedBlocks.fetch_sub(1, std::memory_order_seq_cst) == 0))
 			{
 				DecRef();
 			}
@@ -369,13 +369,13 @@ private:
 
 		SPRAWL_FORCEINLINE void IncRef()
 		{
-			refCount.fetch_add(1, std::memory_order_acq_rel);
+			refCount.fetch_add(1, std::memory_order_seq_cst);
 		}
 
 		SPRAWL_FORCEINLINE int DecRef()
 		{
 			//DecRef is a simple fetch_sub.
-			return refCount.fetch_sub(1, std::memory_order_acq_rel);
+			return refCount.fetch_sub(1, std::memory_order_seq_cst);
 		}
 
 	private:

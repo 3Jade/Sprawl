@@ -47,3 +47,11 @@
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #endif
+
+#if defined(_WIN32)
+	#define SPRAWL_I64FMT "ll"
+#elif defined(__APPLE__)
+	#define SPRAWL_I64FMT "ll"
+#else
+	#define SPRAWL_I64FMT "l"
+#endif

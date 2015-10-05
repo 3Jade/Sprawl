@@ -52,34 +52,82 @@ protected:
 	virtual void SetUp() override
 	{
 		map.Insert(1, std::shared_ptr<TestType>(new TestType(1, 5, "str1")));
+		ASSERT_TRUE(map.VerifyProperties<0>());
+		ASSERT_TRUE(map.VerifyProperties<1>());
+		ASSERT_TRUE(map.VerifyProperties<2>());
 		map.Insert(2, std::shared_ptr<TestType>(new TestType(2, 6, "str2")));
+		ASSERT_TRUE(map.VerifyProperties<0>());
+		ASSERT_TRUE(map.VerifyProperties<1>());
+		ASSERT_TRUE(map.VerifyProperties<2>());
 		map.Insert(3, std::shared_ptr<TestType>(new TestType(3, 7, "str3")));
+		ASSERT_TRUE(map.VerifyProperties<0>());
+		ASSERT_TRUE(map.VerifyProperties<1>());
+		ASSERT_TRUE(map.VerifyProperties<2>());
 		map.Insert(4, std::shared_ptr<TestType>(new TestType(3, 8, "str4")));
+		ASSERT_TRUE(map.VerifyProperties<0>());
+		ASSERT_TRUE(map.VerifyProperties<1>());
+		ASSERT_TRUE(map.VerifyProperties<2>());
 
 		map2.Insert(1, std::shared_ptr<TestType>(new TestType(1, 5, "str1")));
+		ASSERT_TRUE(map2.VerifyProperties<0>());
+		ASSERT_TRUE(map2.VerifyProperties<1>());
 		map2.Insert(2, std::shared_ptr<TestType>(new TestType(2, 6, "str2")));
+		ASSERT_TRUE(map2.VerifyProperties<0>());
+		ASSERT_TRUE(map2.VerifyProperties<1>());
 		map2.Insert(3, std::shared_ptr<TestType>(new TestType(3, 7, "str3")));
+		ASSERT_TRUE(map2.VerifyProperties<0>());
+		ASSERT_TRUE(map2.VerifyProperties<1>());
 		map2.Insert(4, std::shared_ptr<TestType>(new TestType(3, 8, "str4")));
+		ASSERT_TRUE(map2.VerifyProperties<0>());
+		ASSERT_TRUE(map2.VerifyProperties<1>());
 
 		map3.Insert(1, std::shared_ptr<TestType>(new TestType(1, 5, "str1")));
+		ASSERT_TRUE(map3.VerifyProperties<0>());
 		map3.Insert(2, std::shared_ptr<TestType>(new TestType(2, 6, "str2")));
+		ASSERT_TRUE(map3.VerifyProperties<0>());
 		map3.Insert(3, std::shared_ptr<TestType>(new TestType(3, 7, "str3")));
+		ASSERT_TRUE(map3.VerifyProperties<0>());
 		map3.Insert(4, std::shared_ptr<TestType>(new TestType(3, 8, "str4")));
+		ASSERT_TRUE(map3.VerifyProperties<0>());
 
 		map4.Insert(1, TestType(1, 5, "str1"));
+		ASSERT_TRUE(map4.VerifyProperties<0>());
+		ASSERT_TRUE(map4.VerifyProperties<1>());
+		ASSERT_TRUE(map4.VerifyProperties<2>());
 		map4.Insert(2, TestType(2, 6, "str2"));
+		ASSERT_TRUE(map4.VerifyProperties<0>());
+		ASSERT_TRUE(map4.VerifyProperties<1>());
+		ASSERT_TRUE(map4.VerifyProperties<2>());
 		map4.Insert(3, TestType(3, 7, "str3"));
+		ASSERT_TRUE(map4.VerifyProperties<0>());
+		ASSERT_TRUE(map4.VerifyProperties<1>());
+		ASSERT_TRUE(map4.VerifyProperties<2>());
 		map4.Insert(4, TestType(3, 8, "str4"));
+		ASSERT_TRUE(map4.VerifyProperties<0>());
+		ASSERT_TRUE(map4.VerifyProperties<1>());
+		ASSERT_TRUE(map4.VerifyProperties<2>());
 
 		map5.Insert(1, TestType(1, 5, "str1"));
+		ASSERT_TRUE(map5.VerifyProperties<0>());
+		ASSERT_TRUE(map5.VerifyProperties<1>());
 		map5.Insert(2, TestType(2, 6, "str2"));
+		ASSERT_TRUE(map5.VerifyProperties<0>());
+		ASSERT_TRUE(map5.VerifyProperties<1>());
 		map5.Insert(3, TestType(3, 7, "str3"));
+		ASSERT_TRUE(map5.VerifyProperties<0>());
+		ASSERT_TRUE(map5.VerifyProperties<1>());
 		map5.Insert(4, TestType(3, 8, "str4"));
+		ASSERT_TRUE(map5.VerifyProperties<0>());
+		ASSERT_TRUE(map5.VerifyProperties<1>());
 
 		map6.Insert(1, TestType(1, 5, "str1"));
+		ASSERT_TRUE(map6.VerifyProperties<0>());
 		map6.Insert(2, TestType(2, 6, "str2"));
+		ASSERT_TRUE(map6.VerifyProperties<0>());
 		map6.Insert(3, TestType(3, 7, "str3"));
+		ASSERT_TRUE(map6.VerifyProperties<0>());
 		map6.Insert(4, TestType(3, 8, "str4"));
+		ASSERT_TRUE(map6.VerifyProperties<0>());
 	}
 
 	sprawl::collections::BinaryTree<
@@ -179,11 +227,28 @@ TEST_F(BinaryTreeTest, LookupWorks)
 TEST_F(BinaryTreeTest, EraseWorks)
 {
 	map.Erase<0>(4);
+	ASSERT_TRUE(map.VerifyProperties<0>());
+	ASSERT_TRUE(map.VerifyProperties<1>());
+	ASSERT_TRUE(map.VerifyProperties<2>());
+
 	map2.Erase<0>(4);
+	ASSERT_TRUE(map2.VerifyProperties<0>());
+	ASSERT_TRUE(map2.VerifyProperties<1>());
+
 	map3.Erase(4);
+	ASSERT_TRUE(map3.VerifyProperties<0>());
+
 	map4.Erase<0>(4);
+	ASSERT_TRUE(map4.VerifyProperties<0>());
+	ASSERT_TRUE(map4.VerifyProperties<1>());
+	ASSERT_TRUE(map4.VerifyProperties<2>());
+
 	map5.Erase<0>(4);
+	ASSERT_TRUE(map5.VerifyProperties<0>());
+	ASSERT_TRUE(map5.VerifyProperties<1>());
+
 	map6.Erase(4);
+	ASSERT_TRUE(map6.VerifyProperties<0>());
 
 	EXPECT_EQ(map.end(), map.find<0>(4));
 	EXPECT_EQ(map.end(), map.find<1>(8));
@@ -308,7 +373,7 @@ TEST_F(BinaryTreeTest, LowerBoundWorks)
 	set.Insert(6);
 	set.Insert(8);
 
-	EXPECT_EQ(set.end(), set.LowerBound(1));
+	EXPECT_EQ(2, set.LowerBound(1).Value());
 	EXPECT_EQ(2, set.LowerBound(2).Value());
 	EXPECT_EQ(3, set.LowerBound(3).Value());
 	EXPECT_EQ(4, set.LowerBound(4).Value());
@@ -316,7 +381,7 @@ TEST_F(BinaryTreeTest, LowerBoundWorks)
 	EXPECT_EQ(6, set.LowerBound(6).Value());
 	EXPECT_EQ(7, set.LowerBound(7).Value());
 	EXPECT_EQ(8, set.LowerBound(8).Value());
-	EXPECT_EQ(8, set.LowerBound(9).Value());
+	EXPECT_EQ(set.end(), set.LowerBound(9));
 }
 
 TEST(MultiKeyTreeTest, MultipleKeyAccessorsWork)

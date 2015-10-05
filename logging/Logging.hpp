@@ -2,8 +2,10 @@
 #include "../string/StringBuilder.hpp"
 #include "../string/String.hpp"
 #include "../time/time.hpp"
+#include "../collections/Vector.hpp"
 #include <functional>
 #include <memory>
+#include "Backtrace.hpp"
 
 namespace sprawl
 {
@@ -55,7 +57,7 @@ namespace sprawl
 		 * @param function  Function containing the log statement
 		 * @param line      Line on which the log statement appears
 		 */
-		void Log(int level, String const& levelStr, String const& message, String const& file, String const& function, int line);
+		void Log(int level, String const& levelStr, String const& message, String const& file, String const& function, String const& line);
 #endif
 		/**
 		 * @brief Log a message with a filterable category
@@ -68,7 +70,7 @@ namespace sprawl
 		 * @param function  Function containing the log statement
 		 * @param line      Line on which the log statement appears
 		 */
-		void Log(int level, String const& levelStr, Category const& category, sprawl::String const& message, String const& file, String const& function, int line);
+		void Log(int level, String const& levelStr, Category const& category, sprawl::String const& message, String const& file, String const& function, String const& line);
 
 		/**
 		 * @brief Set the global options that will apply to any log level without its own options set
@@ -124,6 +126,7 @@ namespace sprawl
 		 *
 		 * @details The format string accepts the following macro parameters:
 		 *          {timestamp} - A timestamp whose format is specified by SetTimeFormat
+		 *          {threadid}  - A numeric ID representing the thread that called LOG(). Not equivalent with gettid() on Linux, only guaranteed unique.
 		 *          {level}     - A string representation of the level of this log message
 		 *          {category}  - The category, if any, of this message. If logged without a category, this will be an empty string.
 		 *          {message}   - The message that was printed
@@ -180,25 +183,6 @@ namespace sprawl
 		void AddCategoryHandler(Category const& category, Handler const& handler, CategoryCombinationType type = CategoryCombinationType::Combined);
 
 		/**
-		 * @brief Print a message to the passed-in file. This is an immediate print operation.
-		 *        This function is exposed to enable easier creation of new Handlers
-
-		 * @param message   The message to print
-		 * @param file      The file to print to
-		 * @param filename  The base name of the file (without timestamps and/or .1/.2/etc) - this is used for file rotation to create a new file if needed.
-		 */
-		void PrintMessageToFile(std::shared_ptr<Message> const& message, filesystem::File& file, sprawl::String const& filename);
-
-		/**
-		 * @brief Prints a message directly to a stream (i.e., stdout/stderr).
-		 *        If the stream is a TTY, then the message will be printed in color if the options indicate it should.
-		 *
-		 * @param message  The message to print
-		 * @param stream   The stream to print to
-		 */
-		void PrintMessageToStream(const std::shared_ptr<Message>& message, FILE* stream);
-
-		/**
 		 * @brief   Returns a handler to print to a file of the given name (modified according to file naming rules)
 		 *
 		 * @param   filename  The base filename without any naming rules modifications
@@ -207,26 +191,25 @@ namespace sprawl
 		Handler PrintToFile(sprawl::String const& filename);
 
 		/**
-		 * @brief   Returns a handler to print to a file of the given name (modified according to file naming rules).
-		 *          In contrast with PrintToFile, PrintToFile_Threaded launches a dedicated thread and passes messages to it for printing.
+		 * @brief   Returns a handler that runs another handler on a dedicated internal thread.
 		 *
-		 * @param   filename  The base filename without any naming rules modifications
-		 * @return  A valid sprawl::logging::Handler instance
+		 * @param   handler  The handler to execute on the internal thread
+		 * @return  A new valid sprawl::logging::Handler instance
 		 */
-		Handler PrintToFile_Threaded(sprawl::String const& filename);
+		Handler RunHandler_Threaded(Handler const& handler);
 
 		/**
-		 * @brief   Returns a handler to print to a file of the given name (modified according to file naming rules).
-		 *          In contrast with PrintToFile_Threaded, PrintToFile_ThreadManager integrates with an existing sprawl::threading::ThreadManager instance
-		 *          and pushes log operations to threads with the given flag. Note that if your manager is threaded, tasks will be added for the current stage.
+		 * @brief   Returns a handler to run another handler on one or more external threads
+		 *          In contrast with RunHandler_Threaded, RunHandler_ThreadManager integrates with an existing sprawl::threading::ThreadManager instance
+		 *          and pushes log operations to threads with the given flag. Note that if your manager is staged, tasks will be added for the current stage.
 		 *          If the stage advances after this point, the log printing may be delayed until the next time that stage is run.
 		 *
-		 * @param   filename    The base filename without any naming rules modifications
+		 * @param   handler  The handler to execute on the supplied thread manager
 		 * @param   manager     The ThreadManager instance to use. This instance must not go out of scope or be destroyed before sprawl::logging::ShutDown() is called.
 		 * @param   threadFlag  The flags to be passed into ThreadManager::AddTask()
-		 * @return  A valid sprawl::logging::Handler instance
+		 * @return  A new, valid sprawl::logging::Handler instance
 		 */
-		Handler PrintToFile_ThreadManager(sprawl::String const& filename, threading::ThreadManager& manager, int64_t threadFlag);
+		Handler RunHandler_ThreadManager(Handler const& handler, threading::ThreadManager& manager, int64_t threadFlag);
 
 		/**
 		 * @brief   Returns a simple handler that prints all messages directly to stdout
@@ -293,6 +276,41 @@ namespace sprawl
 		 * @brief Terminate the logging system entirely. This resets all parameters to their defaults and joins any internal threads that have been started.
 		 */
 		void ShutDown();
+
+		/**
+		 * @brief Formats the given stack frame into the given string builder to be printed as part of a stack trace.
+		 *        Made publically accessible so that it can be used by applications with scripting systems to provide
+		 *        script backtraces, etc.
+		 *
+		 * @param frame            A Backtrace::Frame object containing the data to print.
+		 * @param printMemoryData  If true, the "address" and "offset" values will be printed. If false, only the function name will be printed.
+		 * @param builder          String builder to output the results to. Each frame automatically inserts a blank line after it.
+		 */
+		void FormatStackFrame(Backtrace::Frame const& frame, bool printMemoryData, sprawl::StringBuilder& builder);
+
+		/**
+		 * @brief Format an entire backtrace to a string.
+		 *
+		 * @param backtrace  Backtrace to format
+		 * @param builder    String builder to contain the resulting data
+		 */
+		void BacktraceToString(Backtrace const& backtrace, sprawl::StringBuilder& builder);
+
+		/**
+		 * @brief Registers a callback to be called with log messages of the given level. The callback appends to the passed-in string builder
+		 *        with extra data to be printed to the log (such as a script backtrace or a print of the global error state).
+		 *        Callbacks will be called in the order they are added.
+		 *
+		 * @param logLevel  The log level that triggers this callback.
+		 * @param callback  The callback to be triggered.
+		 */
+		void AddExtraInfoCallback(int logLevel, std::function<void*()> collect, std::function<void(void* data, sprawl::StringBuilder& builder)> print);
+
+		template<typename T, typename = typename std::enable_if<std::is_enum<T>::value>::type>
+		void  AddExtraInfoCallback(T logLevel, std::function<void*()> collect, std::function<void(void* data, sprawl::StringBuilder& builder)> print)
+		{
+			AddExtraInfoCallback(int(logLevel), collect, print);
+		}
 
 		inline void Nop() {}
 	}
@@ -370,8 +388,10 @@ struct sprawl::logging::Options
 
 struct sprawl::logging::Message
 {
-	Message(int64_t timestamp_, String const& level_, String const& category_, String const& message_, String const& file_, String const& function_, int line_, Options* options_)
+	Message(int64_t timestamp_, int64_t threadid_, int levelInt_, String const& level_, String const& category_, String const& message_, String const& file_, String const& function_, String const& line_, Options* options_)
 		: timestamp(timestamp_)
+		, threadid(threadid_)
+		, levelInt(levelInt_)
 		, level(level_)
 		, category(category_)
 		, message(message_)
@@ -379,20 +399,35 @@ struct sprawl::logging::Message
 		, function(function_)
 		, line(line_)
 		, messageOptions(options_)
+		, backtrace()
+		, extraInfo(sprawl::collections::Capacity(0))
 	{
 
 	}
+
+	Message(Message&& other) = delete;
+	Message(Message const& other) = delete;
+	Message& operator=(Message const& other) = delete;
+	Message& operator=(Message&& other) = delete;
+
 	int64_t timestamp;
+	int64_t threadid;
+	int levelInt;
 	String level;
 	String category;
 	String message;
 	String file;
 	String function;
-	int line;
+	String line;
 
 	Options* messageOptions;
 
+	Backtrace backtrace;
+
+	sprawl::collections::Vector<void*> extraInfo;
+
 	String ToString();
+	String CollectExtraData();
 };
 
 #ifndef SPRAWL_LOG_LEVEL_TYPE
@@ -406,6 +441,66 @@ struct sprawl::logging::Message
 	#define SPRAWL_MINIMUM_LOG_LEVEL 0
 #endif
 
-#define LOG(LEVEL, ...) SPRAWL_LOG_LEVEL_TYPE( SPRAWL_LOG_LEVEL_PREFIX SPRAWL_MINIMUM_LOG_LEVEL ) <= SPRAWL_LOG_LEVEL_PREFIX LEVEL ? ::sprawl::logging::Log(int(SPRAWL_LOG_LEVEL_PREFIX LEVEL), #LEVEL, __VA_ARGS__, __FILE__, __FUNCTION__, __LINE__) : ::sprawl::logging::Nop()
+#define SPRAWL_LOG_GENERATE_VARIABLE_NAME_CONCAT(base, line) base ## line
+#define SPRAWL_LOG_GENERATE_VARIABLE_NAME(base, line) SPRAWL_LOG_GENERATE_VARIABLE_NAME_CONCAT(base, line)
+#define SPRAWL_LOG_STATIC_INT SPRAWL_LOG_GENERATE_VARIABLE_NAME(sprawl_log_internal_int_, __LINE__)
 
-///@TODO: Backtraces
+#define SPRAWL_STRINGIFY_2(input) #input
+#define SPRAWL_STRINGIFY(input) SPRAWL_STRINGIFY_2(input)
+
+#define LOG(LEVEL, ...) SPRAWL_LOG_LEVEL_TYPE( SPRAWL_LOG_LEVEL_PREFIX SPRAWL_MINIMUM_LOG_LEVEL ) <= SPRAWL_LOG_LEVEL_PREFIX LEVEL ? ::sprawl::logging::Log(int(SPRAWL_LOG_LEVEL_PREFIX LEVEL), #LEVEL, __VA_ARGS__, sprawl::StringLiteral(__FILE__), sprawl::StringLiteral(__FUNCTION__), sprawl::StringLiteral(SPRAWL_STRINGIFY(__LINE__))) : ::sprawl::logging::Nop()
+
+#define LOG_IF(condition, LEVEL, ...) (!(!(condition))) ? LOG(LEVEL, __VA_ARGS__) : ::sprawl::logging::Nop()
+
+#define LOG_EVERY_N(count, LEVEL, ...) do \
+	{ \
+		static int SPRAWL_LOG_STATIC_INT = count - 1; \
+		++SPRAWL_LOG_STATIC_INT; \
+		if(SPRAWL_LOG_STATIC_INT == count) \
+		{ \
+			LOG(LEVEL, __VA_ARGS__); \
+			SPRAWL_LOG_STATIC_INT = 0; \
+		} \
+	} while(false)
+
+#define LOG_IF_EVERY_N(condition, count, LEVEL, ...) do \
+	{ \
+		static int SPRAWL_LOG_STATIC_INT = count - 1; \
+		++SPRAWL_LOG_STATIC_INT; \
+		if(SPRAWL_LOG_STATIC_INT == count) \
+		{ \
+			LOG_IF(condition, LEVEL, __VA_ARGS__); \
+			SPRAWL_LOG_STATIC_INT = 0; \
+		} \
+	} while(false)
+
+#define LOG_FIRST_N(count, LEVEL, ...) do \
+	{ \
+		static int SPRAWL_LOG_STATIC_INT = 0; \
+		if(SPRAWL_LOG_STATIC_INT != count) \
+		{ \
+			LOG(LEVEL, __VA_ARGS__); \
+			++SPRAWL_LOG_STATIC_INT; \
+		} \
+	} while(false)
+
+#define LOG_ONCE(...) LOG_FIRST_N(1, LEVEL, __VA_ARGS__)
+
+#define LOG_IF_FIRST_N(condition, count, LEVEL, ...) do \
+	{ \
+		static int SPRAWL_LOG_STATIC_INT = 0; \
+		if((!(!(condition))) && SPRAWL_LOG_STATIC_INT != count) \
+		{ \
+			LOG(LEVEL, __VA_ARGS__); \
+			++SPRAWL_LOG_STATIC_INT; \
+		} \
+	} while(false)
+
+#define LOG_ASSERT(condition, LEVEL, ...) \
+	if(!(condition)) \
+	{ \
+		LOG(LEVEL, "Assertion failed: " #condition); \
+		LOG(LEVEL, __VA_ARGS__); \
+		::sprawl::logging::Flush(); \
+		abort(); \
+	}

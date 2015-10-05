@@ -19,8 +19,8 @@ namespace sprawl
 			Years = 365 * Days
 		};
 
-		int64_t Now(Resolution resolution);
-		int64_t SteadyNow(Resolution resolution);
+		int64_t Now(Resolution resolution = Resolution::Nanoseconds);
+		int64_t SteadyNow(Resolution resolution = Resolution::Nanoseconds);
 
 		int64_t Convert(int64_t time, Resolution fromResolution, Resolution toResolution);
 	}
