@@ -1,0 +1,429 @@
+#pragma once
+
+#ifndef SPRAWL_STRING_NO_STL_COMPAT
+#	include <string>
+#	include "../hash/Murmur3.hpp"
+#endif
+
+#include "StringCommon.hpp"
+#include "StringBuilder.hpp"
+#include <stdint.h>
+#include <unordered_map>
+
+#include <atomic>
+
+namespace sprawl
+{
+	class StringLiteral;
+
+	class String
+	{
+	public:
+		class Holder
+		{
+		protected:
+			friend class String;
+
+			Holder();
+			Holder(const char* data);
+			Holder(const char* data, size_t length);
+			Holder(StringLiteral const& literal);
+
+			void IncRef();
+			bool DecRef();
+
+			static Holder* CreateHolder();
+			static void FreeHolder(Holder* holder);
+
+			~Holder();
+
+			inline size_t GetHash() const
+			{
+				if(m_hashComputed)
+				{
+					return m_hash;
+				}
+
+				m_hash = sprawl::murmur3::Hash( m_data, m_length );
+				m_hashComputed = true;
+				return m_hash;
+			}
+
+			static constexpr size_t staticDataSize = SPRAWL_STATIC_STRING_SIZE;
+
+			char m_staticData[staticDataSize];
+			char* m_dynamicData;
+			const char* m_data;
+			std::atomic<int> m_refCount;
+			size_t m_length;
+			mutable size_t m_hash;
+			mutable bool m_hashComputed;
+		private:
+			Holder(Holder const& other);
+			Holder& operator=(Holder const& other);
+		};
+
+		String();
+		String(const char* const data);
+		String(const char* const data, size_t length);
+
+		String(String const& other);
+		String(String&& other);
+
+#ifndef SPRAWL_STRING_NO_STL_COMPAT
+		String(std::string const& stlString);
+#endif
+
+		String(StringLiteral const& stringLiteral);
+
+		~String();
+
+		inline size_t GetHash() const
+		{
+			return m_holder->GetHash();
+		}
+
+#ifndef SPRAWL_STRING_NO_STL_COMPAT
+		std::string toStdString() const;
+#endif
+
+		const char* c_str() const
+		{
+			return m_holder->m_data;
+		}
+
+		size_t length() const
+		{
+			return m_holder->m_length;
+		}
+
+		String& operator=(String const& other);
+		String& operator=(String&& other);
+
+		inline bool operator==(String const& other) const
+		{
+			return (m_holder == other.m_holder) || ((m_holder->m_length == other.m_holder->m_length) && (SPRAWL_MEMCMP(m_holder->m_data, other.m_holder->m_data, m_holder->m_length) == 0));
+		}
+
+		bool operator!=(String const& other) const
+		{
+			return !operator==(other);
+		}
+
+		sprawl::String operator+(sprawl::String const& other) const;
+
+		sprawl::String operator+(const char* other) const;
+
+		sprawl::String& operator+=(sprawl::String const& other);
+
+		sprawl::String& operator+=(const char* other);
+
+		bool empty() const
+		{
+			return m_holder->m_length == 0;
+		}
+
+		bool operator<(String const& other) const;
+
+		char const& operator[](size_t index) const
+		{
+			return m_holder->m_data[index];
+		}
+
+		String GetOwned() const;
+
+		template<typename... Params>
+		String format(Params const& ...params)
+		{
+#if !SPRAWL_STRINGBUILDER_FAVOR_SPEED_OVER_MEMORY
+			StringBuilder nullBuilder(0);
+
+			ExecuteFormat(nullBuilder, params...);
+
+			size_t const length = nullBuilder.Size();
+
+			StringBuilder builder(length, false);
+#else
+			size_t const startingLength = m_holder->m_length * 2 + 1;
+
+			StringBuilder builder(startingLength, true);
+#endif
+
+			ExecuteFormat(builder, params...);
+
+			return builder.Str();
+		}
+
+	private:
+		template<int idx, typename... Params>
+		class FormatHelper;
+
+		template<int idx>
+		class FormatHelper<idx>
+		{
+		public:
+			void Append(int pos, StringBuilder& builder, char* modifiers)
+			{
+				(void)(pos);
+				(void)(modifiers);
+				builder << "< ??? >";
+			}
+		};
+
+		template<int idx, typename T>
+		class FormatHelper<idx, T> : public FormatHelper<idx + 1>
+		{
+		public:
+			typedef FormatHelper<idx + 1> Base;
+			FormatHelper(T const& val)
+				: Base()
+				, m_value(val)
+			{
+				//
+			}
+
+			void Append(int pos, StringBuilder& builder, char* modifiers)
+			{
+				if(pos == idx)
+				{
+					builder.AppendElementToBuffer(m_value, modifiers);
+				}
+				else
+				{
+					Base::Append(pos, builder, modifiers);
+				}
+			}
+
+		private:
+			T const& m_value;
+		};
+
+		template<int idx, typename T, typename... Params>
+		class FormatHelper<idx, T, Params...> : public FormatHelper<idx + 1, Params...>
+		{
+		public:
+			typedef FormatHelper<idx + 1, Params...> Base;
+			FormatHelper(T const& val, Params const& ...values)
+				: Base(values...)
+				, m_value(val)
+			{
+				//
+			}
+
+			void Append(int pos, StringBuilder& builder, char* modifiers)
+			{
+				if(pos == idx)
+				{
+					builder.AppendElementToBuffer(m_value, modifiers);
+				}
+				else
+				{
+					Base::Append(pos, builder, modifiers);
+				}
+			}
+
+		private:
+			T const& m_value;
+		};
+
+		template<typename... Params>
+		void ExecuteFormat(	StringBuilder& builder, Params const& ...params)
+		{
+			FormatHelper<0, Params...> helper(params...);
+
+			int curIdx = -1;
+			size_t lastIdx = 0;
+
+			bool inBracket = false;
+
+			char modifiers[10];
+			size_t modifierPos = 0;
+			bool inModifiers = false;
+
+			size_t const formatLength = m_holder->m_length;
+			char const* const data = m_holder->m_data;
+
+			for(size_t i = 0; i < formatLength; ++i)
+			{
+				const char c = data[i];
+				if(c == '{')
+				{
+					if(inBracket)
+					{
+						builder << '{';
+					}
+					inBracket = !inBracket;
+					continue;
+				}
+
+				if(inBracket)
+				{
+					if(c == '}')
+					{
+						modifiers[modifierPos] = '\0';
+
+						if(curIdx == -1)
+						{
+							helper.Append(lastIdx, builder, modifiers);
+							++lastIdx;
+						}
+						else
+						{
+							helper.Append(curIdx, builder, modifiers);
+							lastIdx = curIdx + 1;
+						}
+						modifiers[0] = '\0';
+						modifierPos = 0;
+						curIdx = -1;
+						inBracket = false;
+						inModifiers = false;
+					}
+					else if(c == ':' && !inModifiers)
+					{
+						inModifiers = true;
+					}
+					else if(inModifiers)
+					{
+						modifiers[modifierPos++] = c;
+					}
+					else if(isdigit(c))
+					{
+						if(curIdx == -1)
+						{
+							curIdx = c - '0';
+						}
+						else
+						{
+							curIdx *= 10;
+							curIdx += c - '0';
+						}
+					}
+					else
+					{
+						builder << '{';
+						if(curIdx != -1)
+						{
+							builder << curIdx;
+						}
+						builder << c;
+						inBracket = false;
+					}
+					continue;
+				}
+
+				builder << c;
+			}
+		}
+
+	private:
+		Holder* m_holder;
+		static Holder ms_emptyHolder;
+	};
+
+	class StringLiteral
+	{
+	public:
+		template<size_t N>
+		StringLiteral(const char (&ptr)[N])
+			: m_ptr(ptr)
+			, m_length(N-1)
+		{
+			//
+		}
+
+		explicit StringLiteral(const char* ptr, size_t length)
+			: m_ptr(ptr)
+			, m_length(length)
+		{
+			//
+		}
+
+		const char* GetPtr() const { return m_ptr; }
+		size_t GetLength() const { return m_length; }
+		bool operator==(StringLiteral const& other) const { return m_ptr == other.m_ptr; }
+		bool operator!=(StringLiteral const& other) const { return m_ptr != other.m_ptr; }
+
+	protected:
+		friend class String::Holder;
+		char const* m_ptr;
+		size_t m_length;
+	};
+	typedef StringLiteral StringRef;
+
+	template<typename... Params>
+	sprawl::String Format(const char* const text, Params&&... params)
+	{
+		return sprawl::String(sprawl::StringLiteral(text, strlen(text))).format(std::forward<Params>(params)...);
+	}
+}
+
+#ifndef SPRAWL_STRING_NO_STL_COMPAT
+namespace std
+{
+	template<>
+	struct hash<sprawl::String>
+	{
+		typedef sprawl::String argument_type;
+		typedef std::size_t value_type;
+
+		inline value_type operator()(argument_type const& str) const
+		{
+			return str.GetHash();
+		}
+	};
+
+	template<>
+	struct hash<sprawl::StringLiteral>
+	{
+		typedef sprawl::StringLiteral argument_type;
+		typedef std::size_t value_type;
+
+		inline value_type operator()(argument_type const& str) const
+		{
+			return sprawl::murmur3::HashPointer(intptr_t(str.GetPtr()));
+		}
+	};
+}
+#endif
+
+#ifndef _WIN32
+#ifndef SPRAWL_NO_FORMAT_LITERAL
+namespace sprawl
+{
+	namespace detail
+	{
+		class FormatHelper
+		{
+		public:
+			template<size_t N>
+			FormatHelper(const char (&ptr)[N])
+				: m_str(StringLiteral(ptr))
+			{
+				//
+			}
+
+			explicit FormatHelper(const char* ptr, size_t length)
+			: m_str(StringLiteral(ptr, length))
+			{
+				//
+			}
+
+			template<typename... Params>
+			sprawl::String operator()(Params&&... params)
+			{
+				return m_str.format(std::forward<Params>(params)...);
+			}
+
+		private:
+			String m_str;
+		};
+	}
+}
+
+inline sprawl::detail::FormatHelper operator "" _format(const char *ptr, size_t length)
+{
+	return sprawl::detail::FormatHelper(ptr, length);
+}
+
+#endif
+#endif
