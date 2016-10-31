@@ -2,7 +2,7 @@ libSprawl is a collection of libraries I've been working on in my spare time. So
 
 Included in the library:
 
-*libSprawl::collections:*
+### **libSprawl::collections:**
 Implements various templated container types:
 - _sprawl::collections::Array_ - A static array implementation similar to std::array
 - _sprawl::collections::BinaryTree_ - Currently non-functional. Do not use. I need to fix it.
@@ -15,27 +15,27 @@ Implements various templated container types:
 - _sprawl::collections::List_ - A simple doubly-linked list
 - _sprawl::collections::Vector_ - A simple vector implementation
 
-*libSprawl::filesystem*
+### **libSprawl::filesystem**
 Implements various path and filesystem operations in a cross-platform way. The interface is heavily inspired by the Python os and os.path libraries and contains a large portion of their functionality.
 
-*libSprawl::hash*
+### **libSprawl::hash**
 Contains implementations of Murmur3 and CityHash algorithms. Stub headers for Murmur2 and FNV1a are not implemented yet.
 
-*libSprawl::if*
+### **libSprawl::if**
 Template metaprogramming helper classes that enable a proper type to be determined at compile time following the if/elseif/else/endif pattern. See UnitTests_If.cpp for examples.
 
-*libSprawl::logging*
+### **libSprawl::logging**
 Logging system. Currently a bit of a work in progress; everything in it is functional but there are a number of performance enhancements that have been identified but not yet implemented. Also includes functionality to retrieve backtraces in a cross-platform way.
 
-*libSprawl::memory*
+### **libSprawl::memory**
 Contains a lock-free thread-local pool allocator, a wrapper to enable it to be used with STL types, and an OpaqueType class that can create properly-aligned memory based on either a specified size or a list of types to support the pImpl idiom without requiring any dynamic memory allocation.
 
-*libSprawl::network*
+### **libSprawl::network**
 Contains two networking implementations:
 - _sprawl::network_ - Deprecated. Do not use. Will be deleted eventually.
 - _sprawl::async_network_ - Asynchronous TCP and UDP networking libraries. Functional, but have been earmarked for a number of performance and functionality improvements.
 
-*libSprawl::serialization*
+### **libSprawl::serialization**
 Set of serializers and deserializers connected by a unified interface:
 - _sprawl::serialization::BinarySerializer_ - Serializes to and from a custom binary format
 - _sprawl::serialization::JSONSerializer_ - Serializes to and from JSON
@@ -45,20 +45,20 @@ Set of serializers and deserializers connected by a unified interface:
 
 - _sprawl::serialization::JSONToken_ - A fast and fully-functional JSON builder and parser with a user-friendly interface. Relies on the user to manage the source string's lifetime when reading.
 
-*libSprawl::string*
+### **libSprawl::string**
 String classes:
 - _sprawl::String_ - A reference-counted immutable string class with small value optimization. The reference counting is likely going to be removed in the future.
 - _sprawl::StringBuilder_ - A class very similar to std::stringstream, optimized for creating strings and capable of converting from other types to strings.
 - _sprawl::StringLiteral_ - A wrapper around a raw c string pointer and a size, will not make any copies or perform any dynamic memory allocation, but relies on the user to manage the source string's lifetime. A sprawl::String constructed from a StringLiteral will likewise continue to reference the original source string without doing any copies.
 
-*libSprawl::tag*
+### **libSprawl::tag**
 A compile-time string library that treats individual strings as discrete types, where "Hello" and "World" are thus different actual types at compile time, and as such can be used as template parameters. Supports almost the entire python string library's functionality, all executed at compile time and transmuting tag types into new types representing the results of the operation. The resulting type can then have its contents and size accessed at runtime.
 
 In addition to the functionality in the python library, also supports compile-time Murmur3 hash calculation of strings. It can also stringify types without any RTTI and can convert from strings into integers and booleans.
 
 See UnitTests_Tag.cpp for examples.
 
-*libSprawl::threading*
+### **libSprawl::threading**
 Various threading support libraries:
 - _sprawl::threading::ConditionVariable_ - Basic condition variable
 - _sprawl::threading::Coroutine_ - Cross-platform implementation of a continuation/fiber to support generators and cooperative multitasking models
@@ -68,7 +68,7 @@ Various threading support libraries:
 - _sprawl::threading::ThreadLocal_ - Basic thread local variable. Obsoleted by C++11 thread_local.
 - _sprawl::threading::ThreadManager_ - A complex thread pool implementation that allows each thread to be given a set of flags for what types of tasks it can execute. A task will only be executed by a thread that's marked as capable of executing it, but a thread can be given the ability to execute multiple types of tasks. Uses _sprawl::collections::ConcurrentQueue_ for quick wait-free enqueuing of tasks.
 
-*libSprawl::time*
+### **libSprawl::time**
 Simple nanosecond-resolution cross-platform steady and system clocks, and resolution conversion utilities.
 
 *Misc*
