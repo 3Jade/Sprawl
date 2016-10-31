@@ -1,3 +1,5 @@
+#define SPRAWL_CONCURRENTQUEUE_COUNT_READ_MISSES
+
 #include "../../collections/ConcurrentQueue.hpp"
 #include "../../collections/List.hpp"
 #include <gtest/gtest.h>
@@ -16,7 +18,7 @@
 namespace ConcurrentQueue
 {
 	constexpr int numInsertsPerThread = 100000;
-	constexpr int nThreads = 10;
+	constexpr int nThreads = 4;
 	sprawl::collections::ConcurrentQueue<int, numInsertsPerThread * nThreads>* queue;
 
 	class ConcurrentQueue : public testing::Test
@@ -106,6 +108,7 @@ namespace ConcurrentQueue
 		}
 		int i;
 		ASSERT_FALSE(queue->Dequeue(i));
+		printf("Read %d values with %zu read misses.", numInsertsPerThread * nThreads, queue->NumReadMisses());
 	}
 #endif
 
@@ -195,6 +198,7 @@ namespace ConcurrentQueue
 		EXPECT_LT(lockFreeTime, dequeTime);
 		int i;
 		ASSERT_FALSE(queue->Dequeue(i));
+		printf("Read %d values with %zu read misses.", numInsertsPerThread * nThreads, queue->NumReadMisses());
 	}
 #endif
 	template<typename T>
@@ -317,7 +321,7 @@ namespace ConcurrentQueue
 			}
 		}
 	}
-#if 0
+#if 1
 	TEST_F(ConcurrentQueue, PerformanceComparesTo1024CoresQueue)
 	{
 		count = 0;
@@ -377,10 +381,11 @@ namespace ConcurrentQueue
 
 		int i;
 		ASSERT_FALSE(queue->Dequeue(i)) << "Item " << i << " was still in queue?";
+		printf("Read %d values with %zu read misses.", numInsertsPerThread * nThreads, queue->NumReadMisses());
 	}
 #endif
 
-	const int numSlowInsertsPerThread = 10;
+	const int numSlowInsertsPerThread = 1000;
 	sprawl::collections::ConcurrentQueue<int, 10>* queueSlow;
 	std::atomic<int> totalResults(0);
 
@@ -447,6 +452,7 @@ namespace ConcurrentQueue
 
 		results.Clear();
 
+		printf("Read %d values with %zu read misses.", numSlowInsertsPerThread * nThreads, queueSlow->NumReadMisses());
 		delete queueSlow;
 	}
 #endif

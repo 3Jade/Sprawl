@@ -17,209 +17,21 @@ namespace sprawl
 		{
 			enum class ElementState : int16_t
 			{
-				EMPTY,
-				READY,
-				RETRY,
-				DEAD,
+				EMPTY, // No value written yet
+				READY, // A value has been written
+				RETRY, // Rather than a value, this element contains a redirect to another element that wasn't successfully read before.
+				DEAD, // This element would have been a retry to an element after it, which would have made both unreachable, 
+				      // so this one was just killed and another retry was added.
 			};
 
 			template<typename T, size_t blockSize>
 			class Buffer;
-
-			template<typename T, size_t blockSize>
-			struct SharedBuffer;
-
-			template<typename T, size_t blockSize>
-			class LocalBuffer;
 		}
 
 		template<typename T, size_t blockSize = 8192>
 		class ConcurrentQueue;
 	}
 }
-
-template<typename T, size_t blockSize>
-struct sprawl::collections::detail::SharedBuffer
-{
-	typedef LocalBuffer<T, blockSize> LocalBuffer;
-	typedef Buffer<T, blockSize> Buffer;
-
-	inline SharedBuffer(Buffer* buf)
-		: m_buf(buf)
-	{
-		if(SPRAWL_LIKELY(buf))
-		{
-			buf->IncRef();
-		}
-	}
-
-	inline SharedBuffer(LocalBuffer& other)
-		: m_buf(*other)
-	{
-		Buffer* buf = m_buf.load(std::memory_order_acquire);
-		if(SPRAWL_LIKELY(buf))
-		{
-			buf->IncRef();
-		}
-	}
-
-	inline SharedBuffer(nullptr_t buf)
-		: m_buf(buf)
-	{
-	}
-
-	inline SharedBuffer()
-		: m_buf(nullptr)
-	{
-	}
-
-	inline ~SharedBuffer()
-	{
-		Buffer* buf = m_buf.load(std::memory_order_acquire);;
-		if(SPRAWL_LIKELY(buf))
-		{
-			typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
-			if(SPRAWL_UNLIKELY(buf->DecRef() == 0))
-			{
-				buf->~Buffer();
-				bufferAlloc::free(buf);
-			}
-		}
-	}
-
-	Buffer* operator->() { return m_buf.load(std::memory_order_acquire); }
-	Buffer* operator*() { return m_buf.load(std::memory_order_acquire); }
-
-	SharedBuffer(SharedBuffer const& other) = delete;
-	SharedBuffer(SharedBuffer&& other) = delete;
-
-	inline SharedBuffer& operator=(Buffer* other)
-	{
-		Reset(other);
-		return *this;
-	}
-	inline SharedBuffer& operator=(SharedBuffer& other)
-	{
-		Reset(other.m_buf.load(std::memory_order_acquire));
-		return *this;
-	}
-	inline SharedBuffer& operator=(LocalBuffer& other)
-	{
-		Reset(other.m_buf);
-		return *this;
-	}
-
-	inline void Reset(Buffer* other)
-	{
-		if(SPRAWL_LIKELY(other))
-		{
-			other->IncRef();
-		}
-		Buffer* buf = m_buf.exchange(other, std::memory_order_acq_rel);
-		if(buf)
-		{
-			typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
-			if(SPRAWL_UNLIKELY(buf->DecRef() == 0))
-			{
-				buf->~Buffer();
-				bufferAlloc::free(buf);
-			}
-		}
-	}
-
-	std::atomic<Buffer*> m_buf;
-};
-
-template<typename T, size_t blockSize>
-struct sprawl::collections::detail::LocalBuffer
-{
-	typedef SharedBuffer<T, blockSize> SharedBuffer;
-	typedef Buffer<T, blockSize> Buffer;
-
-	inline LocalBuffer(Buffer* buf)
-		: m_buf(buf)
-	{
-		if(SPRAWL_LIKELY(buf))
-		{
-			buf->IncRef();
-		}
-	}
-
-	inline LocalBuffer(SharedBuffer& other)
-		: m_buf(*other)
-	{
-		if(SPRAWL_LIKELY(m_buf))
-		{
-			m_buf->IncRef();
-		}
-	}
-
-	inline LocalBuffer(nullptr_t buf)
-		: m_buf(buf)
-	{
-	}
-
-	inline LocalBuffer()
-		: m_buf(nullptr)
-	{
-	}
-
-	inline ~LocalBuffer()
-	{
-		if(SPRAWL_LIKELY(m_buf))
-		{
-			typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
-			if(SPRAWL_UNLIKELY(m_buf->DecRef() == 0))
-			{
-				m_buf->~Buffer();
-				bufferAlloc::free(m_buf);
-			}
-		}
-	}
-
-	Buffer* operator->() { return m_buf; }
-	Buffer* operator*() { return m_buf; }
-
-	LocalBuffer(LocalBuffer const& other) = delete;
-	LocalBuffer(LocalBuffer&& other) = delete;
-
-	inline LocalBuffer& operator=(Buffer* other)
-	{
-		Reset(other);
-		return *this;
-	}
-	inline LocalBuffer& operator=(SharedBuffer& other)
-	{
-		Reset(other.m_buf.load(std::memory_order_acquire));
-		return *this;
-	}
-	inline LocalBuffer& operator=(LocalBuffer& other)
-	{
-		Reset(other.m_buf);
-		return *this;
-	}
-
-	inline void Reset(Buffer* other)
-	{
-		if(SPRAWL_LIKELY(other))
-		{
-			other->IncRef();
-		}
-		Buffer* buf = m_buf;
-		m_buf = other;
-		if(buf)
-		{
-			typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
-			if(SPRAWL_UNLIKELY(buf->DecRef() == 0))
-			{
-				buf->~Buffer();
-				bufferAlloc::free(buf);
-			}
-		}
-	}
-
-	Buffer* m_buf;
-};
 
 // The Buffer class is a little unique - it's basically a black hole buffer with a constantly moving window of available data.
 // Data that's been acquired eventually disappears and becomes inaccessible; the fact that you can access index 400 doesn't imply there are 400 elements allocated.
@@ -249,7 +61,7 @@ public:
 	// Initial constructor, this creates a buffer that owns its entire range.
 	Buffer()
 		: firstPart(nullptr)
-		, refCount(blockSize)
+		, refCount(blockSize + 1)
 		, capacity(blockSize)
 		, amalgam(false)
 		, parent(nullptr)
@@ -260,19 +72,19 @@ public:
 	// Amalgam constructor, this creates an array that only owns the last `blockSize` portion of the array.
 	Buffer(Buffer* growFrom)
 		: firstPart(growFrom)
-		, refCount(blockSize)
+		, refCount(blockSize + 2)
 		, capacity(growFrom->capacity + blockSize)
 		, amalgam(true)
 		, parent(nullptr)
 	{
-		growFrom->parent = this;
+		growFrom->parent.store(this, std::memory_order_release);
 		memset(buffer, 0, sizeof(BufferElement) * blockSize);
 	}
 
 	// Get for add, simple case: this will never ever hit a buffer marked for delete because
 	// the fact that an index is being used for add indicates the buffer has free space and thus
 	// cannot possibly have been fully acquired
-	inline BufferElement& GetForAdd(size_t index, LocalBuffer<T, blockSize>& bufObtainedFrom)
+	inline BufferElement& GetForAdd(size_t index, Buffer*& bufObtainedFrom)
 	{
 		if(SPRAWL_LIKELY(amalgam))
 		{
@@ -280,11 +92,13 @@ public:
 			size_t unownedSection = capacity - blockSize;
 			if(SPRAWL_UNLIKELY(index < unownedSection))
 			{
-				bufObtainedFrom = firstPart;
-				return firstPart->GetForAdd(index, bufObtainedFrom);
+				Buffer* first = firstPart.load(std::memory_order_acquire);
+				return first->GetForAdd(index, bufObtainedFrom);
 			}
+			bufObtainedFrom = this;
 			return buffer[index - unownedSection];
 		}
+		bufObtainedFrom = this;
 		// Non-amalgam case, index directly into the buffer.
 		return buffer[index];
 	}
@@ -293,7 +107,15 @@ public:
 	// The main source of the complication is that the buffer we're trying to read from may
 	// already have been fully acquired and marked for deletion. If that happens
 	// we can't allow the reader to reference it at all or we have a dangling pointer.
-	inline bool GetForRemove(size_t index, LocalBuffer<T, blockSize>& bufObtainedFrom, BufferElement*& element)
+
+	// Technically due to changes in Dequeue(), the same comment from GetForAdd applies and
+	// there's no longer actually any reason to check existence and return false. But,
+	// it's a nice extra assertion to have. The above comment is slightly inaccurate now,
+	// but maintained for historacle reference on why this returns a bool.
+
+	// Eventually, once the assumption that this can never return false is verified,
+	// GetForAdd and GetForRemove will merge into just Get
+	inline bool GetForRemove(size_t index, Buffer*& bufObtainedFrom, BufferElement*& element)
 	{
 		if(SPRAWL_LIKELY(amalgam))
 		{
@@ -302,43 +124,35 @@ public:
 			if(SPRAWL_UNLIKELY(index < unownedSection))
 			{
 				// HOWEVER, if the buffer is null, return false!
-				// The buffer can be null for two reasons:
-				// 1) Ref count reached 0 in another thread while we were taking the reference, which prevents us from taking it
-				// 2) It has been fully deleted already and our firstPart variable was actually set to null
-				// In either of this cases, the caller just has to re-acquire its read index and try again.
-				if(SPRAWL_UNLIKELY(*firstPart == nullptr))
+				// The buffer can be null only if it's been deleted.
+				// If this is ever actually null, there's a critical logic error.
+				Buffer* first = firstPart.load(std::memory_order_acquire);
+				if(SPRAWL_UNLIKELY(first == nullptr))
 				{
 					return false;
 				}
 				// We do have a buffer to recurse into here, so recurse
-				bufObtainedFrom = firstPart;
-				return firstPart->GetForRemove(index, bufObtainedFrom, element);
+				return first->GetForRemove(index, bufObtainedFrom, element);
 			}
+			bufObtainedFrom = this;
 			element = &buffer[index - unownedSection];
 			return true;
 		}
+		bufObtainedFrom = this;
 		element = &buffer[index];
 		return true;
 	}
-	
-	SPRAWL_FORCEINLINE void IncRef()
-	{
-		refCount.fetch_add(1, std::memory_order_relaxed);
-	}
 
+	// This isn't reference counted in terms of how many paths have access to it.
+	// The reference count here is:
+	// <blockSize> references to count how many blocks have not yet been read (cannot delete this until they are)
+	// 1 reference for the ConcurrentQueue's m_buffer
+	// 1 reference for amalgam buffers for the parent/firstPart recursive reference
+	// Once all blocks are read and m_buffer points at something else, and this buffer's firstPart has been deleted,
+	// this buffer will also be deleted.
 	SPRAWL_FORCEINLINE int DecRef()
 	{
-		auto ret = refCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
-		if(ret == 1)
-		{
-			LocalBuffer<T, blockSize> parentGuard = parent;
-			Buffer* parentBuffer = *parentGuard;
-			if(parentBuffer)
-			{
-				parentBuffer->firstPart = nullptr;
-			}
-		}
-		return ret;
+		return refCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
 	}
 
 	void Cleanup();
@@ -347,13 +161,17 @@ public:
 
 	SPRAWL_FORCEINLINE size_t Capacity() const { return capacity; }
 
+	SPRAWL_FORCEINLINE Buffer* GetParent() { return parent.load(std::memory_order_acquire); }
+
+	SPRAWL_FORCEINLINE void ReleaseFirst() { firstPart.store(nullptr, std::memory_order_release); }
+
 private:
 	SPRAWL_PAD_CACHELINE;
-	SharedBuffer<T, blockSize> firstPart;
+	std::atomic<Buffer*> firstPart;
 	SPRAWL_PAD_CACHELINE;
 	std::atomic<int> refCount;
 	SPRAWL_PAD_CACHELINE;
-	SharedBuffer<T, blockSize> parent;
+	std::atomic<Buffer*> parent;
 	SPRAWL_PAD_CACHELINE;
 
 	BufferElement buffer[blockSize];
@@ -367,10 +185,12 @@ inline void sprawl::collections::detail::Buffer<T, blockSize>::Cleanup()
 	typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
 	// Delete firstPart if we have it. This is not in the destructor because it only gets called when cleaning up the whole queue.
 	// Otherwise all firstParts should just be cleared by GC
-	Buffer* first = *firstPart;
+	Buffer* first = firstPart.load(std::memory_order_acquire);
 	if(first)
 	{
 		first->Cleanup();
+		first->~Buffer();
+		bufferAlloc::free(first);
 	}
 }
 
@@ -378,51 +198,68 @@ template<typename T, size_t blockSize>
 inline sprawl::collections::detail::Buffer<T, blockSize>::~Buffer()
 {
 	// Set the parent's firstPart to null before this memory's cleaned up.
-	if(SPRAWL_LIKELY(*parent != nullptr))
-	{
-		parent->firstPart = nullptr;
-	}
 }
 
 template<typename T, size_t blockSize>
 class sprawl::collections::ConcurrentQueue
 {
 	typedef detail::Buffer<T, blockSize> Buffer;
-	typedef detail::LocalBuffer<T, blockSize> LocalBuffer;
 	typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
 
-	inline typename Buffer::BufferElement& getNextElement_(size_t& pos, LocalBuffer& bufObtainedFrom)
+	inline static void consume_(Buffer* buffer)
 	{
-		bufObtainedFrom = m_buffer;
-		Buffer* buffer = *bufObtainedFrom;
+		// Decrement a buffer's reference count, and if it's 0, delete it.
+		// If it has a parent, release that parent's first part.
+		// Then repeat on the parent, decrementing reference and checking if ITS parent
+		// exists. This is done in a loop rather than having the destructor do it
+		// to absolutely ensure that even if a user makes a queue with a tiny
+		// block size and lots and lots of blocks, there will never be
+		// a stack overflow from destructors recursively deleting other buffers.
+		while(buffer && buffer->DecRef() == 0)
+		{
+			typedef memory::PoolAllocator<sizeof(Buffer)> bufferAlloc;
+			Buffer* parent = buffer->GetParent();
+			if(SPRAWL_LIKELY(parent != nullptr))
+			{
+				parent->ReleaseFirst();
+			}
+			buffer->~Buffer();
+			bufferAlloc::free(buffer);
+			buffer = parent;
+		}
+	}
+
+	inline typename Buffer::BufferElement& getNextElement_(size_t& pos, Buffer*& bufObtainedFrom)
+	{
 		// Reserve a position before doing anything.
 		// Incrementing before storing is safe because of the "state" value in each item that gets set later
 		// and doing it with a fetch_add here avoids CAS
 		pos = m_writePos.fetch_add(1, std::memory_order_seq_cst);
 
-		// The buffer will return null if we happened to grab a buffer that's been filled, completely acquired, and is set for deallocation.
-		// That's a very unlikely case.
-		// Alternatively, if the position is greater than the capacity, we need to grow the buffer.
-		while(SPRAWL_UNLIKELY(buffer == nullptr || pos >= buffer->Capacity()))
+		// If the position is greater than the capacity, we need to grow the buffer.
+		while(SPRAWL_UNLIKELY(pos >= m_capacity.load(std::memory_order_acquire)))
 		{
-			// Only one thread should perform the reallocation, the others should wait. CAS on this bool is used to pick the thread.
-			// If it's already captured by another thread, it'll return false because m_reallocatingBuffer won't match the expected 'false' value
+			// Only one thread should perform the reallocation, the others should wait. exchange on this bool is used to pick the thread.
+			// If it's already captured by another thread, it'll return its previous value of true, triggering a reallocation
+			// This is technically a spin-lock and perhaps breaks strict lock-free, but happens rarely enough to not matter
 			if(SPRAWL_UNLIKELY(!m_reallocatingBuffer.exchange(true, std::memory_order_seq_cst)))
 			{
 				// Won the reallocation lottery!
 				// If we got in here, one of two things has happened:
 				// 1) This thread picked to reallocate the buffer
-				// 2) Another thread was picked AND FINISHED between the check in the while loop and the CAS
-				// To distinguish the two, load the buffer again and double-check that pos is >= capacity.
-				bufObtainedFrom = m_buffer;
-				buffer = *bufObtainedFrom;
-				size_t capacity = buffer->Capacity();
+				// 2) Another thread was picked AND FINISHED between the check in the while loop and the exchange()
+				// To distinguish the two, we need to check capacity again (double-check lock pattern)
+
+				size_t capacity = m_capacity.load(std::memory_order_acquire);
 				if(pos >= capacity)
 				{
 					//Reallocate the buffer (see the Buffer implementation for details on why the old one is passed to it.
 					Buffer* newBuffer = static_cast<Buffer*>(bufferAlloc::alloc());
+					Buffer* buffer = m_buffer.load(std::memory_order_acquire);
 					new(newBuffer) Buffer(buffer);
-					m_buffer = newBuffer;
+					consume_(buffer);
+					m_buffer.store(newBuffer, std::memory_order_release);
+					m_capacity.store(newBuffer->Capacity(), std::memory_order_release);
 				}
 				//We're done reallocating, clear the lottery flag.
 				m_reallocatingBuffer.store(false, std::memory_order_release);
@@ -432,37 +269,42 @@ class sprawl::collections::ConcurrentQueue
 				// Let another thread move forward so this one's not just looping endlessly.
 				sprawl::this_thread::Yield();
 			}
-			// Whether we reallocated or not, we need to reacquire the buffer now.
-			bufObtainedFrom = m_buffer;
-			buffer = *bufObtainedFrom;
 		}
-		auto& ret = buffer->GetForAdd(pos, bufObtainedFrom);
-		return ret;
+		// Fetch the buffer and get the position from it.
+		Buffer* buffer = m_buffer.load(std::memory_order_acquire);
+		return buffer->GetForAdd(pos, bufObtainedFrom);
 	}
 public:
 
 	ConcurrentQueue()
 		: m_reallocatingBuffer(false)
 		, m_buffer(nullptr)
+		, m_capacity(blockSize)
 		, m_readPos(0)
 		, m_writePos(0)
 		, m_readGuard(false)
+#ifdef SPRAWL_CONCURRENTQUEUE_COUNT_READ_MISSES
+		, m_readMisses(0)
+#endif
 	{
 		Buffer* buffer = static_cast<Buffer*>(bufferAlloc::alloc());
 		new(buffer) Buffer();
-		m_buffer = buffer;
+		m_buffer.store(buffer, std::memory_order_release);
 	}
 
 	~ConcurrentQueue()
 	{
-		Buffer* buf = *m_buffer;
+		Buffer* buf = m_buffer.load(std::memory_order_acquire);
 		buf->Cleanup();
+		buf->~Buffer();
+		bufferAlloc::free(buf);
 	}
 
 	inline void Enqueue(T const& val)
 	{
+		// pos and buffer are dummy elements because only Dequeue needs that information.
 		size_t pos;
-		LocalBuffer buffer;
+		Buffer* buffer;
 		Buffer::BufferElement& element = getNextElement_(pos, buffer);
 		//Construct the item and then set "state" to "READY" - order matters.
 		new(&element.data.item) T(val);
@@ -471,8 +313,9 @@ public:
 
 	inline void Enqueue(T&& val)
 	{
+		// pos and buffer are dummy elements because only Dequeue needs that information.
 		size_t pos;
-		LocalBuffer buffer;
+		Buffer* buffer;
 		Buffer::BufferElement& element = getNextElement_(pos, buffer);
 		//Construct the item and then set "state" to "READY" - order matters.
 		new(&element.data.item) T(std::move(val));
@@ -482,19 +325,28 @@ public:
 	inline bool Dequeue(T& val)
 	{
 		Buffer::BufferElement* element;
-		LocalBuffer guard = m_buffer;
-		Buffer* buffer = *guard;
+		Buffer* buffer;
+		// Do a fetch-add to reserve a position to read from. We'll be the only thread reading.
+		// This is a little less safe than the write case because we could get a slot that hasn't been written yet.
+		// In that case we can't read it, but we also can't safely decrement the readPos back for a variety of reasons!
+		// We'll handle that below.
 		size_t pos = m_readPos.fetch_add(1, std::memory_order_acq_rel);
 		for(;;)
 		{
 			size_t writePos = m_writePos.load(std::memory_order_acquire);
 			if(pos >= writePos)
 			{
+#ifdef SPRAWL_CONCURRENTQUEUE_COUNT_READ_MISSES
+				m_readMisses.fetch_add(1, std::memory_order_relaxed);
+#endif
+				// In this case, we have in fact gotten an element that's outside the readable range.
+				// Rather than attempting to revert m_readPos, we're going to write a new value reminding the next reader thread to please
+				// re-check this slot that we couldn't get.
 				size_t insertPos;
 				for(;;)
 				{
-					Buffer::BufferElement& element = getNextElement_(insertPos, guard);
-					buffer = *guard;
+					// Get an element as if we were writing... because we technically are!
+					Buffer::BufferElement& element = getNextElement_(insertPos, buffer);
 					if(insertPos < pos)
 					{
 						// Not going to tell slot 1 to redirect to slot 2, but we do need to still redirect to 2.
@@ -502,17 +354,21 @@ public:
 						// This handles a case of two read threads getting slots 1 and 2 for read, then writing redirects
 						// to slots 2 and 1, respectively. In this case, they're both dead slots but they don't get consumed.
 						// By detecting this, instead of 1 <-> 2, we get 3 -> 2 -> 1.
+						// We'll mark this slot dead and then go back to the start of the loop to write a new slot for this redirect.
 						element.state.store(detail::ElementState::DEAD, std::memory_order_release);
-						buffer->DecRef();
 						continue;
 					}
 
 					if(insertPos == pos)
 					{
-						buffer->DecRef();
+						// Pointless to redirect an element to itself. If we wanted to read 3 and we get told to write 3, well good,
+						// we successfully read 3. We can just skip writing any actual data to it and mark this slot as having been consumed.
+						consume_(buffer);
 					}
 					else
 					{
+						// Set the retry position so that whatever thread ends up reading this element will go back and look at the position
+						// we were originally assigned to read here.
 						element.data.retry = pos;
 						element.state.store(detail::ElementState::RETRY, std::memory_order_release);
 					}
@@ -520,21 +376,21 @@ public:
 				}
 			}
 
-			while(SPRAWL_UNLIKELY(buffer == nullptr) || pos >= buffer->Capacity())
+			while(SPRAWL_UNLIKELY(pos >= m_capacity.load(std::memory_order_acquire)))
 			{
-				//In the middle of an exchange, try again RIGHT NOW, don't return.
-				guard = m_buffer;
-				buffer = *guard;
+				//In the middle of an exchange, wait for it to complete.
 			}
 
-			if(!buffer->GetForRemove(pos, guard, element))
-			{
-				guard = m_buffer;
-				buffer = *guard;
-				pos = m_readPos.fetch_add(1, std::memory_order_acq_rel);
-				continue;
-			}
-			buffer = *guard;
+			// We now have an assigned position to read from.
+			// We know it has been written to already.
+			// We are the only one with this element and no one else has ever read it.
+			// And the value in m_buffer contains enough data to contain at least the index we got.
+			// Time to actually read it!
+			buffer = m_buffer.load(std::memory_order_acquire);
+			bool ret = buffer->GetForRemove(pos, buffer, element);
+			//We're the only one with this element and we can guarantee that it's not been read before.
+			//It had BETTER still be available!
+			assert(ret);
 
 			detail::ElementState state;
 			while(SPRAWL_UNLIKELY((state = element->state.load(std::memory_order_acquire)) == detail::ElementState::EMPTY))
@@ -544,103 +400,45 @@ public:
 
 			if(state == detail::ElementState::RETRY)
 			{
+				// We're being redirected to another element that another thread failed to read.
+				// Go try to read it now.
+				// Set our read position to the retry value and go back to the start to do another read at that index.
 				pos = element->data.retry;
-				buffer->DecRef();
+				consume_(buffer);
 				continue;
 			}
 			else if(state == detail::ElementState::DEAD)
 			{
+				// This element is just flat-out dead. There's nothing to do with it.
+				// Get a new index to read from and mark this one as having been finally consumed.
+				// Then go back to the start to do another read at the new index.
 				pos = m_readPos.fetch_add(1, std::memory_order_acq_rel);
+				consume_(buffer);
 				continue;
 			}
 
-			break;
+			// Finally we've gotten an actual element with an actual value.
+			// Return it back to the client.
+			val = std::move(element->data.item);
+			element->data.item.~T();
+
+			consume_(buffer);
+			return true;
 		}
-
-		/*size_t pos = m_readPos.load(std::memory_order_acquire);
-		Buffer::BufferElement* element;
-		Buffer* buffer;
-		for(;;)
-		{
-			size_t writePos = m_writePos.load(std::memory_order_acquire);
-			if(pos >= writePos)
-			{
-				return false;
-			}
-			
-			buffer = m_buffer.load(std::memory_order_acquire);
-
-			if(SPRAWL_UNLIKELY(buffer == nullptr) || pos >= buffer->Capacity())
-			{
-				return false;
-			}
-
-			if(!buffer->GetForRemove(pos, buffer, element))
-			{
-				return false;
-			}
-
-			if(element->state.load(std::memory_order_acquire) == detail::ElementState::EMPTY)
-			{
-				return false;
-			}
-
-			if(!m_readPos.compare_exchange_weak(pos, pos + 1, std::memory_order_release))
-			{
-				pos = m_readPos.load(std::memory_order_acquire);
-				continue;
-			}
-			break;
-		}*/
-
-		/*{
-			TinySpinlock lock(m_readGuard);
-			// Obtain our read position.
-			// If we advance past the end of what's written we need to revert our acquire atomically with the acquire
-			// Otherwise bad things will happen.
-			// That's why this is in a tiny spin lock guard.
-			pos = m_readPos.fetch_add(1, std::memory_order_seq_cst);
-			size_t writePos = m_writePos.load(std::memory_order_acquire);
-			if(pos >= writePos) 
-			{
-				// Whoops, can't use this slot yet! Revert, revert! Criss-cross!
-				m_readPos.store(pos, std::memory_order_release);
-				return false;
-			}
-		}
-
-		Buffer::BufferElement* element;
-
-		Buffer* buffer = m_buffer.load(std::memory_order_acquire);
-
-		while(SPRAWL_UNLIKELY(buffer == nullptr) || pos >= buffer->Capacity())
-		{
-			//In the middle of an exchange, try again RIGHT NOW, don't return.
-			buffer = m_buffer.load(std::memory_order_acquire);
-		}
-
-		buffer->GetForRemove(pos, buffer, element);
-
-		//Now we've gotten our item. We should be the ONLY ones to have this item.
-		//If it hasn't been written to yet, give it a moment...
-		while(element->state.load(std::memory_order_acquire) == detail::ElementState::EMPTY)
-		{}*/
-
-		val = std::move(element->data.item);
-		element->data.item.~T();
-
-		// If we are the last to consume a block, then all blocks have been fully read and
-		// it is safe to free this memory.
-		buffer->DecRef();
-		return true;
 	}
+
+#ifdef SPRAWL_CONCURRENTQUEUE_COUNT_READ_MISSES
+	size_t NumReadMisses() { return m_readMisses.load(std::memory_order_acquire); }
+#endif
 
 private:
 
 	SPRAWL_PAD_CACHELINE;
 	std::atomic<bool> m_reallocatingBuffer;
 	SPRAWL_PAD_CACHELINE;
-	detail::SharedBuffer<T, blockSize> m_buffer;
+	std::atomic<Buffer*> m_buffer;
+	SPRAWL_PAD_CACHELINE;
+	std::atomic<size_t> m_capacity;
 	SPRAWL_PAD_CACHELINE;
 	std::atomic<size_t> m_readPos;
 	SPRAWL_PAD_CACHELINE;
@@ -648,4 +446,8 @@ private:
 	SPRAWL_PAD_CACHELINE;
 	std::atomic<bool> m_readGuard;
 	SPRAWL_PAD_CACHELINE;
+#ifdef SPRAWL_CONCURRENTQUEUE_COUNT_READ_MISSES
+	std::atomic<size_t> m_readMisses;
+	SPRAWL_PAD_CACHELINE;
+#endif
 };
