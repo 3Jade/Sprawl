@@ -2,7 +2,7 @@ libSprawl is a collection of libraries I've been working on in my spare time. So
 
 Included in the library:
 
-### **libSprawl::collections:**
+### **libSprawl::collections**
 Implements various templated container types:
 - _sprawl::collections::Array_ - A static array implementation similar to std::array
 - _sprawl::collections::BinaryTree_ - Currently non-functional. Do not use. I need to fix it.
@@ -71,5 +71,5 @@ Various threading support libraries:
 ### **libSprawl::time**
 Simple nanosecond-resolution cross-platform steady and system clocks, and resolution conversion utilities.
 
-*Misc*
+### **Misc**
 Sprawl has a unique error-handling system when exceptions are disabled. Functions that can throw exceptions have a return type of ErrorState<T>. When exceptions are enabled, ErrorState<T> is an alias of T. When exceptions are not enabled, ErrorState<T> is an opaque type that may contain T or may contain an exception. In this case, it provides functionality for checking if there was an error and handling it before retrieving the underlying data; in debug builds, or with SPRAWL_ERRORSTATE_STRICT defined (and SPRAWL_ERRORSTATE_PERMISSIVE not defined), if you attempt to read T from it while it contains an error, it will print a message and abort; in release builds or with SPRAWL_ERRORSTATE_STRICT defined (and SPRAWL_ERRORSTATE_PERMISSIVE not defined), it will return garbage memory.
