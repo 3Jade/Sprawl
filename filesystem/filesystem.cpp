@@ -140,7 +140,7 @@ sprawl::String sprawl::filesystem::File::Read(int numBytes)
 	size_t size = fread(buffer, 1, numBytes, m_file);
 	sprawl::String ret(buffer, size);
 	free(buffer);
-	return std::move(ret);
+	return ret;
 }
 
 sprawl::String sprawl::filesystem::File::ReadLine(int numBytes)
@@ -158,7 +158,7 @@ sprawl::String sprawl::filesystem::File::ReadLine(int numBytes)
 	fgets(buffer, numBytes, m_file);
 	sprawl::String ret(buffer);
 	free(buffer);
-	return std::move(ret);
+	return ret;
 }
 
 void sprawl::filesystem::File::Seek(int offset, RelativeTo relativeTo)

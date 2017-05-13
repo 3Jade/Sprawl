@@ -31,7 +31,7 @@ sprawl::collections::Vector<sprawl::String> sprawl::filesystem::ListDir(sprawl::
 		}
 		closedir(dir);
 	}
-	return std::move(out);
+	return out;
 }
 
 bool sprawl::filesystem::MakeSymlink(String const& target, String const& link)

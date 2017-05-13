@@ -1022,7 +1022,7 @@ namespace sprawl
 				SPRAWL_RETHROW(*s % prepare_data( val, "key", false ));
 				sprawl::String data = s->Str();
 				delete s;
-				return std::move(data);
+				return data;
 			}
 
 			template<typename T>
@@ -1268,7 +1268,7 @@ namespace sprawl
 		public:
 			using SerializerBase::operator%;
 			using SerializerBase::Data;
-			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& str) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& str) override = 0;
 			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(const char* data, size_t length) = 0;
 			virtual ~Deserializer();
 			virtual bool IsLoading() override;

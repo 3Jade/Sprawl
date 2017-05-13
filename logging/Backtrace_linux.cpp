@@ -296,7 +296,7 @@ sprawl::logging::Backtrace sprawl::logging::Backtrace::Get(int skipFrames)
 	stack.m_size = backtrace(bt, SPRAWL_BACKTRACE_MAX_STACK) - skipFrames;
 	memcpy(stack.m_stack, bt + skipFrames, SPRAWL_BACKTRACE_MAX_STACK - skipFrames);
 
-	return std::move(stack);
+	return stack;
 }
 
 
@@ -352,5 +352,5 @@ sprawl::logging::Backtrace::Frame sprawl::logging::Backtrace::GetFrame(size_t in
 		}
 	}
 
-	return std::move(frame);
+	return frame;
 }

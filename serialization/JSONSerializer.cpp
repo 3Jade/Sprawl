@@ -958,7 +958,7 @@ namespace sprawl
 					newHolder->m_objectChildren->Insert( JSONToken(kvp.Key(), kvp.Value()) );
 				}
 			}
-			return std::move(ret);
+			return ret;
 		}
 
 		JSONToken JSONToken::DeepCopy()
@@ -971,7 +971,7 @@ namespace sprawl
 			{
 				for(int i = 0; i < m_holder->m_arrayChildren.Size(); ++i)
 				{
-					newHolder->m_arrayChildren.EmplaceBack(std::move(m_holder->m_arrayChildren[i].DeepCopy()));
+					newHolder->m_arrayChildren.EmplaceBack(m_holder->m_arrayChildren[i].DeepCopy());
 				}
 			}
 			if(newHolder->m_type == JSONType::Object)
@@ -981,7 +981,7 @@ namespace sprawl
 					newHolder->m_objectChildren->Insert( kvp.Value().DeepCopy() );
 				}
 			}
-			return std::move(ret);
+			return ret;
 		}
 
 		JSONToken& JSONToken::operator=(JSONToken const& other)

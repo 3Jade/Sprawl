@@ -319,7 +319,7 @@ namespace sprawl
 				return 0;
 			}
 
-			void EndMap()
+			virtual void EndMap() override
 			{
 				m_current_map_key.pop_back();
 				PopKey();
@@ -373,7 +373,7 @@ namespace sprawl
 				}
 				DecrementCurrentKeyCounter();
 				PopKey();
-				return std::move(deleted_keys);
+				return deleted_keys;
 			}
 
 		protected:
@@ -625,7 +625,7 @@ namespace sprawl
 				//But it does sacrifice some control over when these two things happen - most people will probably not care.
 				sprawl::String ret = diff();
 				Mark();
-				return std::move(ret);
+				return ret;
 			}
 
 			SPRAWL_WARN_UNUSED_RESULT ErrorState<sprawl::String> diff()
@@ -780,7 +780,7 @@ namespace sprawl
 				return "";
 			}
 
-			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& data)
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& data) override
 			{
 				this->m_diffs.clear();
 				this->m_data.clear();
@@ -790,7 +790,7 @@ namespace sprawl
 				return ErrorState<void>();
 			}
 
-			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(const char* data, size_t length)
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(const char* data, size_t length) override
 			{
 				this->m_diffs.clear();
 				this->m_data.clear();

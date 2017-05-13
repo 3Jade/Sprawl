@@ -736,7 +736,7 @@ namespace sprawl
 			{
 				ret.push_back(connection);
 			}
-			return std::move(ret);
+			return ret;
 		}
 
 		ConnectionWPtr ServerSocket::GetConnection(int i)

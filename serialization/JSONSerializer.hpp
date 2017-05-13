@@ -1108,7 +1108,7 @@ namespace sprawl
 				}
 			}
 
-			sprawl::String GetNextKey()
+			virtual sprawl::String GetNextKey() override
 			{
 				return m_currentObjectIndex.back()->GetKey();
 			}

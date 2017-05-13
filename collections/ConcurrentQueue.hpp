@@ -6,7 +6,6 @@
 #include <assert.h>
 #include "../common/compat.hpp"
 #include "../common/CachePad.hpp"
-#include "../threading/thread.hpp"
 #include "../memory/PoolAllocator.hpp"
 
 namespace sprawl
@@ -264,11 +263,6 @@ class sprawl::collections::ConcurrentQueue
 				//We're done reallocating, clear the lottery flag.
 				m_reallocatingBuffer.store(false, std::memory_order_release);
 			}
-			else
-			{
-				// Let another thread move forward so this one's not just looping endlessly.
-				sprawl::this_thread::Yield();
-			}
 		}
 		// Fetch the buffer and get the position from it.
 		Buffer* buffer = m_buffer.load(std::memory_order_acquire);
@@ -305,7 +299,7 @@ public:
 		// pos and buffer are dummy elements because only Dequeue needs that information.
 		size_t pos;
 		Buffer* buffer;
-		Buffer::BufferElement& element = getNextElement_(pos, buffer);
+		typename Buffer::BufferElement& element = getNextElement_(pos, buffer);
 		//Construct the item and then set "state" to "READY" - order matters.
 		new(&element.data.item) T(val);
 		element.state.store(detail::ElementState::READY, std::memory_order_release);
@@ -316,7 +310,7 @@ public:
 		// pos and buffer are dummy elements because only Dequeue needs that information.
 		size_t pos;
 		Buffer* buffer;
-		Buffer::BufferElement& element = getNextElement_(pos, buffer);
+		typename Buffer::BufferElement& element = getNextElement_(pos, buffer);
 		//Construct the item and then set "state" to "READY" - order matters.
 		new(&element.data.item) T(std::move(val));
 		element.state.store(detail::ElementState::READY, std::memory_order_release);
@@ -324,7 +318,6 @@ public:
 
 	inline bool Dequeue(T& val)
 	{
-		Buffer::BufferElement* element;
 		Buffer* buffer;
 		// Do a fetch-add to reserve a position to read from. We'll be the only thread reading.
 		// This is a little less safe than the write case because we could get a slot that hasn't been written yet.
@@ -346,7 +339,7 @@ public:
 				for(;;)
 				{
 					// Get an element as if we were writing... because we technically are!
-					Buffer::BufferElement& element = getNextElement_(insertPos, buffer);
+					typename Buffer::BufferElement& element = getNextElement_(insertPos, buffer);
 					if(insertPos < pos)
 					{
 						// Not going to tell slot 1 to redirect to slot 2, but we do need to still redirect to 2.
@@ -387,6 +380,7 @@ public:
 			// And the value in m_buffer contains enough data to contain at least the index we got.
 			// Time to actually read it!
 			buffer = m_buffer.load(std::memory_order_acquire);
+			typename Buffer::BufferElement* element;
 			bool ret = buffer->GetForRemove(pos, buffer, element);
 			//We're the only one with this element and we can guarantee that it's not been read before.
 			//It had BETTER still be available!
