@@ -585,6 +585,11 @@ public:
 	QueueWrapper()
 		: m_queue(new sprawl::collections::ConcurrentBoundedQueue<t_ElementType, NUM_ELEMENTS>())
 	{}
+	
+	~QueueWrapper()
+	{
+		delete(m_queue);
+	}
 
 	void enqueue(size_t nElements)
 	{
@@ -663,9 +668,9 @@ std::atomic<bool> waiter(false);
 void timeFn(std::function<void()> fn, int64_t& outDuration)
 {
 	while(waiter.load() == false) {}
-	int64_t start = sprawl::time::Now();
+	int64_t start = sprawl::time::SteadyNow();
 	fn();
-	outDuration = sprawl::time::Now() - start;
+	outDuration = sprawl::time::SteadyNow() - start;
 }
 
 int64_t mean(std::vector<int64_t> const& data)
