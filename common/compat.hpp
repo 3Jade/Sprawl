@@ -51,7 +51,8 @@
 #			define SPRAWL_MULTITHREADED 0
 #		endif
 #	endif
-#	define SPRAWL_FORCEINLINE inline __attribute__((always_inline))
+#	define SPRAWL_FORCE_INLINE inline __attribute__((always_inline))
+#	define SPRAWL_FORCE_NO_INLINE __attribute__((noinline))
 #else
 #	define SPRAWL_MEMCMP memcmp
 #	ifndef SPRAWL_MULTITHREADED
@@ -61,7 +62,8 @@
 #			define SPRAWL_MULTITHREADED 0
 #		endif
 #	endif
-#	define SPRAWL_FORCEINLINE inline __forceinline
+#	define SPRAWL_FORCE_INLINE inline __forceinline
+#	define SPRAWL_FORCE_NO_INLINE __declspec(noinline)
 #endif
 
 #define SPRAWL_CONCAT_2(left, right) left ## right

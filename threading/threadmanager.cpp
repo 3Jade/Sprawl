@@ -1,6 +1,5 @@
 #include "threadmanager.hpp"
 
-
 inline sprawl::threading::ThreadManager::TaskInfo::TaskInfo()
 	: what(nullptr)
 	, taken(false)
@@ -90,7 +89,9 @@ sprawl::threading::ThreadManager::ThreadManager()
 sprawl::threading::ThreadManager::~ThreadManager()
 {
 	TaskInfo* task;
-	while(m_taskQueue.Dequeue(task))
+	decltype(m_taskQueue)::ReadReservationTicket ticket;
+	m_taskQueue.InitializeReservationTicket(ticket);
+	while(m_taskQueue.Dequeue(task, ticket))
 	{
 		delete task;
 	}
@@ -214,9 +215,11 @@ void sprawl::threading::ThreadManager::RunStaged(uint64_t thisThreadFlags)
 	}
 
 	m_mailmanThread.Start();
+	decltype(m_taskQueue)::ReadReservationTicket ticket;
+	m_taskQueue.InitializeReservationTicket(ticket);
 	while(m_running)
 	{
-		RunNextStage();
+		RunNextStage(ticket);
 	}
 }
 
@@ -265,10 +268,10 @@ void sprawl::threading::ThreadManager::Start(uint64_t thisThreadFlags)
 	m_mailmanThread.Start();
 }
 
-void sprawl::threading::ThreadManager::Pump()
+void sprawl::threading::ThreadManager::Pump(decltype(m_taskQueue)::ReadReservationTicket& ticket)
 {
 	TaskInfo* task;
-	while(m_mainThreadQueue->Dequeue(task))
+	while(m_mainThreadQueue->Dequeue(task, ticket))
 	{
 		bool expected = false;
 		if(task->taken.compare_exchange_strong(expected, true))
@@ -279,10 +282,10 @@ void sprawl::threading::ThreadManager::Pump()
 	}
 }
 
-void sprawl::threading::ThreadManager::pump_()
+void sprawl::threading::ThreadManager::pump_(decltype(m_taskQueue)::ReadReservationTicket& ticket)
 {
 	TaskInfo* task;
-	while(m_mainThreadQueue->Dequeue(task))
+	while(m_mainThreadQueue->Dequeue(task, ticket))
 	{
 		bool expected = false;
 		if(task->taken.compare_exchange_strong(expected, true))
@@ -293,7 +296,7 @@ void sprawl::threading::ThreadManager::pump_()
 	}
 }
 
-uint64_t sprawl::threading::ThreadManager::RunNextStage()
+uint64_t sprawl::threading::ThreadManager::RunNextStage(decltype(m_taskQueue)::ReadReservationTicket& ticket)
 {
 	//Don't wait on the main thread...
 	size_t threadCount = m_threads.Size() - 1;
@@ -323,7 +326,7 @@ uint64_t sprawl::threading::ThreadManager::RunNextStage()
 	m_mailReady.Notify();
 	m_mailmanSyncEvent.Wait();
 
-	pump_();
+	pump_(ticket);
 
 	m_syncCount = 0;
 	m_syncState = SyncState::Threads;
@@ -446,10 +449,12 @@ void sprawl::threading::ThreadManager::eventLoop_(ThreadData* threadData)
 	collections::ConcurrentQueue<TaskInfo*>& queue = m_flagGroups.Get(threadData->flags)->taskQueue;
 	Event& mailbox = threadData->mailbox;
 
+	decltype(m_taskQueue)::ReadReservationTicket ticket;
+	m_taskQueue.InitializeReservationTicket(ticket);
 	while(m_running)
 	{
 		TaskInfo* task;
-		while(queue.Dequeue(task))
+		while(queue.Dequeue(task, ticket))
 		{
 			bool expected = false;
 			if(task->taken.compare_exchange_strong(expected, true))
@@ -481,10 +486,13 @@ void sprawl::threading::ThreadManager::eventLoop_(ThreadData* threadData)
 void sprawl::threading::ThreadManager::mailMan_()
 {
 	std::map<int64_t, TaskInfo*> prioritizedTasks;
+	decltype(m_taskQueue)::ReadReservationTicket ticket;
+	m_taskQueue.InitializeReservationTicket(ticket);
+	
 	while(m_running)
 	{
 		TaskInfo* task;
-		while(m_taskQueue.Dequeue(task))
+		while(m_taskQueue.Dequeue(task, ticket))
 		{
 			while(prioritizedTasks.find(task->when) != prioritizedTasks.end())
 			{

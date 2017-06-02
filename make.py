@@ -4,6 +4,8 @@ import subprocess
 import os
 import time
 import platform
+import glob
+import shutil
 
 import csbuild
 from csbuild import log
@@ -278,3 +280,29 @@ def UnitTests():
 		csbuild.AddExcludeFiles(
 			"UnitTests/UnitTests_MongoReplicable.cpp",
 		)
+		
+		
+@csbuild.project("QueueTests", "QueueTests", ["time", "threading"])
+def UnitTests():
+	csbuild.DisableChunkedBuild()
+	csbuild.SetOutput("QueueTests")
+	csbuild.SetOutputDirectory("bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
+	
+	csbuild.EnableOutputInstall()
+
+	csbuild.Toolchain("gcc").Compiler().AddWarnFlags("no-undef", "no-switch-enum", "no-missing-field-initializers")
+
+	csbuild.AddIncludeDirectories("QueueTests/ext/include")
+	csbuild.AddLibraryDirectories("QueueTests/ext/lib/{project.userData.subdir}-{project.outputArchitecture}")
+	csbuild.AddExcludeDirectories("QueueTests/ext")
+	csbuild.AddLibraries("tbb")
+	
+	if platform.system() == "Windows":
+		@csbuild.postMakeStep
+		def postMake(project):
+			for f in glob.glob("QueueTests/ext/lib/{project.userData.subdir}-{project.outputArchitecture}/*".format(project=project)):
+				basename = os.path.basename(f)
+				dest = os.path.join(project.outputDir, basename)
+				if not os.path.exists(dest):
+					print("Copying {} to {}".format(f, dest))
+					shutil.copyfile(f, dest)

@@ -368,22 +368,24 @@ TEST(ThreadingTest, StagedThreadManagerWorks)
 	stagedManager.AddThreads(Any, 5);
 
 	stagedManager.Start(Any);
+	
+	sprawl::threading::ThreadManager::ReservationTicket ticket;
 
-	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(1, stage);
 	EXPECT_EQ(0, stageValue);
-	EXPECT_EQ(StageOne_Run, stagedManager.RunNextStage());
+	EXPECT_EQ(StageOne_Run, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(1, stage);
 	EXPECT_EQ(100, stageValue);
-	EXPECT_EQ(StageTwo_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(StageTwo_Setup, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(2, stage);
 	EXPECT_EQ(100, stageValue);
-	EXPECT_EQ(StageTwo_Run, stagedManager.RunNextStage());
+	EXPECT_EQ(StageTwo_Run, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(2, stage);
 	EXPECT_EQ(100 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2, stageValue);
 
 	//Should start over now, but NOT rerun the old task...
-	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(2, stage);
 	EXPECT_EQ(100 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2, stageValue);
 
