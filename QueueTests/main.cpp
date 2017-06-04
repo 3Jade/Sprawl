@@ -9,8 +9,9 @@
 #include <iostream>
 #include <string>
 #include <math.h>
+#include <limits>
 
-constexpr size_t NUM_ELEMENTS = 10000000;
+constexpr size_t NUM_ELEMENTS = 1000000;
 
 namespace ext_1024cores {
 	
@@ -588,7 +589,7 @@ public:
 	
 	~QueueWrapper()
 	{
-		delete(m_queue);
+		delete m_queue;
 	}
 
 	void enqueue(size_t nElements)
@@ -663,14 +664,15 @@ public:
 	}
 };
 
-std::atomic<bool> waiter(false);
+std::atomic<int64_t> timer(-1);
+std::atomic<int64_t> started(0);
 
-void timeFn(std::function<void()> fn, int64_t& outDuration)
+void timeFn(std::function<void()> fn)
 {
-	while(waiter.load() == false) {}
-	int64_t start = sprawl::time::SteadyNow();
+	++started;
+	while(timer.load() == -1) {}
 	fn();
-	outDuration = sprawl::time::SteadyNow() - start;
+	timer.store(sprawl::time::SteadyNow());
 }
 
 int64_t mean(std::vector<int64_t> const& data)
@@ -683,7 +685,34 @@ int64_t mean(std::vector<int64_t> const& data)
 	return total / data.size();
 }
 
-constexpr int nIters = 10;
+int64_t Max(std::vector<int64_t> const& data)
+{
+	int64_t val = 0;
+	for(auto& item : data)
+	{
+		val = val > item ? val : item;
+	}
+	return val;
+}
+
+int64_t Min(std::vector<int64_t> const& data)
+{
+	int64_t val = std::numeric_limits<int64_t>::max();
+	for(auto& item : data)
+	{
+		val = val < item ? val : item;
+	}
+	return val;
+}
+
+double OpsPerSecond(int64_t duration, size_t numOps)
+{
+	double avgNanosPerOp = double(duration) / numOps;
+	double opsPerSecond = sprawl::time::Convert(1, sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds) / avgNanosPerOp;
+	return opsPerSecond;
+}
+
+constexpr int nIters = 5;
 
 template<typename t_ElementType, typename t_QueueType, bool t_PersistentTickets = true>
 void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueThreads, bool useMoves = false)
@@ -720,18 +749,19 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 				threads.emplace_back(
 					std::bind(
 						timeFn,
-						enqueueFunc,
-						std::ref(enqueues[i])
+						enqueueFunc
 					)
 				);
 			}
-			waiter = true;
+			while(started.load() < enqueueThreads) {}
+			started.store(0);
+			int64_t start = sprawl::time::SteadyNow();
+			timer.store(start);
 			for (auto& thread : threads)
 			{
 				thread.join();
 			}
-			waiter = false;
-			times[0][iter] = mean(enqueues);
+			times[0][iter] = timer.exchange(-1) - start;
 		}
 
 		{
@@ -745,18 +775,19 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 				threads.emplace_back(
 					std::bind(
 						timeFn,
-						dequeueFunc,
-						std::ref(dequeues[i])
+						dequeueFunc
 					)
 				);
 			}
-			waiter = true;
+			while(started.load() < dequeueThreads) {}
+			started.store(0);
+			int64_t start = sprawl::time::SteadyNow();
+			timer.store(start);
 			for (auto& thread : threads)
 			{
 				thread.join();
 			}
-			waiter = false;
-			times[1][iter] = mean(dequeues);
+			times[1][iter] = timer.exchange(-1) - start;
 		}
 
 		{
@@ -775,8 +806,7 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 					threads.emplace_back(
 						std::bind(
 							timeFn,
-							fn,
-							std::ref(dequeues[deq - 1])
+							fn
 						)
 					);
 				}
@@ -786,8 +816,7 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 					threads.emplace_back(
 						std::bind(
 							timeFn,
-							fn,
-							std::ref(enqueues[enq - 1])
+							fn
 						)
 					);
 				}
@@ -796,13 +825,15 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 					break;
 				}
 			}
-			waiter = true;
+			while(started.load() < dequeueThreads + enqueueThreads) {}
+			started.store(0);
+			int64_t start = sprawl::time::SteadyNow();
+			timer.store(start);
 			for (auto& thread : threads)
 			{
 				thread.join();
 			}
-			waiter = false;
-			times[2][iter] = mean(dequeues);
+			times[2][iter] = timer.exchange(-1) - start;
 		}
 
 		{
@@ -817,41 +848,41 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 				threads.emplace_back(
 					std::bind(
 						timeFn,
-						fn,
-						std::ref(dequeues[i])
+						fn
 					)
 				);
 			}
-			waiter = true;
+			while(started.load() < dequeueThreads) {}
+			started.store(0);
+			int64_t start = sprawl::time::SteadyNow();
+			timer.store(start);
 			for (auto& thread : threads)
 			{
 				thread.join();
 			}
-			waiter = false;
-			times[3][iter] = mean(dequeues);
+			times[3][iter] = timer.exchange(-1) - start;
 		}
 	}
 
-	int64_t duration = mean(times[0]);
-	double avgNanosPerEnqueue = double(duration) / nEnqueueElements;
-	double enqueuesPerSecond = (sprawl::time::Convert(1, sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds) * enqueueThreads) / avgNanosPerEnqueue;
-	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 1 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << enqueuesPerSecond << std::endl;
-
-	duration = mean(times[1]);
-	double avgNanosPerDequeue = double(duration) / nDequeueElements;
-	double dequeuesPerSecond = (sprawl::time::Convert(1, sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds) * dequeueThreads) / avgNanosPerDequeue;
-	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 2 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << dequeuesPerSecond << std::endl;
-
-	duration = mean(times[2]);
-	double avgNanosPerEnqueueDequeuePair = double(duration) / nDequeueElements;
-	double throughput = (sprawl::time::Convert(1, sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds) * dequeueThreads) / avgNanosPerEnqueueDequeuePair;
-	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 3 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << throughput << std::endl;
-
-	duration = mean(times[3]);
-	double avgNanosPerEmptyDequeue = double(duration) / (adjustedNumElements * 10);
-	double emptyDequeuesPerSecond = (sprawl::time::Convert(1, sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds) * dequeueThreads) / avgNanosPerEmptyDequeue;
-	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 4 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << emptyDequeuesPerSecond << std::endl;
-
+	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 1 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << 
+		OpsPerSecond(mean(times[0]), adjustedNumElements) << "\t" <<
+		OpsPerSecond(Max(times[0]), adjustedNumElements) << "\t" <<
+		OpsPerSecond(Min(times[0]), adjustedNumElements) << std::endl;
+		
+	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 2 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << 
+		OpsPerSecond(mean(times[1]), adjustedNumElements) << "\t" <<
+		OpsPerSecond(Max(times[1]), adjustedNumElements) << "\t" <<
+		OpsPerSecond(Min(times[1]), adjustedNumElements) << std::endl;
+		
+	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 3 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << 
+		OpsPerSecond(mean(times[2]), adjustedNumElements) << "\t" <<
+		OpsPerSecond(Max(times[2]), adjustedNumElements) << "\t" <<
+		OpsPerSecond(Min(times[2]), adjustedNumElements) << std::endl;
+		
+	std::cout << TypeName<t_QueueType>::GetName(useMoves, t_PersistentTickets) << "\t" << 4 << "\t" << enqueueThreads << "\t" << dequeueThreads << "\t" << 
+		OpsPerSecond(mean(times[3]), adjustedNumElements * 10) << "\t" <<
+		OpsPerSecond(Max(times[3]), adjustedNumElements * 10) << "\t" <<
+		OpsPerSecond(Min(times[3]), adjustedNumElements * 10) << std::endl;
 }
 
 template<typename t_ElementType, typename t_QueueType, bool t_PersistentTickets = true>
