@@ -72,7 +72,7 @@ namespace sprawl
 			static_assert(nextPowerOf2(uint32_t(32000)) == 32768, "nextPowerOf2 failed");
 		}
 
-		template<typename t_ElementType, size_t t_BlockSize = 8192>
+		template<typename t_ElementType, size_t t_BlockSize = 8192, typename t_AllocatorType = std::allocator<t_ElementType>>
 		struct ReadReservationTicket;
 
 		template<typename t_ElementType>
@@ -81,10 +81,10 @@ namespace sprawl
 		template<typename t_ElementType>
 		struct BoundedWriteReservationTicket;
 
-		template<typename t_ElementType, size_t t_BlockSize = 8192, typename t_Allocator = std::allocator<t_ElementType>>
+		template<typename t_ElementType, size_t t_BlockSize = 8192, typename t_AllocatorType = std::allocator<t_ElementType>>
 		class ConcurrentQueue;
 
-		template<typename t_ElementType, size_t t_QueueSize, typename t_Allocator = std::allocator<t_ElementType>>
+		template<typename t_ElementType, size_t t_QueueSize, typename t_AllocatorType = std::allocator<t_ElementType>>
 		class ConcurrentBoundedQueue;
 	}
 }
@@ -302,12 +302,12 @@ private:
  * 
  * @warning You must call queue.InitializeReservationTicket() on this before using it!
  */
-template<typename t_ElementType, size_t t_BlockSize>
+template<typename t_ElementType, size_t t_BlockSize, typename t_AllocatorType>
 struct sprawl::collections::ReadReservationTicket
 {
 	detail::Buffer<t_ElementType, t_BlockSize>* buffer{nullptr};
 	typename detail::Buffer<t_ElementType, t_BlockSize>::BufferElement* ptr{ nullptr };
-	sprawl::collections::ConcurrentQueue<t_ElementType, t_BlockSize>* queue{ nullptr };
+	sprawl::collections::ConcurrentQueue<t_ElementType, t_BlockSize, t_AllocatorType>* queue{ nullptr };
 	size_t count{ 0 };
 
 	ReadReservationTicket(){}
@@ -359,21 +359,21 @@ struct sprawl::collections::ReadReservationTicket
  *          in the queue will become unreachable and will never be read, and memory for the buffer containing it
  *          will not be able to be reused and will cause a memory leak.
  *          
- * @tparam  t_ElementType   the type of element to store in the queue
- * 
- * @tparam  t_BlockSize     the number of elements to allocate at a time. 
- *                          Generally speaking, most queues will end up seeing double this number in use,
- *                          assuming it's reasonably large and enqueue operations don't outpace dequeue operations.
- *                          Once the first block is used up a new one will be allocated and the first will be reused
- *                          if it's empty, rather than being freed, hence seeing double this number in memory usage after
- *                          the initial t_BlockSize reads have been completed.
+ * @tparam  t_ElementType       the type of element to store in the queue
+ * 						      
+ * @tparam  t_BlockSize         the number of elements to allocate at a time. 
+ *                              Generally speaking, most queues will end up seeing double this number in use,
+ *                              assuming it's reasonably large and enqueue operations don't outpace dequeue operations.
+ *                              Once the first block is used up a new one will be allocated and the first will be reused
+ *                              if it's empty, rather than being freed, hence seeing double this number in memory usage after
+ *                              the initial t_BlockSize reads have been completed.
  *                          
- * @tparam   t_Allocator    An allocator class compatible with std::allocator. Does not actually allocate individual elements;
- *                          rather, allocates blocks of type detail::Buffer<t_Element, t_BlockSize>, hence this class
- *                          must support `rebind`. For ticket-free dequeue operations, ReadReservationTickets will also
- *                          be allocated after failed reads, and deallocated on subsequent successful reads.
+ * @tparam   t_AllocatorType    An allocator class compatible with std::allocator. Does not actually allocate individual elements;
+ *                              rather, allocates blocks of type detail::Buffer<t_Element, t_BlockSize>, hence this class
+ *                              must support `rebind`. For ticket-free dequeue operations, ReadReservationTickets will also
+ *                              be allocated after failed reads, and deallocated on subsequent successful reads.
  */
-template<typename t_ElementType, size_t t_BlockSize, typename t_Allocator>
+template<typename t_ElementType, size_t t_BlockSize, typename t_AllocatorType>
 class sprawl::collections::ConcurrentQueue
 {
 public:
@@ -858,12 +858,12 @@ private:
 	std::atomic<TicketListNode*> m_ticketList;
 	SPRAWL_PAD_CACHELINE;
 
-	typename t_Allocator::template rebind<Buffer>::other m_allocator;
-	typename t_Allocator::template rebind<TicketListNode>::other m_ticketListAllocator;
+	typename t_AllocatorType::template rebind<Buffer>::other m_allocator;
+	typename t_AllocatorType::template rebind<TicketListNode>::other m_ticketListAllocator;
 };
 
-template<typename t_ElementType, size_t t_BlockSize>
-sprawl::collections::ReadReservationTicket<t_ElementType, t_BlockSize>::~ReadReservationTicket()
+template<typename t_ElementType, size_t t_BlockSize, typename t_AllocatorType>
+sprawl::collections::ReadReservationTicket<t_ElementType, t_BlockSize, t_AllocatorType>::~ReadReservationTicket()
 {
 	if (buffer && count != 0)
 	{
@@ -959,19 +959,19 @@ struct sprawl::collections::BoundedWriteReservationTicket
  *          Also note that t_QueueSize will be adjusted up to the nearest power of 2 for performance
  *          reasons.
  *          
- * @tparam  t_ElementType   the type of element to store in the queue
- * 
- * @tparam  t_QueueSize     the maximum number of elements that can be in the queue at a time.
- *                          Once this number has been reached, enqueue() operations will fail until
- *                          elements have been dequeued. This is not a maximum number of elements
- *                          ever inserted, only a maximum number that can be held unread at a time -
- *                          representing overhead between enqueue and dequeue operations.
+ * @tparam  t_ElementType       the type of element to store in the queue
+ * 						      
+ * @tparam  t_QueueSize         the maximum number of elements that can be in the queue at a time.
+ *                              Once this number has been reached, enqueue() operations will fail until
+ *                              elements have been dequeued. This is not a maximum number of elements
+ *                              ever inserted, only a maximum number that can be held unread at a time -
+ *                              representing overhead between enqueue and dequeue operations.
  *                          
- * @tparam  t_Allocator     Allocator used to allocate tickets for the ticket-free enqueue
- *                          and dequeue operations. The allocators are NOT used in the operations
- *                          that do accept ticket parameters; those are alloc-free.
+ * @tparam  t_AllocatorType     Allocator used to allocate tickets for the ticket-free enqueue
+ *                              and dequeue operations. The allocators are NOT used in the operations
+ *                              that do accept ticket parameters; those are alloc-free.
  */
-template<typename t_ElementType, size_t t_QueueSize, typename t_Allocator>
+template<typename t_ElementType, size_t t_QueueSize, typename t_AllocatorType>
 class sprawl::collections::ConcurrentBoundedQueue
 {
 public:
@@ -1297,6 +1297,6 @@ private:
 	std::atomic<TicketListNode<WriteReservationTicket>*> m_writeTicketList;
 	SPRAWL_PAD_CACHELINE;
 
-	typename t_Allocator::template rebind<TicketListNode<ReadReservationTicket>>::other m_readTicketListAllocator;
-	typename t_Allocator::template rebind<TicketListNode<WriteReservationTicket>>::other m_writeTicketListAllocator;
+	typename t_AllocatorType::template rebind<TicketListNode<ReadReservationTicket>>::other m_readTicketListAllocator;
+	typename t_AllocatorType::template rebind<TicketListNode<WriteReservationTicket>>::other m_writeTicketListAllocator;
 };
