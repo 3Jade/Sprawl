@@ -380,7 +380,7 @@ public:
 	typedef ReadReservationTicket<t_ElementType, t_BlockSize, t_AllocatorType> ReadReservationTicket;
 	typedef detail::Buffer<t_ElementType, t_BlockSize> Buffer;
 
-	friend struct sprawl::collections::ReadReservationTicket<t_ElementType, t_BlockSize, t_AllocatorType >>;
+	friend struct sprawl::collections::ReadReservationTicket<t_ElementType, t_BlockSize, t_AllocatorType>;
 protected:
 
 	/**
