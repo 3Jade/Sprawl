@@ -46,30 +46,30 @@ namespace sprawl
 				return pow2_1(x - 1);
 			}
 
-			constexpr uint64_t nextPowerOf2(uint32_t x)
+			constexpr uint32_t nextPowerOf2(uint32_t x)
 			{
 				return pow2_1(x - 1);
 			}
 
-			static_assert(nextPowerOf2(uint64_t(1)) == 1, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(2)) == 2, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(3)) == 4, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(4)) == 4, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(5)) == 8, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(9)) == 16, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(17)) == 32, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(1025)) == 2048, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint64_t(32000)) == 32768, "nextPoerwOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(1)) == 1, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(2)) == 2, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(3)) == 4, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(4)) == 4, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(5)) == 8, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(9)) == 16, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(17)) == 32, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(1025)) == 2048, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint64_t(32000)) == 32768, "nextPowerOf2 failed");
 
-			static_assert(nextPowerOf2(uint32_t(1)) == 1, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(2)) == 2, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(3)) == 4, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(4)) == 4, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(5)) == 8, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(9)) == 16, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(17)) == 32, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(1025)) == 2048, "nextPoerwOf2 failed");
-			static_assert(nextPowerOf2(uint32_t(32000)) == 32768, "nextPoerwOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(1)) == 1, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(2)) == 2, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(3)) == 4, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(4)) == 4, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(5)) == 8, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(9)) == 16, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(17)) == 32, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(1025)) == 2048, "nextPowerOf2 failed");
+			static_assert(nextPowerOf2(uint32_t(32000)) == 32768, "nextPowerOf2 failed");
 		}
 
 		template<typename t_ElementType, size_t t_BlockSize = 8192>
@@ -81,10 +81,10 @@ namespace sprawl
 		template<typename t_ElementType>
 		struct BoundedWriteReservationTicket;
 
-		template<typename t_ElementType, size_t t_BlockSize = 8192, typename t_Allocator = std::allocator<sprawl::collections::detail::Buffer<t_ElementType, t_BlockSize>>>
+		template<typename t_ElementType, size_t t_BlockSize = 8192, typename t_Allocator = std::allocator<t_ElementType>>
 		class ConcurrentQueue;
 
-		template<typename t_ElementType, size_t t_QueueSize>
+		template<typename t_ElementType, size_t t_QueueSize, typename t_Allocator = std::allocator<t_ElementType>>
 		class ConcurrentBoundedQueue;
 	}
 }
@@ -262,7 +262,7 @@ public:
 	 * @param   amount   the amount by which to decrement the count
 	 * @return  The new reference count after this operation has completed. If the result is 0, the buffer should be moved to the end of the buffer list.
 	 */
-	inline int DecRef(size_t amount)
+	inline int DecRef(int amount)
 	{
 		return m_refCount.fetch_sub(amount, std::memory_order_acq_rel) - amount;
 	}
@@ -358,6 +358,20 @@ struct sprawl::collections::ReadReservationTicket
  *          Note, though, that the reservation tickets MUST BE KEPT ALIVE if dequeue returns false, or an element
  *          in the queue will become unreachable and will never be read, and memory for the buffer containing it
  *          will not be able to be reused and will cause a memory leak.
+ *          
+ * @tparam  t_ElementType   the type of element to store in the queue
+ * 
+ * @tparam  t_BlockSize     the number of elements to allocate at a time. 
+ *                          Generally speaking, most queues will end up seeing double this number in use,
+ *                          assuming it's reasonably large and enqueue operations don't outpace dequeue operations.
+ *                          Once the first block is used up a new one will be allocated and the first will be reused
+ *                          if it's empty, rather than being freed, hence seeing double this number in memory usage after
+ *                          the initial t_BlockSize reads have been completed.
+ *                          
+ * @tparam   t_Allocator    An allocator class compatible with std::allocator. Does not actually allocate individual elements;
+ *                          rather, allocates blocks of type detail::Buffer<t_Element, t_BlockSize>, hence this class
+ *                          must support `rebind`. For ticket-free dequeue operations, ReadReservationTickets will also
+ *                          be allocated after failed reads, and deallocated on subsequent successful reads.
  */
 template<typename t_ElementType, size_t t_BlockSize, typename t_Allocator>
 class sprawl::collections::ConcurrentQueue
@@ -590,6 +604,7 @@ public:
 		, m_reallocatingBuffer(false)
 		, m_writeBuffer(nullptr)
 		, m_tail(nullptr)
+		, m_ticketList(nullptr)
 	{
 		Buffer* buffer = m_allocator.allocate(1);
 		new(buffer) Buffer();
@@ -600,6 +615,12 @@ public:
 
 	~ConcurrentQueue()
 	{
+		for(TicketListNode* node = m_ticketList.load(std::memory_order_acquire), *node_next = node ? node->next : nullptr; node != nullptr; node = node_next)
+		{
+			node->~TicketListNode();
+			m_ticketListAllocator.deallocate(node, 1);
+		}
+
 		Buffer* buffer = m_readBuffer.load(std::memory_order_acquire);
 		while(buffer)
 		{
@@ -733,7 +754,89 @@ public:
 		return false;
 	}
 
+	/**
+	 * @brief   Attempt to dequeue an item without passing in any tickets.
+	 * 
+	 * @details This version of Dequeue() does not require persistent tickets even on a return value of false
+	 *          (or any tickets, for that matter). The performance of the common case will be similar to the other
+	 *          version of Dequeue() with non-persistent tickets. In the case of failed reads, performance will be
+	 *          somewhat hampered, but still superior to the performance of a successful read.
+	 *          
+	 *          
+	 * @param   val      A reference to a value, which will be filled with the contents of the dequeued element, if any.
+	 *                   The move assignment operator will be called on the value, if one exists.
+	 * 
+	 * @return  true if the dequeue succeeded and tha value holds a valid item, false if the dequeue failed.
+	 */
+	inline bool Dequeue(t_ElementType& val)
+	{
+		// This version of Dequeue() still needs tickets and needs them to persist after a failed read,
+		// but since the user isn't providing us with any storage space for it, we have to store it on the heap.
+		// We'll store it in this m_ticketList linked list, which means when we come to dequeue, the first
+		// thing we have to do is check the list to see if we need to retry any failed reads.
+		TicketListNode* node = m_ticketList.load(std::memory_order_acquire);
+		if(node)
+		{
+			// Unfortunately this can't be done with a simple fetch_add like the normal Dequeue()
+			// which means this version is not wait-free, but only lock-free, and there will be no
+			// vertical scaling of this section of code. Fortunately this is the uncommon case.
+
+			// First thing we have to do is obtain exclusive ownership of the first node in
+			// the list. That means trying to remove it and set it to a new value, but another
+			// thread may also be doing that, so we have to try until we win.
+			while(m_ticketList.compare_exchange_weak(node, node->next) == false)
+			{
+				// If another thread won, we might have ended up with no node, in which case we should just move on
+				// to the normal logic flow with a local ticket.
+				if(!node)
+				{
+					// Goto here avoids an ifcheck. To maximize performance we need to minimize branching.
+					goto no_node;
+				}
+			}
+
+			// Once we got a node, we try to read using its ticket.
+			if (!Dequeue(val, node->ticket))
+			{
+				// If we fail, put it back on the front of the ticket list. Again, this is a compare/swap loop.
+				node->next = m_ticketList.load(std::memory_order_acquire);
+				while (m_ticketList.compare_exchange_weak(node->next, node) == false) {}
+				return false;
+			}
+			// If we succeed, deallocate that ticket and return true.
+			node->~TicketListNode();
+			m_ticketListAllocator.deallocate(node, 1);
+			return true;
+		}
+
+	no_node:
+		// The common successful read case is the same as the non-persistent tickets case, create a local
+		// ticket on the stack and do a read with it.
+		ReadReservationTicket ticket;
+		InitializeReservationTicket(ticket);
+		if (!Dequeue(val, ticket))
+		{
+			// If that failed, we transfer the ticket to the heap and put it on the failed read list.
+			node = m_ticketListAllocator.allocate(1);
+			new(node) TicketListNode(std::move(ticket), m_ticketList.load(std::memory_order_acquire));
+			while (m_ticketList.compare_exchange_weak(node->next, node) == false) {}
+			return false;
+		}
+
+		return true;
+	}
+
 private:
+	struct TicketListNode
+	{
+		TicketListNode(ReadReservationTicket&& ticket_, TicketListNode* next_)
+			: ticket(std::move(ticket_))
+			, next(next_)
+		{}
+
+		ReadReservationTicket ticket;
+		TicketListNode* next;
+	};
 
 	SPRAWL_PAD_CACHELINE;
 	// Read head, not necessarily the same as the write head
@@ -751,7 +854,12 @@ private:
 	// Tail. Obviously.
 	std::atomic<Buffer*> m_tail;
 	SPRAWL_PAD_CACHELINE;
-	t_Allocator m_allocator;
+	// List of failed read tickets for the ticket-free Dequeue
+	std::atomic<TicketListNode*> m_ticketList;
+	SPRAWL_PAD_CACHELINE;
+
+	typename t_Allocator::template rebind<Buffer>::other m_allocator;
+	typename t_Allocator::template rebind<TicketListNode>::other m_ticketListAllocator;
 };
 
 template<typename t_ElementType, size_t t_BlockSize>
@@ -850,8 +958,20 @@ struct sprawl::collections::BoundedWriteReservationTicket
  *          
  *          Also note that t_QueueSize will be adjusted up to the nearest power of 2 for performance
  *          reasons.
+ *          
+ * @tparam  t_ElementType   the type of element to store in the queue
+ * 
+ * @tparam  t_QueueSize     the maximum number of elements that can be in the queue at a time.
+ *                          Once this number has been reached, enqueue() operations will fail until
+ *                          elements have been dequeued. This is not a maximum number of elements
+ *                          ever inserted, only a maximum number that can be held unread at a time -
+ *                          representing overhead between enqueue and dequeue operations.
+ *                          
+ * @tparam  t_Allocator     Allocator used to allocate tickets for the ticket-free enqueue
+ *                          and dequeue operations. The allocators are NOT used in the operations
+ *                          that do accept ticket parameters; those are alloc-free.
  */
-template<typename t_ElementType, size_t t_QueueSize>
+template<typename t_ElementType, size_t t_QueueSize, typename t_Allocator>
 class sprawl::collections::ConcurrentBoundedQueue
 {
 public:
@@ -867,14 +987,26 @@ public:
 	ConcurrentBoundedQueue()
 		: m_readIdx(0)
 		, m_writeIdx(0)
+		, m_readTicketList(nullptr)
+		, m_writeTicketList(nullptr)
 	{
 		memset(m_buffer, 0, c_adjustedSize * sizeof(BufferElement));
 	}
 
 	~ConcurrentBoundedQueue()
 	{
+		for (TicketListNode<ReadReservationTicket>* node = m_readTicketList.load(std::memory_order_acquire), *node_next = node ? node->next : nullptr; node != nullptr; node = node_next)
+		{
+			node->~TicketListNode();
+			m_readTicketListAllocator.deallocate(node, 1);
+		}
+		for (TicketListNode<WriteReservationTicket>* node = m_writeTicketList.load(std::memory_order_acquire), *node_next = node ? node->next : nullptr; node != nullptr; node = node_next)
+		{
+			node->~TicketListNode();
+			m_writeTicketListAllocator.deallocate(node, 1);
+		}
 		BufferElement* buffer = reinterpret_cast<BufferElement*>(m_buffer);
-		for(int idx = 0; idx < c_adjustedSize; ++idx)
+		for(size_t idx = 0; idx < c_adjustedSize; ++idx)
 		{
 			BufferElement* element = buffer + (idx & (c_adjustedSize - 1));
 			if(element->ready.load())
@@ -995,7 +1127,162 @@ public:
 		return false;
 	}
 
+	/**
+	 * @brief   Attempt to enqueue an item without passing in any tickets.
+	 *
+	 * @details This version of Enqueue() does not require persistent tickets even on a return value of false
+	 *          (or any tickets, for that matter). The performance of the common case will be similar to the other
+	 *          version of Enqueue(). In the case of failed writes, performance will be somewhat hampered,
+	 *          but still superior to the performance of a successful write.
+	 *
+	 *
+	 * @param   val      The value to equeue
+	 *
+	 * @return  true if the enqueue succeeded, false if the enqueue failed.
+	 */
+	inline bool Enqueue(t_ElementType& val)
+	{
+		// This version of Enqueue() still needs tickets and needs them to persist after a failed write,
+		// but since the user isn't providing us with any storage space for it, we have to store it on the heap.
+		// We'll store it in this m_ticketList linked list, which means when we come to enqueue, the first
+		// thing we have to do is check the list to see if we need to retry any failed writes.
+		TicketListNode<WriteReservationTicket>* node = m_writeTicketList.load(std::memory_order_acquire);
+		if (node)
+		{
+			// Unfortunately this can't be done with a simple fetch_add like the normal Enqueue()
+			// which means this version is not wait-free, but only lock-free, and there will be no
+			// vertical scaling of this section of code. Fortunately this is the uncommon case.
+
+			// First thing we have to do is obtain exclusive ownership of the first node in
+			// the list. That means trying to remove it and set it to a new value, but another
+			// thread may also be doing that, so we have to try until we win.
+			while (m_writeTicketList.compare_exchange_weak(node, node->next) == false)
+			{
+				// If another thread won, we might have ended up with no node, in which case we should just move on
+				// to the normal logic flow with a local ticket.
+				if (!node)
+				{
+					// Goto here avoids an ifcheck. To maximize performance we need to minimize branching.
+					goto no_node;
+				}
+			}
+
+			// Once we got a node, we try to reawrited using its ticket.
+			if (!Enqueue(val, node->ticket))
+			{
+				// If we fail, put it back on the front of the ticket list. Again, this is a compare/swap loop.
+				node->next = m_writeTicketList.load(std::memory_order_acquire);
+				while (m_writeTicketList.compare_exchange_weak(node->next, node) == false) {}
+				return false;
+			}
+			// If we succeed, deallocate that ticket and return true.
+			node->~TicketListNode();
+			m_writeTicketListAllocator.deallocate(node, 1);
+			return true;
+		}
+
+	no_node:
+		// The common successful write case is the same as the non-persistent tickets case, create a local
+		// ticket on the stack and do a write with it.
+		WriteReservationTicket ticket;
+		InitializeReservationTicket(ticket);
+		if (!Enqueue(val, ticket))
+		{
+			// If that failed, we transfer the ticket to the heap and put it on the failed write list.
+			node = m_writeTicketListAllocator.allocate(1);
+			new(node) TicketListNode<WriteReservationTicket>(std::move(ticket), m_writeTicketList.load(std::memory_order_acquire));
+			while (m_writeTicketList.compare_exchange_weak(node->next, node) == false) {}
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * @brief   Attempt to dequeue an item without passing in any tickets.
+	 *
+	 * @details This version of Dequeue() does not require persistent tickets even on a return value of false
+	 *          (or any tickets, for that matter). The performance of the common case will be similar to the other
+	 *          version of Dequeue(). In the case of failed reads, performance will be somewhat hampered, 
+	 *          but still superior to the performance of a successful read.
+	 *
+	 *
+	 * @param   val      A reference to a value, which will be filled with the contents of the dequeued element, if any.
+	 *                   The move assignment operator will be called on the value, if one exists.
+	 *
+	 * @return  true if the dequeue succeeded and tha value holds a valid item, false if the dequeue failed.
+	 */
+	inline bool Dequeue(t_ElementType& val)
+	{
+		// This version of Dequeue() still needs tickets and needs them to persist after a failed read,
+		// but since the user isn't providing us with any storage space for it, we have to store it on the heap.
+		// We'll store it in this m_ticketList linked list, which means when we come to dequeue, the first
+		// thing we have to do is check the list to see if we need to retry any failed reads.
+		TicketListNode<ReadReservationTicket>* node = m_readTicketList.load(std::memory_order_acquire);
+		if (node)
+		{
+			// Unfortunately this can't be done with a simple fetch_add like the normal Dequeue()
+			// which means this version is not wait-free, but only lock-free, and there will be no
+			// vertical scaling of this section of code. Fortunately this is the uncommon case.
+
+			// First thing we have to do is obtain exclusive ownership of the first node in
+			// the list. That means trying to remove it and set it to a new value, but another
+			// thread may also be doing that, so we have to try until we win.
+			while (m_readTicketList.compare_exchange_weak(node, node->next) == false)
+			{
+				// If another thread won, we might have ended up with no node, in which case we should just move on
+				// to the normal logic flow with a local ticket.
+				if (!node)
+				{
+					// Goto here avoids an ifcheck. To maximize performance we need to minimize branching.
+					goto no_node;
+				}
+			}
+
+			// Once we got a node, we try to read using its ticket.
+			if (!Dequeue(val, node->ticket))
+			{
+				// If we fail, put it back on the front of the ticket list. Again, this is a compare/swap loop.
+				node->next = m_readTicketList.load(std::memory_order_acquire);
+				while (m_readTicketList.compare_exchange_weak(node->next, node) == false) {}
+				return false;
+			}
+			// If we succeed, deallocate that ticket and return true.
+			node->~TicketListNode();
+			m_readTicketListAllocator.deallocate(node, 1);
+			return true;
+		}
+
+	no_node:
+		// The common successful read case is the same as the non-persistent tickets case, create a local
+		// ticket on the stack and do a read with it.
+		ReadReservationTicket ticket;
+		InitializeReservationTicket(ticket);
+		if (!Dequeue(val, ticket))
+		{
+			// If that failed, we transfer the ticket to the heap and put it on the failed read list.
+			node = m_readTicketListAllocator.allocate(1);
+			new(node) TicketListNode<ReadReservationTicket>(std::move(ticket), m_readTicketList.load(std::memory_order_acquire));
+			while (m_readTicketList.compare_exchange_weak(node->next, node) == false) {}
+			return false;
+		}
+
+		return true;
+	}
+
 private:
+	template<typename t_TicketType>
+	struct TicketListNode
+	{
+		TicketListNode(t_TicketType&& ticket_, TicketListNode* next_)
+			: ticket(std::move(ticket_))
+			, next(next_)
+		{}
+
+		t_TicketType ticket;
+		TicketListNode* next;
+	};
+
 	constexpr static size_t c_adjustedSize = detail::nextPowerOf2(t_QueueSize);
 
 	SPRAWL_PAD_CACHELINE;
@@ -1005,4 +1292,11 @@ private:
 	SPRAWL_PAD_CACHELINE;
 	BufferElement m_buffer[c_adjustedSize];
 	SPRAWL_PAD_CACHELINE;
+	std::atomic<TicketListNode<ReadReservationTicket>*> m_readTicketList;
+	SPRAWL_PAD_CACHELINE;
+	std::atomic<TicketListNode<WriteReservationTicket>*> m_writeTicketList;
+	SPRAWL_PAD_CACHELINE;
+
+	typename t_Allocator::template rebind<TicketListNode<ReadReservationTicket>>::other m_readTicketListAllocator;
+	typename t_Allocator::template rebind<TicketListNode<WriteReservationTicket>>::other m_writeTicketListAllocator;
 };
