@@ -377,10 +377,10 @@ template<typename t_ElementType, size_t t_BlockSize, typename t_AllocatorType>
 class sprawl::collections::ConcurrentQueue
 {
 public:
-	typedef ReadReservationTicket<t_ElementType, t_BlockSize> ReadReservationTicket;
+	typedef ReadReservationTicket<t_ElementType, t_BlockSize, t_AllocatorType> ReadReservationTicket;
 	typedef detail::Buffer<t_ElementType, t_BlockSize> Buffer;
 
-	friend struct sprawl::collections::ReadReservationTicket<t_ElementType, t_BlockSize>;
+	friend struct sprawl::collections::ReadReservationTicket<t_ElementType, t_BlockSize, t_AllocatorType >>;
 protected:
 
 	/**
