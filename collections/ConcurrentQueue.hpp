@@ -91,9 +91,9 @@ namespace sprawl
 
 /**
  * @class   sprawl::collections::detail::Buffer
- * 
+ *
  * @brief   Simple buffer class representing a single allocated block within an unbounded concurrent queue.
- * 
+ *
  * @details Provides concurrent read and write support. This class is the one that actually handles
  *          the majority of the atomic operations, as the read and write position are both
  *          contained within this class.
@@ -122,20 +122,20 @@ public:
 	/**
 	 * @brief   Reset a buffer back to its original state.
 	 *          Does NOT reset the read and write positions, those are done by the functions below.
-	 * 
+	 *
 	 * @details The way this works is like this:
 	 *          When a buffer has been completely used up, rather than freeing it, it's marked for reuse later.
 	 *          The reason for this is that freeing it isn't safe - it may still be accessed after or while it's
 	 *          being freed. Instead, this algorithm takes used blocks and moves them to the end of the block list
 	 *          to be used again later. When we start to write it again, we set the write position back to the start,
 	 *          and likewise, when we start to read it again, we set the read position back to the start.
-	 *          
+	 *
 	 *          This is safe even though it may be read again because the read and write positions aren't set.
 	 *          When the read and write positions are obtained, one of two results can occur:
 	 *          1) It will get a value that's past the end of the buffer and go to retrieve (or allocate) the next buffer
 	 *          2) It will read it while or after the write/read position is reset, in which case this buffer is already ready
 	 *          for use again and it gets a valid item that it's absolutely permitted to continue operating on.
-	 *          
+	 *
 	 *          Either of these situations is fine, meaning that using this queue after it's been put on the back is never
 	 *          a problem.
 	 */
@@ -160,39 +160,39 @@ public:
 	{
 		m_readPos.store(reinterpret_cast<BufferElement*>(m_buffer));
 	}
-	
+
 	/**
 	 * @brief   Set the next pointer for this buffer.
-	 * 
+	 *
 	 * @details The caller (the enclosing queue) is responsible for detecting when
 	 *          the buffer element it's received is outside the bounds of the buffer,
 	 *          allocating a new buffer in a synchronized way, and then setting the next
 	 *          pointer on the current buffer. This burden is placed on the caller for
 	 *          performance reasons.
-	 *          
+	 *
 	 * @param   next   The pointer to a newly allocated buffer
 	 */
 	inline void SetNext(Buffer* next)
 	{
 		m_next.store(next, std::memory_order_release);
 	}
-	
+
 	/**
 	 * @brief   Get the next pointer for this buffer.
-	 * 
+	 *
 	 * @details Like with SetNext, the caller is responsible for detecting when the element
 	 *          they received is outside the boundaries of the buffer and retrieving the next buffer.
-	 *          
+	 *
 	 * @return  Pointer to the next buffer. If there is no next, returns nullptr.
 	 */
 	inline Buffer* GetNext()
 	{
 		return m_next.load(std::memory_order_acquire);
 	}
-	
+
 	/**
 	 * @brief   Retrieve a pointer to an element for dequeue.
-	 * 
+	 *
 	 * @details This function is thread-safe and is guaranteed to return an element reserved
 	 *          for only the caller. There's no need to synchronize access to this element.
 	 *          However, this element is NOT guaranteed to actually have valid data stored in it yet.
@@ -201,38 +201,38 @@ public:
 	 *          putting an element back in the read queue - once an element is retrieved for read,
 	 *          it must be read as retrieved, as that element will never be returned from this
 	 *          method again.
-	 *          
+	 *
 	 *          Additionally, note that the returned pointer may be beyond the end of the buffer,
 	 *          and it is the responsibility of the caller to handle that case by retrieving the next
 	 *          buffer.
-	 * 
+	 *
 	 * @return  A pointer to an element. If the pointer is < this->GetEnd(), it is valid to read from.
 	 */
 	inline BufferElement* GetForRead()
 	{
 		return m_readPos.fetch_add(1, std::memory_order_acq_rel);
 	}
-	
+
 	/**
 	 * @brief   Retrieve a pointer to an element for enqueue.
-	 * 
+	 *
 	 * @details This function is thread-safe and is guaranteed to return an element reserved
 	 *          for only the caller. There's no need to synchronize access to this element.
 	 *          Note, however, that the returned pointer may be beyond the end of the buffer,
 	 *          and it is the responsibility of the caller to handle that case by allocating a new
 	 *          buffer.
-	 *          
+	 *
 	 * @return  A pointer to an element. If the pointer is < this->GetEnd(), it is valid to write to.
 	 */
 	inline BufferElement* GetForWrite()
 	{
 		return m_writePos.fetch_add(1, std::memory_order_acq_rel);
 	}
-	
+
 	/**
 	 * @brief   Get a pointer to the end of the queue. If a returned pointer is >= this value, it's not valid,
 	 *          and a reallocation or call to GetNext() is required.
-	 *          
+	 *
 	 * @return  A pointer to the end of the buffer.
 	 */
 	inline BufferElement const* GetEnd() const
@@ -242,13 +242,13 @@ public:
 
 	/**
 	 * @brief   Decrement the ref count.
-	 * 
+	 *
 	 * @details This isn't a traditional reference count. Rather than dealing in terms of the number of current references,
 	 *          this actually indicates the number of unread elements, plus 2 additional references for the writeBuffer and
 	 *          readBuffer elements of the queue. Once all elements have been read and those two pointers are pointing at
-	 *          something else, we know nothing else is pointing at this and it's safe to move it to the end of the buffer list - 
+	 *          something else, we know nothing else is pointing at this and it's safe to move it to the end of the buffer list -
 	 *          therefore we don't have to worry about incrementing the reference count ever.
-	 * 
+	 *
 	 * @return  The new reference count after this operation has completed. If the result is 0, the buffer should be moved to the end of the buffer list.
 	 */
 	inline int DecRef()
@@ -258,7 +258,7 @@ public:
 
 	/**
 	 * @brief   Special version of DecRef that will decrease the reference count multiple times with a single atomic operation
-	 * 
+	 *
 	 * @param   amount   the amount by which to decrement the count
 	 * @return  The new reference count after this operation has completed. If the result is 0, the buffer should be moved to the end of the buffer list.
 	 */
@@ -297,9 +297,9 @@ private:
 
 /**
  * @class   sprawl::collections::ReadReservationTicket
- * 
+ *
  * @brief   Represents a reservation to read an element that hasn't been written to yet.
- * 
+ *
  * @warning You must call queue.InitializeReservationTicket() on this before using it!
  */
 template<typename t_ElementType, size_t t_BlockSize, typename t_AllocatorType>
@@ -308,7 +308,7 @@ struct sprawl::collections::ReadReservationTicket
 	detail::Buffer<t_ElementType, t_BlockSize>* buffer{nullptr};
 	typename detail::Buffer<t_ElementType, t_BlockSize>::BufferElement* ptr{ nullptr };
 	sprawl::collections::ConcurrentQueue<t_ElementType, t_BlockSize, t_AllocatorType>* queue{ nullptr };
-	size_t count{ 0 };
+	int count{ 0 };
 
 	ReadReservationTicket(){}
 
@@ -336,15 +336,15 @@ struct sprawl::collections::ReadReservationTicket
 
 /**
  * class    sprawl::collections::ConcurrentQueue
- * 
- * @brief   Concurrent queue, supporting multi-consumer, multi-producer access 
+ *
+ * @brief   Concurrent queue, supporting multi-consumer, multi-producer access
  *          from multiple threads with no synchronization required. Unbounded, capable of
  *          resizing itself when it's out of space.
- * 
+ *
  * @details Strictly speaking, this is not a lock-free queue. When it needs to allocate,
  *          it does acquire a spin lock. It also does this when it needs to fetch a new
  *          read queue because the current one is exhausted.
- *          
+ *
  *          However, while it's not STRICTLY speaking lock-free, PRACTICALLY speaking,
  *          it's wait-free population agnostic for the vast majority of enqueues and dequeues.
  *          So long as the reservation ticket used for dequeues is kept alive, this queue is extremely fast.
@@ -354,20 +354,20 @@ struct sprawl::collections::ReadReservationTicket
  *          Which means if it destructs after every dequeue, there's an atomic fetch_sub that will happen after each
  *          queue. It sounds like it's not a big deal, but removing one fetch_sub operation from each dequeue
  *          can have a surprisingly large performance impact.
- *          
+ *
  *          Note, though, that the reservation tickets MUST BE KEPT ALIVE if dequeue returns false, or an element
  *          in the queue will become unreachable and will never be read, and memory for the buffer containing it
  *          will not be able to be reused and will cause a memory leak.
- *          
+ *
  * @tparam  t_ElementType       the type of element to store in the queue
- * 						      
- * @tparam  t_BlockSize         the number of elements to allocate at a time. 
+ *
+ * @tparam  t_BlockSize         the number of elements to allocate at a time.
  *                              Generally speaking, most queues will end up seeing double this number in use,
  *                              assuming it's reasonably large and enqueue operations don't outpace dequeue operations.
  *                              Once the first block is used up a new one will be allocated and the first will be reused
  *                              if it's empty, rather than being freed, hence seeing double this number in memory usage after
  *                              the initial t_BlockSize reads have been completed.
- *                          
+ *
  * @tparam   t_AllocatorType    An allocator class compatible with std::allocator. Does not actually allocate individual elements;
  *                              rather, allocates blocks of type detail::Buffer<t_Element, t_BlockSize>, hence this class
  *                              must support `rebind`. For ticket-free dequeue operations, ReadReservationTickets will also
@@ -406,7 +406,7 @@ private:
 
 	/**
 	 * @brief   Move a buffer to the end of the buffer list
-	 * 
+	 *
 	 * @details This needs to be called within the m_reallocatingBuffer guard.
 	 */
 	inline void swapToEnd_(Buffer* buffer)
@@ -426,7 +426,7 @@ private:
 	 * @brief   Decrement the ref count on the buffer and move it to the end of the queue if necessary
 	 *
 	 * @details This needs to be called within the m_reallocatingBuffer guard.
-	 * 
+	 *
 	 * @param   buffer   The buffer to decref and free
 	 */
 	inline void consumeUnlocked_(Buffer* buffer)
@@ -457,7 +457,7 @@ private:
 
 	/**
 	 * @brief   Fetch the next write buffer.
-	 * 
+	 *
 	 * @details This function is forced not inlined because it's called very rarely, and when it gets inlined,
 	 *          it ends up driving the calling function's assembly size high enough to fall outside cache lines,
 	 *          which results in slower performance for the common case. Forcing this to be a non-inlined function
@@ -562,12 +562,12 @@ private:
 
 	/**
 	 * @brief   Retrieve the next element to write to.
-	 * 
+	 *
 	 * @details This method does all the work of both incrementing the write pointer
 	 *          and detecting when it's past the end of the write buffer. If it is,
 	 *          this function will move on to the next buffer, or allocate a new one if needed,
 	 *          and then return an element guaranteed to be valid to write to.
-	 *          
+	 *
 	 * @return  The next viable write element for the queue
 	 */
 	inline typename Buffer::BufferElement& getNextElement_()
@@ -634,11 +634,11 @@ public:
 
 	/**
 	 * @brief   Initialize a reservation ticket. Must be called on a ticket before it can be used.
-	 * 
+	 *
 	 * @details This isn't a particularly expensive operation, but needs to be called on a buffer
 	 *          when it's constructed. The main purpose of this is to save Dequeue() from having to
 	 *          add an if-check to detect an uninitialized buffer. Branching is expensive.
-	 *          
+	 *
 	 * @param   ticket   the ticket to initialize
 	 */
 	void InitializeReservationTicket(ReadReservationTicket& ticket)
@@ -649,7 +649,7 @@ public:
 
 	/**
 	 * @brief   Enqueue an item by reference, calling the copy constructor. Will not fail (unless OOM).
-	 * 
+	 *
 	 * @param   val   The value to equeue
 	 */
 	inline void Enqueue(t_ElementType const& val)
@@ -662,7 +662,7 @@ public:
 
 	/**
 	* @brief   Enqueue an item by rvalue, calling the move constructor. Will not fail (unless OOM).
-	 * 
+	 *
 	 * @param   val   The value to equeue
 	*/
 	inline void Enqueue(t_ElementType&& val)
@@ -675,24 +675,24 @@ public:
 
 	/**
 	 * @brief   Attempt to dequeue an item. Not guaranteed to succeed, as the queue may be empty.
-	 * 
+	 *
 	 * @details To improve performance, all dequeue operations will cache data in the ReadReservationTicket parameter.
-	 *          
-	 *          If the dequeue operation returns false, this parameter MUST be held onto and passed back into Dequeue() 
-	 *          or an element in the queue will become permanently inaccessible. 
-	 *          
+	 *
+	 *          If the dequeue operation returns false, this parameter MUST be held onto and passed back into Dequeue()
+	 *          or an element in the queue will become permanently inaccessible.
+	 *
 	 *          It doesn't matter what thread passes the ticket back in, but it cannot be disposed of so long as
 	 *          Dequeue() has returned false.
-	 *          
+	 *
 	 *          If Dequeue() returns true, it is still highly recommended to keep the ticket alive and pass it back in.
 	 *          The only reason for this is performance - the performance drop from having to adjust reference counts
 	 *          on each dequeue operation isn't crippling, but it is noticeable.
-	 *          
-	 *          
+	 *
+	 *
 	 * @param   val      A reference to a value, which will be filled with the contents of the dequeued element, if any.
 	 *                   The move assignment operator will be called on the value, if one exists.
 	 * @param   ticket   A reservation ticket which will hold cached data to improve performance.
-	 * 
+	 *
 	 * @return  true if the dequeue succeeded and tha value holds a valid item, false if the dequeue failed.
 	 */
 	inline bool Dequeue(t_ElementType& val, ReadReservationTicket& ticket)
@@ -728,7 +728,7 @@ public:
 				}
 			}
 		}
-		
+
 		// Now that we have an element to read, we have to check if there's any actual data in it.
 		// If not, we're going to remember this element in the reservation ticket and come back to it later.
 		// This definitively prevents any race conditions involved in attempting to correct for overcommit.
@@ -756,16 +756,16 @@ public:
 
 	/**
 	 * @brief   Attempt to dequeue an item without passing in any tickets.
-	 * 
+	 *
 	 * @details This version of Dequeue() does not require persistent tickets even on a return value of false
 	 *          (or any tickets, for that matter). The performance of the common case will be similar to the other
 	 *          version of Dequeue() with non-persistent tickets. In the case of failed reads, performance will be
 	 *          somewhat hampered, but still superior to the performance of a successful read.
-	 *          
-	 *          
+	 *
+	 *
 	 * @param   val      A reference to a value, which will be filled with the contents of the dequeued element, if any.
 	 *                   The move assignment operator will be called on the value, if one exists.
-	 * 
+	 *
 	 * @return  true if the dequeue succeeded and tha value holds a valid item, false if the dequeue failed.
 	 */
 	inline bool Dequeue(t_ElementType& val)
@@ -930,43 +930,43 @@ struct sprawl::collections::BoundedWriteReservationTicket
 
 /**
  * @class   sprawl::collections::ConcurrentBoundedQueue
- * 
+ *
  * @brief   A bounded implementation of ConcurrentQueue.
- * 
+ *
  * @details The core algorithm of this queue is essentially the same algorithm as the
  *          unbounded version of this queue - however, there are a few key differences:
- *          
+ *
  *          First, and probably most importantly, this queue cannot grow. It works as
  *          a circular buffer, and can only hold the specified number of elements at
  *          one time. Elements that are read by Dequeue() become available to be
  *          written again, but if no consumer threads are running, or producer threads
  *          significantly outpace consumer threads, the queue can become full,
  *          causing Enqueue() to return false.
- *          
+ *
  *          Secondly, unlike the unbounded version, this queue is truly lock-free
  *          and wait-free. There are no situations that involve taking a lock.
- *          
+ *
  *          Thirdly, reservation tickets are required for both enqueue AND dequeue;
  *          however, they only need to be kept alive after a return of false from either
  *          method. If the return value is true, the ticket can be safely thrown away.
- *          
+ *
  *          Note that there is one situation that can cause an enqueue thread to become
  *          blocked: if a dequeue thread gets a return of false and doesn't call Dequeue()
  *          again with that ticket, an enqueue thread will be blocked waiting for that
  *          spot to be read, even after other enqueue threads successfully move on and continue
  *          writing.
- *          
+ *
  *          Also note that t_QueueSize will be adjusted up to the nearest power of 2 for performance
  *          reasons.
- *          
+ *
  * @tparam  t_ElementType       the type of element to store in the queue
- * 						      
+ *
  * @tparam  t_QueueSize         the maximum number of elements that can be in the queue at a time.
  *                              Once this number has been reached, enqueue() operations will fail until
  *                              elements have been dequeued. This is not a maximum number of elements
  *                              ever inserted, only a maximum number that can be held unread at a time -
  *                              representing overhead between enqueue and dequeue operations.
- *                          
+ *
  * @tparam  t_AllocatorType     Allocator used to allocate tickets for the ticket-free enqueue
  *                              and dequeue operations. The allocators are NOT used in the operations
  *                              that do accept ticket parameters; those are alloc-free.
@@ -1021,7 +1021,7 @@ public:
 	 *
 	 * @param   val      The value to equeue
 	 * @param   ticket   A reservation ticket that will hold cached data in the event of a return of false
-	 * 
+	 *
 	 * @return  true if the element was successfully enqueued, false otherwise
 	 */
 	inline bool Enqueue(t_ElementType const& val, WriteReservationTicket& ticket)
@@ -1062,7 +1062,7 @@ public:
 	 *
 	 * @param   val      The value to equeue
 	 * @param   ticket   A reservation ticket that will hold cached data in the event of a return of false
-	 * 
+	 *
 	 * @return  true if the element was successfully enqueued, false otherwise
 	 */
 	inline bool Enqueue(t_ElementType&& val, WriteReservationTicket& ticket)
@@ -1097,7 +1097,7 @@ public:
 	 * @param   val      A reference to a value, which will be filled with the contents of the dequeued element, if any.
 	 *                   The move assignment operator will be called on the value, if one exists.
 	 * @param   ticket   A reservation ticket which will hold cached data to improve performance.
-	 * 
+	 *
 	 * @return  true if the element was successfully enqueued, false otherwise
 	 */
 	inline bool Dequeue(t_ElementType& val, ReadReservationTicket& ticket)
@@ -1203,7 +1203,7 @@ public:
 	 *
 	 * @details This version of Dequeue() does not require persistent tickets even on a return value of false
 	 *          (or any tickets, for that matter). The performance of the common case will be similar to the other
-	 *          version of Dequeue(). In the case of failed reads, performance will be somewhat hampered, 
+	 *          version of Dequeue(). In the case of failed reads, performance will be somewhat hampered,
 	 *          but still superior to the performance of a successful read.
 	 *
 	 *
