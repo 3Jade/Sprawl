@@ -388,9 +388,9 @@ protected:
 	 *
 	 * @param   buffer   The buffer to decref and free
 	 */
-	inline void consume_(Buffer* buffer, size_t amount)
+	inline void consume_(Buffer* buffer, int amount)
 	{
-		size_t ret = buffer->DecRef(amount);
+		int ret = buffer->DecRef(amount);
 		if (SPRAWL_UNLIKELY(ret == 0))
 		{
 			while (m_reallocatingBuffer.exchange(true, std::memory_order_seq_cst)) {}
@@ -446,9 +446,9 @@ private:
 	 * @param   buffer   The buffer to decref and free
 	 * @param   amount   the amount by which to decrement the count
 	 */
-	inline void consumeUnlocked_(Buffer* buffer, size_t amount)
+	inline void consumeUnlocked_(Buffer* buffer, int amount)
 	{
-		size_t ret = buffer->DecRef(amount);
+		int ret = buffer->DecRef(amount);
 		if (SPRAWL_UNLIKELY(ret == 0))
 		{
 			swapToEnd_(buffer);
