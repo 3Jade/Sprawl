@@ -29,6 +29,8 @@ public:
 	T const& operator*() const;
 	T* operator->();
 	T const* operator->() const;
+	
+	void Clear();
 
 	operator bool() const;
 private:
