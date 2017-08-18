@@ -1,3 +1,6 @@
+//Want to test this on all builds...
+#define SPRAWL_COROUTINE_SAFETY_CHECKS 1
+
 #include "../threading/thread.hpp"
 #include "../threading/mutex.hpp"
 #include "../threading/condition_variable.hpp"
@@ -9,7 +12,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 sprawl::threading::Mutex mtx;
@@ -83,7 +86,14 @@ void add()
 	for(int idx = 0; idx < 10; ++idx)
 	{
 		count += mod;
-		sprawl::threading::Coroutine::Yield();
+		if(idx % 2)
+		{
+			ASSERT_NO_SPRAWL_EXCEPT(sprawl::threading::Coroutine::Yield());
+		}
+		else
+		{
+			ASSERT_NO_SPRAWL_EXCEPT(yield());
+		}
 	}
 }
 
@@ -92,16 +102,34 @@ void mult()
 	for(int idx = 0; idx < 10; ++idx)
 	{
 		count *= mod;
-		sprawl::threading::Coroutine::Yield();
+		if(idx % 2)
+		{
+			ASSERT_NO_SPRAWL_EXCEPT(sprawl::threading::Coroutine::Yield());
+		}
+		else
+		{
+			ASSERT_NO_SPRAWL_EXCEPT(yield());
+		}
 	}
 }
 
-void addOverTime(int start)
+int addOverTime(int start)
 {
+	bool useKeyword = false;
 	for(;;)
 	{
-		start += sprawl::threading::Coroutine::Receive<int, int>(start);
+		if(useKeyword)
+		{
+			int received;
+			start += yield_receive(start, received);
+		}
+		else
+		{
+			start += sprawl::threading::Coroutine::Receive<int, int>(start);
+		}
+		useKeyword = !useKeyword;
 	}
+	return 0;
 }
 
 int addOverTime2Value;
@@ -109,28 +137,56 @@ int addOverTime2Value;
 void addOverTime2(int start)
 {
 	addOverTime2Value = start;
+	bool useKeyword = false;
 	for(;;)
 	{
-		addOverTime2Value += sprawl::threading::Coroutine::Receive<int>();
+		if(useKeyword)
+		{
+			int received;
+			addOverTime2Value += receive(received);
+		}
+		else
+		{
+			addOverTime2Value += sprawl::threading::Coroutine::Receive<int>();
+		}
+		useKeyword = !useKeyword;
 	}
 }
 
-void addOverTime3(int start)
+int addOverTime3(int start)
 {
+	bool useKeyword = false;
 	for(;;)
 	{
-		sprawl::threading::Coroutine::Yield(++start);
+		if(useKeyword)
+		{
+			ABORT_ON_SPRAWL_EXCEPT(yield(++start));
+		}
+		else
+		{
+			ABORT_ON_SPRAWL_EXCEPT(sprawl::threading::Coroutine::Yield(++start));
+		}
+		useKeyword = !useKeyword;
 	}
+	return 0;
 }
 
 sprawl::threading::Generator<int> numberGenerator(int start)
 {
 	auto generator = [](int start)
 	{
-		for(;;)
+		while(start < 100)
 		{
-			sprawl::threading::Coroutine::Yield(start++);
+			if(start % 2)
+			{
+				ABORT_ON_SPRAWL_EXCEPT(sprawl::threading::Coroutine::Yield(start++));
+			}
+			else
+			{
+				ABORT_ON_SPRAWL_EXCEPT(yield(start++));
+			}
 		}
+		return start++;
 	};
 	return sprawl::threading::Generator<int>(generator, start);
 }
@@ -185,6 +241,66 @@ TEST(ThreadingTest, ThreadManagerWorks)
 
 	EXPECT_EQ(100, j) << "ThreadManager failed to properly increment j";
 	EXPECT_EQ(100, k) << "ThreadManager failed to properly increment k";
+}
+
+#if SPRAWL_EXCEPTIONS_ENABLED
+void ThrowBadAlloc()
+{
+	throw std::bad_alloc();
+}
+
+TEST(ThreadingTest, ExceptionPropagationWorks)
+{
+	sprawl::threading::Thread t(ThrowBadAlloc);
+	t.SetExceptionHandler();
+	t.Start();
+	sprawl::this_thread::Sleep(100 * sprawl::time::Resolution::Milliseconds);
+	EXPECT_TRUE(t.HasException());
+
+	bool caught = false;
+	try
+	{
+		t.Join();
+	}
+	catch(std::bad_alloc& e)
+	{
+		caught = true;
+	}
+	ASSERT_TRUE(caught);
+}
+#endif
+
+void WaitHalfASecond()
+{
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+}
+
+TEST(ThreadingTest, DestructorJoinWorks)
+{
+	int64_t start;
+	{
+		sprawl::threading::Thread t(WaitHalfASecond);
+		t.SetDestructionBehavior(sprawl::threading::ThreadDestructionBehavior::Join);
+		t.Start();
+		//Time the destructor to ensure it waits for the join.
+		start = sprawl::time::Now();
+	}
+	int64_t end = sprawl::time::Now();
+	ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+}
+
+TEST(ThreadingTest, DefaultDestructorJoinWorks)
+{
+	int64_t start;
+	{
+		sprawl::threading::Thread t(WaitHalfASecond);
+		sprawl::threading::Thread::SetDefaultDestructionBehavior(sprawl::threading::ThreadDestructionBehavior::Join);
+		t.Start();
+		//Time the destructor to ensure it waits for the join.
+		start = sprawl::time::Now();
+	}
+	int64_t end = sprawl::time::Now();
+	ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
 }
 
 int stage = 0;
@@ -252,22 +368,24 @@ TEST(ThreadingTest, StagedThreadManagerWorks)
 	stagedManager.AddThreads(Any, 5);
 
 	stagedManager.Start(Any);
+	
+	sprawl::threading::ThreadManager::ReservationTicket ticket;
 
-	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(1, stage);
 	EXPECT_EQ(0, stageValue);
-	EXPECT_EQ(StageOne_Run, stagedManager.RunNextStage());
+	EXPECT_EQ(StageOne_Run, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(1, stage);
 	EXPECT_EQ(100, stageValue);
-	EXPECT_EQ(StageTwo_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(StageTwo_Setup, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(2, stage);
 	EXPECT_EQ(100, stageValue);
-	EXPECT_EQ(StageTwo_Run, stagedManager.RunNextStage());
+	EXPECT_EQ(StageTwo_Run, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(2, stage);
 	EXPECT_EQ(100 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2, stageValue);
 
 	//Should start over now, but NOT rerun the old task...
-	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage());
+	EXPECT_EQ(StageOne_Setup, stagedManager.RunNextStage(ticket));
 	EXPECT_EQ(2, stage);
 	EXPECT_EQ(100 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2, stageValue);
 
@@ -283,12 +401,12 @@ TEST(CoroutineTest, BasicCoroutinesWork)
 	while(continuing)
 	{
 		continuing = false;
-		if(addCrt.State() != sprawl::threading::Coroutine::CoroutineState::Completed)
+		if(addCrt.State() != sprawl::threading::CoroutineState::Completed)
 		{
 			continuing = true;
 			addCrt();
 		}
-		if(multCrt.State() != sprawl::threading::Coroutine::CoroutineState::Completed)
+		if(multCrt.State() != sprawl::threading::CoroutineState::Completed)
 		{
 			continuing = true;
 			multCrt.Resume();
@@ -370,6 +488,17 @@ TEST(CoroutineTest, GeneratorsWork)
 	}
 }
 
+TEST(CoroutineTest, GeneratorRangeBasedForWorks)
+{
+	sprawl::threading::Generator<int> generator = numberGenerator(1);
+	int i = 0;
+	for(int j : generator)
+	{
+		EXPECT_EQ(++i, j);
+	}
+	EXPECT_EQ(i, 99);
+}
+
 void DoAThing()
 {
 
@@ -395,3 +524,158 @@ TEST(CoroutineTest, StackSizeInitializedProperly)
 	sprawl::threading::Coroutine c4(std::bind(DoAThing2, 3), 200);
 	ASSERT_EQ(200ul, c4.StackSize());
 }
+
+#if SPRAWL_EXCEPTIONS_ENABLED
+void YieldThenThrowBadAlloc()
+{
+	yield();
+	throw std::bad_alloc();
+}
+
+TEST(CoroutineTest, CoroutinesSurfaceExceptions)
+{
+	sprawl::threading::Coroutine c1(ThrowBadAlloc);
+	sprawl::threading::Coroutine c2(YieldThenThrowBadAlloc);
+
+	bool caughtOne = false;
+	bool ranOnce = false;
+	try
+	{
+		c1();
+		ranOnce = false;
+		c1();
+	}
+	catch(std::bad_alloc& e)
+	{
+		caughtOne = true;
+	}
+
+	ASSERT_TRUE(caughtOne);
+	ASSERT_FALSE(ranOnce);
+
+	caughtOne = false;
+	ranOnce = false;
+	try
+	{
+		c2();
+		ranOnce = true;
+		c2();
+	}
+	catch(std::bad_alloc& e)
+	{
+		caughtOne = true;
+	}
+	ASSERT_TRUE(caughtOne);
+	ASSERT_TRUE(ranOnce);
+}
+#endif
+
+void CheckCurrentCoroutine();
+
+sprawl::threading::Coroutine* coroutineCheck;
+
+void CheckCurrentCoroutine()
+{
+	ASSERT_EQ(*coroutineCheck, sprawl::threading::Coroutine::GetCurrentCoroutine());
+}
+
+TEST(CoroutineTest, GetCurrentCoroutineWorks)
+{
+	sprawl::threading::Coroutine c(CheckCurrentCoroutine);
+	coroutineCheck = &c;
+	c();
+}
+
+int NestedSubtract(int i)
+{
+	for(;;)
+	{
+		yield_receive(i - 1, i);
+	}
+	return 0;
+}
+
+int NestedAdd(int i)
+{
+	sprawl::threading::CoroutineWithChannel<int, int> sub(NestedSubtract, i + 3);
+	i = sub(i + 3);
+	ABORT_ON_SPRAWL_EXCEPT(yield(i));
+	i = sub(i + 3);
+	ABORT_ON_SPRAWL_EXCEPT(yield(i));
+	i = sub(i + 3);
+	ABORT_ON_SPRAWL_EXCEPT(yield(i));
+	i = sub(i + 3);
+	ABORT_ON_SPRAWL_EXCEPT(yield(i));
+	i = sub(i + 3);
+	return i;
+}
+
+TEST(CoroutineTest, NestedCoroutinesWork)
+{
+	sprawl::threading::CoroutineWithChannel<void, int> add(NestedAdd, 0);
+	ASSERT_EQ(2, add());
+	ASSERT_EQ(4, add());
+	ASSERT_EQ(6, add());
+	ASSERT_EQ(8, add());
+	ASSERT_EQ(10, add());
+}
+
+#if SPRAWL_COROUTINE_SAFETY_CHECKS
+
+bool caught = false;
+
+void TryYield()
+{
+#if SPRAWL_EXCEPTIONS_ENABLED
+	try
+	{
+		yield(5);
+	}
+	catch(sprawl::InvalidCoroutineType&)
+	{
+		caught = true;
+	}
+#else
+	auto err = yield(5);
+	EXPECT_TRUE(err.Error());
+	EXPECT_EQ(sprawl::ExceptionId::INVALID_COROUTINE_TYPE, err.ErrorCode());
+	caught = err.Error() && err.ErrorCode() == sprawl::ExceptionId::INVALID_COROUTINE_TYPE;
+#endif
+}
+
+bool caught2 = false;
+
+int TryYieldWrongType()
+{
+#if SPRAWL_EXCEPTIONS_ENABLED
+	try
+	{
+		yield('c');
+	}
+	catch(sprawl::InvalidYieldType)
+	{
+		caught2 = true;
+	}
+#else
+	auto err = yield('c');
+	EXPECT_TRUE(err.Error());
+	EXPECT_EQ(sprawl::ExceptionId::INVALID_YIELD_TYPE, err.ErrorCode());
+	caught2 = err.Error() && err.ErrorCode() == sprawl::ExceptionId::INVALID_YIELD_TYPE;
+#endif
+	return 3;
+}
+
+TEST(CoroutineTest, CoroutinesWithInvalidTypesProperlyThrowExceptions)
+{
+	//First test: A basic coroutine trying to yield a value, completely invalid coroutine type.
+	sprawl::threading::Coroutine tryYield(TryYield);
+	tryYield();
+
+	//Second test: A coroutine with a return type of int trying to yield a char
+	sprawl::threading::CoroutineWithChannel<void, int> tryYieldWrongType(TryYieldWrongType);
+	tryYieldWrongType();
+
+	ASSERT_TRUE(caught);
+	ASSERT_TRUE(caught2);
+}
+#endif

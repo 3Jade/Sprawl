@@ -49,7 +49,7 @@ namespace sprawl
 				return m_hash;
 			}
 
-			static SPRAWL_CONSTEXPR size_t staticDataSize = SPRAWL_STATIC_STRING_SIZE;
+			static constexpr size_t staticDataSize = SPRAWL_STATIC_STRING_SIZE;
 
 			char m_staticData[staticDataSize];
 			char* m_dynamicData;
@@ -155,55 +155,6 @@ namespace sprawl
 		}
 
 	private:
-
-#if (defined(_WIN32) && _MSC_VER < 1800)
-		template<int idx, typename T = _Nil, _MAX_CLASS_LIST>
-		class FormatHelper;
-
-		template<size_t idx>
-		class FormatHelper<idx, _Nil, _MAX_NIL_LIST>
-		{
-		public:
-			void Append(int pos, StringBuilder& builder, char* modifiers)
-			{
-				(void)(pos);
-				(void)(modifiers);
-				builder << "< ??? >";
-			}
-		};
-
-		#define _CLASS_FORMATHELPER(TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, X1, X2, X3, X4) \
-			template<int idx, typename T COMMA LIST(_CLASS_TYPEX)> \
-			class FormatHelper<idx, T, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD)> \
-				: public FormatHelper< idx+1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD) > \
-			{ \
-			public: \
-				typedef FormatHelper< idx+1, LIST(_TYPEX) COMMA PADDING_LIST(_NIL_PAD) > Base; \
-				FormatHelper(T const& val COMMA LIST(_CONST_TYPEX_REF_ARG)) \
-					: Base(LIST(_ARGX)) \
-					, m_value(val) \
-				{ \
-					\
-				} \
-				 \
-				void Append(int pos, StringBuilder& builder, char* modifiers) \
-				{ \
-					if(pos == idx) \
-					{ \
-						builder.AppendElementToBuffer(m_value, modifiers); \
-					} \
-					else \
-					{ \
-						Base::Append(pos, builder, modifiers); \
-					} \
-				} \
-				 \
-			private: \
-				T const& m_value; \
-			};
-
-		_VARIADIC_EXPAND_0X(_CLASS_FORMATHELPER, , , , )
-#else
 		template<int idx, typename... Params>
 		class FormatHelper;
 
@@ -274,7 +225,6 @@ namespace sprawl
 		private:
 			T const& m_value;
 		};
-#endif
 
 		template<typename... Params>
 		void ExecuteFormat(	StringBuilder& builder, Params const& ...params)

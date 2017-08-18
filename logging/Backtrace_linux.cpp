@@ -1,9 +1,8 @@
 #include "Backtrace.hpp"
 #include "../filesystem/path.hpp"
 #include "../collections/Array.hpp"
+#include <execinfo.h>
 
-#define UNW_LOCAL_ONLY
-#include <libunwind.h>
 #include <unistd.h>
 
 #include <cxxabi.h>
@@ -54,7 +53,7 @@ namespace BacktraceStatic
 
 	struct Module
 	{
-		unw_word_t baseAddress;
+		uintptr_t baseAddress;
 		char const* path;
 		char const* baseFilename;
 		bfd* bfdPtr;
@@ -100,7 +99,7 @@ namespace BacktraceStatic
 			return *this;
 		}
 
-		Module(char const* path_, unw_word_t addr)
+		Module(char const* path_, uintptr_t addr)
 			: baseAddress(addr)
 			, path(path_)
 			, baseFilename(path_)
@@ -204,7 +203,7 @@ namespace BacktraceStatic
 		return 0;
 	}
 
-	static Module* findModule_(unw_word_t address, int start = 0, int end = nModules_- 1)
+	static Module* findModule_(uintptr_t address, int start = 0, int end = nModules_- 1)
 	{
 		if(end < start)
 		{
@@ -288,32 +287,16 @@ void sprawl::logging::Backtrace::ShutDown()
 
 sprawl::logging::Backtrace sprawl::logging::Backtrace::Get(int skipFrames)
 {
+	// We could use libUnwind here instead of backtrace(), and in fact, we originally did.
+	// libUnwind is very very very very very slightly faster than backtrace (to the tune of 1 us per call on average)
+	// But since we don't use libUnwind for symbolification and libUnwind's primary performance gain is when compared to
+	// backtrace_symbols, the 1us performance improvement does not seem worth the dependency.
 	Backtrace stack;
+	void* bt[SPRAWL_BACKTRACE_MAX_STACK];
+	stack.m_size = backtrace(bt, SPRAWL_BACKTRACE_MAX_STACK) - skipFrames;
+	memcpy(stack.m_stack, bt + skipFrames, SPRAWL_BACKTRACE_MAX_STACK - skipFrames);
 
-	unw_context_t context;
-	unw_cursor_t cursor;
-
-	unw_getcontext(&context);
-	unw_init_local(&cursor, &context);
-
-	unw_word_t ip;
-	for(int i = 0; i < skipFrames + 1; ++i)
-	{
-		unw_step(&cursor);
-	}
-
-	int stackDepth = 0;
-
-	do
-	{
-		unw_get_reg(&cursor, UNW_REG_IP, &ip);
-		stack.m_stack[stackDepth] = ip;
-		++stackDepth;
-	} while (unw_step(&cursor) > 0 && stackDepth < SPRAWL_BACKTRACE_MAX_STACK);
-
-	stack.m_size = stackDepth;
-
-	return std::move(stack);
+	return stack;
 }
 
 
@@ -369,5 +352,5 @@ sprawl::logging::Backtrace::Frame sprawl::logging::Backtrace::GetFrame(size_t in
 		}
 	}
 
-	return std::move(frame);
+	return frame;
 }

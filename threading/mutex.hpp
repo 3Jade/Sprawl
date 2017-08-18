@@ -2,7 +2,7 @@
 
 #ifdef _WIN32
 #	include <Windows.h>
-typedef	CRITICAL_SECTION MutexType;
+typedef	SRWLOCK MutexType;
 #else
 #	include <pthread.h>
 typedef pthread_mutex_t MutexType;

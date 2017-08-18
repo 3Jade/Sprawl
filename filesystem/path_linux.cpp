@@ -43,7 +43,7 @@ sprawl::String sprawl::path::ExpandPath(String const& path)
 	wordexp(path.GetOwned().c_str(), &exp_result, WRDE_NOCMD);
 	sprawl::String ret(exp_result.we_wordv[0]);
 	wordfree(&exp_result);
-	return std::move(ret);
+	return ret;
 }
 
 sprawl::String sprawl::path::RealPath(String const& path)

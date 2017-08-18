@@ -50,32 +50,10 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		class ex_invalid_data: public std::exception
-		{
-		public:
-			const char* what() const throw ()
-			{
-				return "Data invalid";
-			}
-			~ex_invalid_data() throw ()
-			{
-			}
-		};
-
-		class ex_serializer_overflow: public std::exception
-		{
-		public:
-			const char* what() const throw ()
-			{
-				return "Serialization overflow";
-			}
-			~ex_serializer_overflow() throw ()
-			{
-			}
-		};
+		class SerializationDataTypeDetector {};
 
 		template<typename T>
-		class SerializationData
+		class SerializationData : public SerializationDataTypeDetector
 		{
 		public:
 			explicit SerializationData(T& a, sprawl::String const& b = "noname", bool c=true) : val(a), name(b), PersistToDB(c)
@@ -166,155 +144,155 @@ namespace sprawl
 
 			virtual uint32_t GetVersion() = 0;
 			virtual void SetVersion(uint32_t i) = 0;
-			virtual void Reset() { }
+			virtual ErrorState<void> Reset() { return ErrorState<void>(); }
 
 			virtual bool IsValid() = 0;
 			virtual bool Error() = 0;
 			virtual size_t Size() = 0;
 
-			SerializerBase& operator%(SerializationData<unsigned int>&& var);
-			SerializerBase& operator%(SerializationData<unsigned long int>&& var);
-			SerializerBase& operator%(SerializationData<unsigned char>&& var);
-			SerializerBase& operator%(SerializationData<unsigned char* >&& var);
-			SerializerBase& operator%(SerializationData<bool>&& var);
-			SerializerBase& operator%(SerializationData<std::vector<bool>::reference>&& var);
-			SerializerBase& operator%(SerializationData<int>&& var);
-			SerializerBase& operator%(SerializationData<long int>&& var);
-			SerializerBase& operator%(SerializationData<long long int>&& var);
-			SerializerBase& operator%(SerializationData<unsigned long long int>&& var);
-			SerializerBase& operator%(SerializationData<unsigned short int>&& var);
-			SerializerBase& operator%(SerializationData<long double>&& var);
-			SerializerBase& operator%(SerializationData<short int>&& var);
-			SerializerBase& operator%(SerializationData<float>&& var);
-			SerializerBase& operator%(SerializationData<double>&& var);
-			SerializerBase& operator%(SerializationData<char>&& var);
-			SerializerBase& operator%(SerializationData<char* >&& var);
-			virtual SerializerBase& operator%(BinaryData&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned long int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned char>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned char* >&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<bool>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::vector<bool>::reference>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<long int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<long long int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned long long int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned short int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<long double>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<short int>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<float>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<double>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<char>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<char* >&& var);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(BinaryData&& var);
 
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<unsigned int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<unsigned long int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned long int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<unsigned long long int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned long long int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<long long int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<long long int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<unsigned short int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<unsigned short int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<short int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<short int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<long double [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<long double [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<bool [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<bool [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<long int [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<long int [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<float [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<float [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 			template< std::size_t N >
-			SerializerBase& operator%(SerializationData<double [N]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<double [N]>&& var)
 			{
-				serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+				SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 				return *this;
 			}
 
 			template< typename T, std::size_t N, std::size_t M>
-			SerializerBase& operator%(SerializationData<T [N][M]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T [N][M]>&& var)
 			{
 				uint32_t size;
 				StartArray(var.name, size, var.PersistToDB);
 				for(int i = 0; i < N; i++)
 				{
-					*this % prepare_data(var.val[i], var.name, var.PersistToDB);
+					SPRAWL_RETHROW(*this % prepare_data(var.val[i], var.name, var.PersistToDB));
 				}
 				EndArray();
 				return *this;
 			}
 
 			template< typename T, std::size_t N, std::size_t M, std::size_t O>
-			SerializerBase& operator%(SerializationData<T [N][M][O]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T [N][M][O]>&& var)
 			{
 				uint32_t size;
 				StartArray(var.name, size, var.PersistToDB);
 				for(int i = 0; i < N; i++)
 				{
-					*this % prepare_data(var.val[i], var.name, var.PersistToDB);
+					SPRAWL_RETHROW(*this % prepare_data(var.val[i], var.name, var.PersistToDB));
 				}
 				EndArray();
 				return *this;
 			}
 
 			template< typename T, std::size_t N, std::size_t M, std::size_t O, std::size_t P>
-			SerializerBase& operator%(SerializationData<T [N][M][O][P]>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T [N][M][O][P]>&& var)
 			{
 				uint32_t size;
 				StartArray(var.name, size, var.PersistToDB);
 				for(int i = 0; i < N; i++)
 				{
-					*this % prepare_data(var.val[i], var.name, var.PersistToDB);
+					SPRAWL_RETHROW(*this % prepare_data(var.val[i], var.name, var.PersistToDB));
 				}
 				EndArray();
 				return *this;
 			}
 
-			SerializerBase& operator%(SerializationData<std::string>&& var);
-			SerializerBase& operator%(SerializationData<sprawl::String>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::string>&& var);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<sprawl::String>&& var);
 
 		private:
 			//Optimized vector implementations for simple types
 			template<typename T>
-			void VectorSerialize(SerializationData<std::vector<T>>& var, std::true_type)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> VectorSerialize(SerializationData<std::vector<T>>& var, std::true_type)
 			{
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					*this % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW(*this % prepare_data(size, var.name, false));
 				}
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
@@ -323,25 +301,26 @@ namespace sprawl
 				}
 				if(IsBinary())
 				{
-					serialize(&var.val[0], size * sizeof(T), var.name, var.PersistToDB);
+					SPRAWL_RETHROW(serialize(&var.val[0], size * sizeof(T), var.name, var.PersistToDB));
 				}
 				else
 				{
 					for(uint32_t i=0; i<size; i++)
 					{
-						*this % prepare_data(var.val[i], var.name, var.PersistToDB);
+						SPRAWL_RETHROW(*this % prepare_data(var.val[i], var.name, var.PersistToDB));
 					}
 				}
 				EndArray();
+				return ErrorState<void>();
 			}
 
 			template<typename T>
-			void VectorSerialize(SerializationData<std::vector<T>>& var, std::false_type)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> VectorSerialize(SerializationData<std::vector<T>>& var, std::false_type)
 			{
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					*this % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW(*this % prepare_data(size, var.name, false));
 				}
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
@@ -350,18 +329,19 @@ namespace sprawl
 				}
 				for(uint32_t i=0; i<size; i++)
 				{
-					*this % prepare_data(var.val[i], var.name, var.PersistToDB);
+					SPRAWL_RETHROW(*this % prepare_data(var.val[i], var.name, var.PersistToDB));
 				}
 				EndArray();
+				return ErrorState<void>();
 			}
 
 			//Except that bool has its own weird behaviors... so it has to be treated like the other kind.
-			void VectorSerialize(SerializationData<std::vector<bool>>& var, std::true_type)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> VectorSerialize(SerializationData<std::vector<bool>>& var, std::true_type)
 			{
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					*this % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW(*this % prepare_data(size, var.name, false));
 				}
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
@@ -371,25 +351,26 @@ namespace sprawl
 				for(uint32_t i=0; i<size; i++)
 				{
 					bool b = var.val[i];
-					*this % prepare_data(b, var.name, var.PersistToDB);
+					SPRAWL_RETHROW(*this % prepare_data(b, var.name, var.PersistToDB));
 					if(IsLoading())
 					{
 						var.val[i] = b;
 					}
 				}
 				EndArray();
+				return ErrorState<void>();
 			}
 
 		public:
 			template<typename T>
-			SerializerBase& operator%(SerializationData<std::vector<T>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::vector<T>>&& var)
 			{
-				VectorSerialize(var, std::is_integral<T>());
+				SPRAWL_RETHROW(VectorSerialize(var, std::is_integral<T>()));
 				return *this;
 			}
 
 			template<typename key_type, typename val_type, typename comp, typename alloc>
-			SerializerBase& operator%(SerializationData<std::map<key_type, val_type, comp, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::map<key_type, val_type, comp, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -399,7 +380,7 @@ namespace sprawl
 						for(auto& key : deleted_keys)
 						{
 							key_type k;
-							this->OneOff(const_cast<sprawl::String&>(key), k);
+							SPRAWL_RETHROW(this->OneOff(const_cast<sprawl::String&>(key), k));
 							var.val.erase(k);
 						}
 					}
@@ -411,7 +392,7 @@ namespace sprawl
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					(*this) % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW((*this) % prepare_data(size, var.name, false));
 				}
 				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
@@ -426,14 +407,15 @@ namespace sprawl
 						val_type v;
 						if(IsBinary())
 						{
-							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 							var.val[k] = v;
 						}
 						else
 						{
 							sprawl::String key = GetNextKey();
-							this->OneOff(key, k);
-							(*this) % prepare_data(v, key, var.PersistToDB);
+							SPRAWL_RETHROW(this->OneOff(key, k));
+							SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 							var.val[k] = v;
 						}
 					}
@@ -445,14 +427,15 @@ namespace sprawl
 						if(IsBinary())
 						{
 							key_type name = kvp.first;
-							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, var.name, var.PersistToDB));
 						}
 						else
 						{
 							sprawl::String s;
 							key_type k = kvp.first;
-							this->OneOff(s, k);
-							(*this) % prepare_data(kvp.second, s, var.PersistToDB);
+							SPRAWL_RETHROW(this->OneOff(s, k));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, s, var.PersistToDB));
 						}
 					}
 				}
@@ -461,7 +444,7 @@ namespace sprawl
 			}
 
 			template<typename key_type, typename val_type, typename hash, typename eq, typename alloc>
-			SerializerBase& operator%(SerializationData<std::unordered_map<key_type, val_type, hash, eq, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::unordered_map<key_type, val_type, hash, eq, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -471,7 +454,7 @@ namespace sprawl
 						for(auto& key : deleted_keys)
 						{
 							key_type k;
-							this->OneOff(const_cast<sprawl::String&>(key), k);
+							SPRAWL_RETHROW(this->OneOff(const_cast<sprawl::String&>(key), k));
 							var.val.erase(k);
 						}
 					}
@@ -483,7 +466,7 @@ namespace sprawl
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					(*this) % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW((*this) % prepare_data(size, var.name, false));
 				}
 				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
@@ -498,14 +481,15 @@ namespace sprawl
 						val_type v;
 						if(IsBinary())
 						{
-							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 							var.val[k] = v;
 						}
 						else
 						{
 							sprawl::String key = GetNextKey();
-							this->OneOff(key, k);
-							(*this) % prepare_data(v, key, var.PersistToDB);
+							SPRAWL_RETHROW(this->OneOff(key, k));
+							SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 							var.val[k] = v;
 						}
 					}
@@ -517,14 +501,15 @@ namespace sprawl
 						if(IsBinary())
 						{
 							key_type name = kvp.first;
-							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, var.name, var.PersistToDB));
 						}
 						else
 						{
 							sprawl::String s;
 							key_type k = kvp.first;
-							this->OneOff(s, k);
-							(*this) % prepare_data(kvp.second, s, var.PersistToDB);
+							SPRAWL_RETHROW(this->OneOff(s, k));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, s, var.PersistToDB));
 						}
 					}
 				}
@@ -533,7 +518,7 @@ namespace sprawl
 			}
 
 			template<typename key_type, typename val_type>
-			SerializerBase& operator%(SerializationData<std::pair<key_type, val_type>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::pair<key_type, val_type>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -541,14 +526,15 @@ namespace sprawl
 					val_type v;
 					if(IsBinary())
 					{
-						(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB))
+						SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 						var.val = std::make_pair(k, v);
 					}
 					else
 					{
 						sprawl::String key = GetNextKey();
 						this->OneOff(key, k);
-						(*this) % prepare_data(v, key, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 						var.val = std::make_pair(k, v);
 					}
 				}
@@ -557,21 +543,22 @@ namespace sprawl
 					if(IsBinary())
 					{
 						key_type name = var.val.first;
-						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB))
+						SPRAWL_RETHROW((*this) % prepare_data(var.val.second, var.name, var.PersistToDB));
 					}
 					else
 					{
 						sprawl::String s;
 						key_type k = var.val.first;
 						this->OneOff(s, k);
-						(*this) % prepare_data(var.val.second, s, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(var.val.second, s, var.PersistToDB));
 					}
 				}
 				return *this;
 			}
 
 			template<typename val_type, typename comp, typename alloc>
-			SerializerBase& operator%(SerializationData<std::map<std::string, val_type, comp, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::map<std::string, val_type, comp, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -591,7 +578,7 @@ namespace sprawl
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					(*this) % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW((*this) % prepare_data(size, var.name, false));
 				}
 				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
@@ -606,13 +593,14 @@ namespace sprawl
 						val_type v;
 						if(IsBinary())
 						{
-							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 							var.val[k] = v;
 						}
 						else
 						{
 							sprawl::String key = GetNextKey();
-							(*this) % prepare_data(v, key, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 							var.val[key.toStdString()] = v;
 						}
 					}
@@ -624,11 +612,12 @@ namespace sprawl
 						if(IsBinary())
 						{
 							std::string name = kvp.first;
-							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB))
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, var.name, var.PersistToDB));
 						}
 						else
 						{
-							(*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB));
 						}
 					}
 				}
@@ -637,7 +626,7 @@ namespace sprawl
 			}
 
 			template<typename val_type, typename comp, typename alloc>
-			SerializerBase& operator%(SerializationData<std::map<sprawl::String, val_type, comp, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::map<sprawl::String, val_type, comp, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -657,7 +646,7 @@ namespace sprawl
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					(*this) % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW((*this) % prepare_data(size, var.name, false));
 				}
 				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
@@ -672,13 +661,14 @@ namespace sprawl
 						val_type v;
 						if(IsBinary())
 						{
-							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 							var.val[k] = v;
 						}
 						else
 						{
 							sprawl::String key = GetNextKey();
-							(*this) % prepare_data(v, key, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 							var.val[key.toStdString()] = v;
 						}
 					}
@@ -690,11 +680,12 @@ namespace sprawl
 						if(IsBinary())
 						{
 							sprawl::String name = kvp.first;
-							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, var.name, var.PersistToDB));
 						}
 						else
 						{
-							(*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB));
 						}
 					}
 				}
@@ -704,7 +695,7 @@ namespace sprawl
 
 			//Specialization for performance.
 			template<typename val_type, typename hash, typename eq, typename alloc>
-			SerializerBase& operator%(SerializationData<std::unordered_map<std::string, val_type, hash, eq, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::unordered_map<std::string, val_type, hash, eq, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -724,7 +715,7 @@ namespace sprawl
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					(*this) % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW((*this) % prepare_data(size, var.name, false));
 				}
 				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
@@ -739,13 +730,14 @@ namespace sprawl
 						val_type v;
 						if(IsBinary())
 						{
-							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 							var.val[k] = v;
 						}
 						else
 						{
 							sprawl::String key = GetNextKey();
-							(*this) % prepare_data(v, key, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 							var.val[key.toStdString()] = v;
 						}
 					}
@@ -757,11 +749,12 @@ namespace sprawl
 						if(IsBinary())
 						{
 							std::string name = kvp.first;
-							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, var.name, var.PersistToDB));
 						}
 						else
 						{
-							(*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB));
 						}
 					}
 				}
@@ -771,7 +764,7 @@ namespace sprawl
 
 			//Specialization for performance.
 			template<typename val_type, typename hash, typename eq, typename alloc>
-			SerializerBase& operator%(SerializationData<std::unordered_map<sprawl::String, val_type, hash, eq, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::unordered_map<sprawl::String, val_type, hash, eq, alloc>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -791,7 +784,7 @@ namespace sprawl
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					(*this) % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW((*this) % prepare_data(size, var.name, false));
 				}
 				uint32_t calcedSize = StartMap(var.name, var.PersistToDB);
 				if(IsLoading())
@@ -806,13 +799,14 @@ namespace sprawl
 						val_type v;
 						if(IsBinary())
 						{
-							(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 							var.val[k] = v;
 						}
 						else
 						{
 							sprawl::String key = GetNextKey();
-							(*this) % prepare_data(v, key, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 							var.val[key.toStdString()] = v;
 						}
 					}
@@ -824,11 +818,12 @@ namespace sprawl
 						if(IsBinary())
 						{
 							sprawl::String name = kvp.first;
-							(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(kvp.second, var.name, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, var.name, var.PersistToDB));
 						}
 						else
 						{
-							(*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB);
+							SPRAWL_RETHROW((*this) % prepare_data(kvp.second, kvp.first, var.PersistToDB));
 						}
 					}
 				}
@@ -837,7 +832,7 @@ namespace sprawl
 			}
 
 			template<typename val_type>
-			SerializerBase& operator%(SerializationData<std::pair<std::string, val_type>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::pair<std::string, val_type>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -845,13 +840,14 @@ namespace sprawl
 					val_type v;
 					if(IsBinary())
 					{
-						(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+						SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 						var.val = std::make_pair(k, v);
 					}
 					else
 					{
 						sprawl::String key = GetNextKey();
-						(*this) % prepare_data(v, key, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 						var.val = std::make_pair(k, v);
 					}
 				}
@@ -860,18 +856,19 @@ namespace sprawl
 					if(IsBinary())
 					{
 						std::string name = var.val.first;
-						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+						SPRAWL_RETHROW((*this) % prepare_data(var.val.second, var.name, var.PersistToDB));
 					}
 					else
 					{
-						(*this) % prepare_data(var.val.second, var.val.first, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(var.val.second, var.val.first, var.PersistToDB));
 					}
 				}
 				return *this;
 			}
 
 			template<typename val_type>
-			SerializerBase& operator%(SerializationData<std::pair<sprawl::String, val_type>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::pair<sprawl::String, val_type>>&& var)
 			{
 				if(IsLoading())
 				{
@@ -879,13 +876,14 @@ namespace sprawl
 					val_type v;
 					if(IsBinary())
 					{
-						(*this) % prepare_data(k, var.name, var.PersistToDB) % prepare_data(v, var.name, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(k, var.name, var.PersistToDB));
+						SPRAWL_RETHROW((*this) % prepare_data(v, var.name, var.PersistToDB));
 						var.val = std::make_pair(k, v);
 					}
 					else
 					{
 						sprawl::String key = GetNextKey();
-						(*this) % prepare_data(v, key, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(v, key, var.PersistToDB));
 						var.val = std::make_pair(k, v);
 					}
 				}
@@ -894,23 +892,24 @@ namespace sprawl
 					if(IsBinary())
 					{
 						sprawl::String name = var.val.first;
-						(*this) % prepare_data(name, var.name, var.PersistToDB) % prepare_data(var.val.second, var.name, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(name, var.name, var.PersistToDB));
+						SPRAWL_RETHROW((*this) % prepare_data(var.val.second, var.name, var.PersistToDB));
 					}
 					else
 					{
-						(*this) % prepare_data(var.val.second, var.val.first, var.PersistToDB);
+						SPRAWL_RETHROW((*this) % prepare_data(var.val.second, var.val.first, var.PersistToDB));
 					}
 				}
 				return *this;
 			}
 
 			template<typename T, typename comp, typename alloc>
-			SerializerBase& operator%(SerializationData<std::set<T, comp, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::set<T, comp, alloc>>&& var)
 			{
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					*this % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW(*this % prepare_data(size, var.name, false));
 				}
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
@@ -918,7 +917,7 @@ namespace sprawl
 					for(uint32_t i=0; i<size; i++)
 					{
 						T val;
-						*this % prepare_data(val, var.name, var.PersistToDB);
+						SPRAWL_RETHROW(*this % prepare_data(val, var.name, var.PersistToDB));
 						var.val.insert(val);
 					}
 				}
@@ -926,7 +925,7 @@ namespace sprawl
 				{
 					for(T val : var.val)
 					{
-						*this % prepare_data(val, var.name, var.PersistToDB);
+						SPRAWL_RETHROW(*this % prepare_data(val, var.name, var.PersistToDB));
 					}
 				}
 				EndArray();
@@ -934,12 +933,12 @@ namespace sprawl
 			}
 
 			template<typename T, typename comp, typename alloc>
-			SerializerBase& operator%(SerializationData<std::unordered_set<T, comp, alloc>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::unordered_set<T, comp, alloc>>&& var)
 			{
 				uint32_t size = (uint32_t)var.val.size();
 				if(IsBinary())
 				{
-					*this % prepare_data(size, var.name, false);
+					SPRAWL_RETHROW(*this % prepare_data(size, var.name, false));
 				}
 				StartArray(var.name, size, var.PersistToDB);
 				if(IsLoading())
@@ -947,7 +946,7 @@ namespace sprawl
 					for(uint32_t i=0; i<size; i++)
 					{
 						T val;
-						*this % prepare_data(val, var.name, var.PersistToDB);
+						SPRAWL_RETHROW(*this % prepare_data(val, var.name, var.PersistToDB));
 						var.val.insert(val);
 					}
 				}
@@ -955,7 +954,7 @@ namespace sprawl
 				{
 					for(T val : var.val)
 					{
-						*this % prepare_data(val, var.name, var.PersistToDB);
+						SPRAWL_RETHROW(*this % prepare_data(val, var.name, var.PersistToDB));
 					}
 				}
 				EndArray();
@@ -965,16 +964,16 @@ namespace sprawl
 #pragma warning(push)
 #pragma warning(disable: 4702)
 #endif
-			virtual SerializerBase& operator%(SerializationData<class Serializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class Deserializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class BinarySerializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class BinaryDeserializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class JSONSerializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class JSONDeserializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class YAMLSerializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class YAMLDeserializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class MongoSerializer> &&);
-			virtual SerializerBase& operator%(SerializationData<class MongoDeserializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class Serializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class Deserializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class BinarySerializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class BinaryDeserializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class JSONSerializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class JSONDeserializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class YAMLSerializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class YAMLDeserializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class MongoSerializer> &&);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<class MongoDeserializer> &&);
 			virtual void StartArray(sprawl::String const& , uint32_t&, bool = true);
 			virtual void EndArray();
 			virtual uint32_t StartObject(sprawl::String const& , bool = true);
@@ -985,31 +984,31 @@ namespace sprawl
 
 			virtual StringSet GetDeletedKeys(sprawl::String const&);
 
-			virtual void serialize(int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(float* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(long double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(bool* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(unsigned char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(std::string* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
-			virtual void serialize(sprawl::String* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(float* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(bool* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(std::string* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(sprawl::String* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) = 0;
 
 		protected:
-			virtual SerializerBase* GetAnother(sprawl::String const& /*data*/);
-			virtual SerializerBase* GetAnother();
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother(sprawl::String const& /*data*/);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother();
 #ifdef _WIN32
 #pragma warning(pop)
 #endif
 			template<typename T>
-			sprawl::String to_string( T& val, std::true_type)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<sprawl::String> to_string( T& val, std::true_type)
 			{
 				sprawl::StringBuilder b;
 				b << val;
@@ -1017,68 +1016,115 @@ namespace sprawl
 			}
 
 			template<typename T>
-			sprawl::String to_string( T& val, std::false_type)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<sprawl::String> to_string( T& val, std::false_type)
 			{
 				SerializerBase* s = this->GetAnother();
-				*s % prepare_data( val, "key", false );
+				SPRAWL_RETHROW(*s % prepare_data( val, "key", false ));
 				sprawl::String data = s->Str();
 				delete s;
-				return std::move(data);
+				return data;
 			}
 
 			template<typename T>
-			void get_from_string( sprawl::String const& data, T& val, std::false_type )
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> get_from_string( sprawl::String const& data, T& val, std::false_type )
 			{
 				SerializerBase* d = this->GetAnother(data);
-				*d % prepare_data( val, "key", false );
+				SPRAWL_RETHROW(*d % prepare_data( val, "key", false ));
 				delete d;
+				return ErrorState<void>();
 			}
 
 			template<typename T>
-			void get_from_string( sprawl::String const& data, T& val, std::true_type )
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> get_from_string( sprawl::String const& data, T& val, std::true_type )
 			{
 				///TODO: Get rid of std::stringstream here
 				std::stringstream s(data.toStdString());
 				s >> val;
+				return ErrorState<void>();
 			}
 
 			template<typename T>
-			void OneOff( sprawl::String& data, T& val )
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> OneOff( sprawl::String& data, T& val )
 			{
 				if(IsLoading())
 				{
 					if(IsBinary())
 					{
-						get_from_string(data, val, std::false_type());
+						SPRAWL_RETHROW(get_from_string(data, val, std::false_type()));
 					}
 					else
 					{
-						get_from_string(data, val, typename std::is_arithmetic<T>::type());
+						SPRAWL_RETHROW(get_from_string(data, val, typename std::is_arithmetic<T>::type()));
 					}
 				}
 				else
 				{
 					if(IsBinary())
 					{
-						data = to_string(val, std::false_type());
+						SPRAWL_RETHROW_OR_GET(to_string(val, std::false_type()), data);
 					}
 					else
 					{
-						data = to_string(val, typename std::is_arithmetic<T>::type());
+						SPRAWL_RETHROW_OR_GET(to_string(val, typename std::is_arithmetic<T>::type()), data);
 					}
 				}
+				return ErrorState<void>();
 			}
 
 		public:
 
-			template<typename T>
-			SerializerBase& operator%(T&& var)
+			template<typename T,
+				typename = typename std::enable_if<
+					!std::is_base_of<SerializationDataTypeDetector, T>::value
+				>::type
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(T&& var)
 			{
 				return *this % prepare_data(var, "noname", false);
 			}
 
-			template<typename T>
-			SerializerBase& operator%(SerializationData<T>&& var)
+#if !SPRAWL_EXCEPTIONS_ENABLED
+			template<
+				typename T,
+				typename = typename std::enable_if<
+					std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T>&& var)
+			{
+				StartObject(var.name, var.PersistToDB);
+				SPRAWL_RETHROW(var.val.Serialize(*this));
+				EndObject();
+				return *this;
+			}
+
+			template<
+				typename T,
+				typename = typename std::enable_if<
+					std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T*>&& var)
+			{
+				StartObject(var.name, var.PersistToDB);
+				SPRAWL_RETHROW(var.val->Serialize(*this));
+				EndObject();
+				return *this;
+			}
+#endif
+
+			template<
+				typename T
+#if !SPRAWL_EXCEPTIONS_ENABLED
+				, typename = typename std::enable_if<
+					!std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type,
+				typename = typename std::enable_if<
+					!std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type
+#endif
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T>&& var)
 			{
 				StartObject(var.name, var.PersistToDB);
 				var.val.Serialize(*this);
@@ -1086,8 +1132,18 @@ namespace sprawl
 				return *this;
 			}
 
-			template<typename T>
-			SerializerBase& operator%(SerializationData<T*>&& var)
+			template<
+				typename T
+#if !SPRAWL_EXCEPTIONS_ENABLED
+				, typename = typename std::enable_if<
+					!std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type,
+				typename = typename std::enable_if<
+					!std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type
+#endif
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T*>&& var)
 			{
 				StartObject(var.name, var.PersistToDB);
 				var.val->Serialize(*this);
@@ -1096,17 +1152,17 @@ namespace sprawl
 			}
 
 			template<typename T>
-			SerializerBase& operator%(SerializationData<std::shared_ptr<T>>&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<std::shared_ptr<T>>&& var)
 			{
 				bool hasValue = (var.val != nullptr);
-				*this % prepare_data(hasValue, var.name+"_exists", var.PersistToDB);
+				SPRAWL_RETHROW(*this % prepare_data(hasValue, var.name+"_exists", var.PersistToDB));
 				if(hasValue)
 				{
 					if(IsLoading() && !var.val)
 					{
 						var.val.reset( new T() );
 					}
-					*this % prepare_data(*var.val, var.name, var.PersistToDB);
+					SPRAWL_RETHROW(*this % prepare_data(*var.val, var.name, var.PersistToDB));
 				}
 				else if(IsLoading())
 				{
@@ -1116,24 +1172,25 @@ namespace sprawl
 			}
 
 			virtual const char* Data() = 0;
-			virtual void Data(sprawl::String const&){}
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const&){ return ErrorState<void>(); }
 			virtual sprawl::String Str() = 0;
 			virtual ~SerializerBase(){}
 		protected:
 
 			template<typename T>
-			void serialize(T& var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(T& var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB)
 			{
-				serialize(&var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize(&var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
 			//Usually does nothing, but has to be here for mongo serializer to work properly with OIDs.
-			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);
-			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::BSONObj>&& var);
-			friend SerializerBase& operator%(SerializerBase& s, SerializationData<mongo::Date_t>&& var);
-			virtual void serialize(mongo::OID* /*var*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) {}
-			virtual void serialize(mongo::BSONObj* /*var*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) {}
-			virtual void serialize(mongo::Date_t* /*var*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) {}
+			friend ErrorState<SerializerBase&> operator%(SerializerBase& s, SerializationData<mongo::OID>&& var);
+			friend ErrorState<SerializerBase&> operator%(SerializerBase& s, SerializationData<mongo::BSONObj>&& var);
+			friend ErrorState<SerializerBase&> operator%(SerializerBase& s, SerializationData<mongo::Date_t>&& var);
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(mongo::OID* /*var*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) { return ErrorState<void>(); }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(mongo::BSONObj* /*var*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) { return ErrorState<void>(); }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(mongo::Date_t* /*var*/, sprawl::String const& /*name*/, bool /*PersistToDB*/) { return ErrorState<void>(); }
 
 			SerializerBase() {}
 		private:
@@ -1145,8 +1202,13 @@ namespace sprawl
 		{
 		public:
 			using SerializerBase::operator%;
-			template <typename T>
-			SerializerBase& operator%(SerializationData<T const>&& var)
+
+			template<typename T,
+				typename = typename std::enable_if<
+					!std::is_base_of<SerializationDataTypeDetector, T>::value
+				>::type
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T const>&& var)
 			{
 				T cVar = var.val;
 				return *this % prepare_data(cVar, var.name, var.PersistToDB);
@@ -1154,18 +1216,44 @@ namespace sprawl
 
 #ifndef _WIN32
 			template<typename T>
-			SerializerBase& operator%(T&& var)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(T&& var)
 			{
-			  return *this % prepare_data(var, "noname", true);
+				return *this % prepare_data(var, "noname", true);
 			}
 
-			template<typename T>
-			SerializerBase& operator%(SerializationData<T>&& var)
+#if !SPRAWL_EXCEPTIONS_ENABLED
+			template<
+				typename T,
+				typename = typename std::enable_if<
+					std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T>&& var)
 			{
-			  StartObject(var.name, var.PersistToDB);
-			  var.val.Serialize(*this);
-			  EndObject();
-			  return *this;
+				StartObject(var.name, var.PersistToDB);
+				SPRAWL_RETHROW(var.val.Serialize(*this));
+				EndObject();
+				return *this;
+			}
+#endif
+
+			template<
+				typename T
+#if !SPRAWL_EXCEPTIONS_ENABLED
+				, typename = typename std::enable_if<
+					!std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type,
+				typename = typename std::enable_if<
+					!std::is_base_of<sprawl::ErrorStateTypeDetector, decltype(std::declval<T>().Serialize(std::declval<SerializerBase&>()))>::value
+				>::type
+#endif
+			>
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<T>&& var)
+			{
+				StartObject(var.name, var.PersistToDB);
+				var.val.Serialize(*this);
+				EndObject();
+				return *this;
 			}
 #endif
 
@@ -1180,8 +1268,8 @@ namespace sprawl
 		public:
 			using SerializerBase::operator%;
 			using SerializerBase::Data;
-			virtual void Data(sprawl::String const& str) = 0;
-			virtual void Data(const char* data, size_t length) = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& str) override = 0;
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(const char* data, size_t length) = 0;
 			virtual ~Deserializer();
 			virtual bool IsLoading() override;
 		protected:

@@ -1,3 +1,4 @@
+#if 0
 #ifndef _WIN32
 #include "gtest_printers.hpp"
 #include "third-party-comparisons/json/jsoncpp/json/json.h"
@@ -280,5 +281,6 @@ TEST_F(JSONPerformance, SprawlVsRapidJson_Access)
 	int64_t delta = std::abs(sprawlDuration - rapidjsonDuration);
 	ASSERT_TRUE(sprawlDuration < rapidjsonDuration || delta < 150 * sprawl::time::Resolution::Microseconds);
 }
+#endif
 #endif
 #endif

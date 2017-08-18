@@ -180,24 +180,24 @@ namespace sprawl
 				return sprawl::StringLiteral(m_key.c_str(), m_key.length());
 			}
 
-			long long Int() const
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<long long> Int() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Integer )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), 0);
+					SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 				}
 #endif
 
 				return ToInt(m_holder->m_data);
 			}
 
-			unsigned long long Unsigned() const
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<unsigned long long> Unsigned() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Integer )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), 0);
+					SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 				}
 #endif
 
@@ -287,36 +287,36 @@ namespace sprawl
 				value[copyLength] = '\0';
 			}
 
-			sprawl::String String() const
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<sprawl::String> String() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::String )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), StringLiteral(""));
+					SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 				}
 #endif
 
 				return UnescapeString(m_holder->m_data);
 			}
 
-			bool Bool() const
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<bool> Bool() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Boolean )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), false);
+					SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 				}
 #endif
 
 				return ToBool(m_holder->m_data);
 			}
 
-			long double Double() const
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<long double> Double() const
 			{
 #ifdef SPRAWL_STRICT_JSON
 				if( m_type != JSONType::Double )
 				{
-					SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), 0.0);
+					SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 				}
 #endif
 
@@ -331,9 +331,9 @@ namespace sprawl
 
 			JSONToken const& operator[]( ssize_t index ) const;
 
-			JSONToken& operator[]( sprawl::String const& key );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> operator[]( sprawl::String const& key );
 
-			JSONToken& operator[]( ssize_t index );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> operator[](ssize_t index);
 
 			JSONType Type()
 			{
@@ -359,43 +359,43 @@ namespace sprawl
 
 			sprawl::String ToJSONString( bool pretty = false );
 
-			JSONToken& PushBack( JSONToken const& token );
-			JSONToken& PushBack( signed char value ) { return PushBack((long long)(value)); }
-			JSONToken& PushBack( short value ) { return PushBack((long long)(value)); }
-			JSONToken& PushBack( int value ) { return PushBack((long long)(value)); }
-			JSONToken& PushBack( long value ) { return PushBack((long long)(value)); }
-			JSONToken& PushBack( unsigned char value ) { return PushBack((unsigned long long)(value)); }
-			JSONToken& PushBack( unsigned short value ) { return PushBack((unsigned long long)(value)); }
-			JSONToken& PushBack( unsigned int value ) { return PushBack((unsigned long long)(value)); }
-			JSONToken& PushBack( unsigned long value ) { return PushBack((unsigned long long)(value)); }
-			JSONToken& PushBack( unsigned long long value );
-			JSONToken& PushBack( long long value );
-			JSONToken& PushBack( float value ) { return PushBack((long double)(value)); }
-			JSONToken& PushBack( double value ) { return PushBack((long double)(value)); }
-			JSONToken& PushBack( long double value );
-			JSONToken& PushBack( bool value );
-			JSONToken& PushBack( const char* const value );
-			JSONToken& PushBack( const char* const value, size_t length );
-			JSONToken& PushBack( sprawl::String const& value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( JSONToken const& token );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( signed char value ) { return PushBack((long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( short value ) { return PushBack((long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( int value ) { return PushBack((long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( long value ) { return PushBack((long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( unsigned char value ) { return PushBack((unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( unsigned short value ) { return PushBack((unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( unsigned int value ) { return PushBack((unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( unsigned long value ) { return PushBack((unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( unsigned long long value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( long long value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( float value ) { return PushBack((long double)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( double value ) { return PushBack((long double)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( long double value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( bool value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( const char* const value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( const char* const value, size_t length );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> PushBack( sprawl::String const& value );
 
-			JSONToken& Insert( sprawl::String const& name, JSONToken const& token );
-			JSONToken& Insert( sprawl::String const& name, signed char value ) { return Insert(name, (long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, short value ) { return Insert(name, (long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, int value ) { return Insert(name, (long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, long value ) { return Insert(name, (long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, unsigned char value ) { return Insert(name, (unsigned long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, unsigned short value ) { return Insert(name, (unsigned long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, unsigned int value ) { return Insert(name, (unsigned long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, unsigned long value ) { return Insert(name, (unsigned long long)(value)); }
-			JSONToken& Insert( sprawl::String const& name, unsigned long long value );
-			JSONToken& Insert( sprawl::String const& name, long long value );
-			JSONToken& Insert( sprawl::String const& name, float value ) { return Insert(name, (long double)(value)); }
-			JSONToken& Insert( sprawl::String const& name, double value ) { return Insert(name, (long double)(value)); }
-			JSONToken& Insert( sprawl::String const& name, long double value );
-			JSONToken& Insert( sprawl::String const& name, bool value );
-			JSONToken& Insert( sprawl::String const& name, const char* const value );
-			JSONToken& Insert( sprawl::String const& name, const char* const value, size_t length );
-			JSONToken& Insert( sprawl::String const& name, sprawl::String const& value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, JSONToken const& token );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, signed char value ) { return Insert(name, (long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, short value ) { return Insert(name, (long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, int value ) { return Insert(name, (long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, long value ) { return Insert(name, (long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, unsigned char value ) { return Insert(name, (unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, unsigned short value ) { return Insert(name, (unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, unsigned int value ) { return Insert(name, (unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, unsigned long value ) { return Insert(name, (unsigned long long)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, unsigned long long value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, long long value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, float value ) { return Insert(name, (long double)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, double value ) { return Insert(name, (long double)(value)); }
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, long double value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, bool value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, const char* const value );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, const char* const value, size_t length );
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> Insert( sprawl::String const& name, sprawl::String const& value );
 
 			static JSONToken array()
 			{
@@ -777,7 +777,7 @@ namespace sprawl
 					m_rootToken["__version__"] = JSONToken::number(i);
 				}
 			}
-			virtual void Reset() override { }
+			virtual ErrorState<void> Reset() override { return ErrorState<void>(); }
 			using SerializerBase::Data;
 			virtual const char* Data() override { return Str().c_str(); }
 			virtual sprawl::String Str() override
@@ -801,84 +801,88 @@ namespace sprawl
 			using SerializerBase::serialize;
 
 			template<typename T>
-			void serialize_impl(T* var, const uint32_t /*bytes*/, sprawl::String const& name, bool)
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<void> serialize_impl(T* var, const uint32_t /*bytes*/, sprawl::String const& name, bool)
 			{
 				JSONToken* currentToken = m_currentToken.back();
 				if(IsSaving())
 				{
 					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						currentToken->PushBack(*var);
+						SPRAWL_RETHROW(currentToken->PushBack(*var));
 					}
 					else
 					{
-						currentToken->Insert(name, *var);
+						SPRAWL_RETHROW(currentToken->Insert(name, *var));
 					}
 				}
 				else
 				{
 					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						currentToken->operator[](m_currentArrayIndex.back()++).Val(*var);
+						JSONToken& token = currentToken->operator[](m_currentArrayIndex.back()++);
+						token.Val(*var);
 					}
 					else
 					{
 						JSONToken& token = currentToken->operator[](name);
 						if(token.IsEmpty())
 						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
+							SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 						}
 						token.Val(*var);
 						++m_currentObjectIndex.back();
 					}
 				}
+				return ErrorState<void>();
 			}
 
-			void serialize_impl(char* var, const uint32_t bytes, sprawl::String const& name, bool)
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<void> serialize_impl(char* var, const uint32_t bytes, sprawl::String const& name, bool)
 			{
 				JSONToken* currentToken = m_currentToken.back();
 				if(IsSaving())
 				{
 					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						currentToken->PushBack(var, bytes);
+						SPRAWL_RETHROW(currentToken->PushBack(var, bytes));
 					}
 					else
 					{
-						currentToken->Insert(name, var, bytes);
+						SPRAWL_RETHROW(currentToken->Insert(name, var, bytes));
 					}
 				}
 				else
 				{
 					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						currentToken->operator[](m_currentArrayIndex.back()++).Val(var, bytes);
+						JSONToken& token = currentToken->operator[](m_currentArrayIndex.back()++);
+						token.Val(var, bytes);
 					}
 					else
 					{
 						JSONToken& token = currentToken->operator[](name);
 						if(token.IsEmpty())
 						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
+							SPRAWL_THROW_EXCEPTION(sprawl::JsonTypeMismatch());
 						}
 						token.Val(var, bytes);
 						++m_currentObjectIndex.back();
 					}
 				}
+				return ErrorState<void>();
 			}
 
-			void serialize_impl(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool)
+			SPRAWL_WARN_UNUSED_RESULT sprawl::ErrorState<void> serialize_impl(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool)
 			{
 				JSONToken* currentToken = m_currentToken.back();
 				if(IsSaving())
 				{
 					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						currentToken->PushBack(var->c_str(), var->length());
+						SPRAWL_RETHROW(currentToken->PushBack(var->c_str(), var->length()));
 					}
 					else
 					{
-						currentToken->Insert(name, var->c_str(), var->length());
+						SPRAWL_RETHROW(currentToken->Insert(name, var->c_str(), var->length()));
 					}
 				}
 				else
@@ -887,14 +891,15 @@ namespace sprawl
 
 					if(currentToken->Type() == JSONToken::JSONType::Array)
 					{
-						currentToken->operator[](m_currentArrayIndex.back()++).Val(str);
+						JSONToken& token = currentToken->operator[](m_currentArrayIndex.back()++);
+						token.Val(str);
 					}
 					else
 					{
 						JSONToken& token = currentToken->operator[](name);
 						if(token.IsEmpty())
 						{
-							SPRAWL_THROW_EXCEPTION(ex_serializer_overflow(), );
+							SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 						}
 						token.Val(str);
 						++m_currentObjectIndex.back();
@@ -902,87 +907,104 @@ namespace sprawl
 
 					var->assign(str.c_str(), str.length());
 				}
+				return ErrorState<void>();
 			}
 
 		public:
-			virtual void serialize(int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB)  override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB)  override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(float* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(float* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(long double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long double* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(bool* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(bool* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned long long int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned short int* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned char* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(std::string* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(std::string* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(sprawl::String* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(sprawl::String* var, const uint32_t bytes, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, bytes, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, bytes, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
 			virtual uint32_t StartObject(sprawl::String const& str, bool = true) override
@@ -992,11 +1014,13 @@ namespace sprawl
 				{
 					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						m_currentToken.push_back(&token[m_currentArrayIndex.back()]);
+						JSONToken& subtoken = token[m_currentArrayIndex.back()];
+						m_currentToken.push_back(&subtoken);
 					}
 					else
 					{
-						m_currentToken.push_back(&token[str]);
+						JSONToken& subtoken = token[str];
+						m_currentToken.push_back(&subtoken);
 					}
 					m_currentObjectIndex.push_back(m_currentToken.back()->begin());
 					return uint32_t(m_currentToken.back()->Size());
@@ -1005,11 +1029,13 @@ namespace sprawl
 				{
 					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						m_currentToken.push_back(&token.PushBack(JSONToken::object()));
+						JSONToken& subtoken = token.PushBack(JSONToken::object());
+						m_currentToken.push_back(&subtoken);
 					}
 					else
 					{
-						m_currentToken.push_back(&token.Insert(str, JSONToken::object()));
+						JSONToken& subtoken = token.Insert(str, JSONToken::object());
+						m_currentToken.push_back(&subtoken);
 					}
 					return 0;
 				}
@@ -1039,11 +1065,13 @@ namespace sprawl
 				{
 					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						m_currentToken.push_back(&token[m_currentArrayIndex.back()]);
+						JSONToken& subtoken = token[m_currentArrayIndex.back()];
+						m_currentToken.push_back(&subtoken);
 					}
 					else
 					{
-						m_currentToken.push_back(&token[str]);
+						JSONToken& subtoken = token[str];
+						m_currentToken.push_back(&subtoken);
 					}
 					m_currentArrayIndex.push_back(0);
 					size = uint32_t(m_currentToken.back()->Size());
@@ -1052,11 +1080,13 @@ namespace sprawl
 				{
 					if(token.Type() == JSONToken::JSONType::Array)
 					{
-						m_currentToken.push_back(&token.PushBack(JSONToken::array()));
+						JSONToken& subtoken = token.PushBack(JSONToken::array());
+						m_currentToken.push_back(&subtoken);
 					}
 					else
 					{
-						m_currentToken.push_back(&token.Insert(str, JSONToken::array()));
+						JSONToken& subtoken = token.Insert(str, JSONToken::array());
+						m_currentToken.push_back(&subtoken);
 					}
 				}
 			}
@@ -1078,7 +1108,7 @@ namespace sprawl
 				}
 			}
 
-			sprawl::String GetNextKey()
+			virtual sprawl::String GetNextKey() override
 			{
 				return m_currentObjectIndex.back()->GetKey();
 			}
@@ -1146,31 +1176,34 @@ namespace sprawl
 			using JSONSerializerBase::GetNextKey;
 			using JSONSerializerBase::GetDeletedKeys;
 
-			virtual void Reset() override
+			virtual ErrorState<void> Reset() override
 			{
 				m_currentToken.clear();
 				m_currentArrayIndex.clear();
 				m_rootToken = JSONToken::object();
 				m_version = 0;
+				return ErrorState<void>();
 			}
-			virtual SerializerBase& operator%(SerializationData<Serializer>&& var) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<Serializer>&& var) override
 			{
 				sprawl::String str = var.val.Str();
-				*this % prepare_data(str, var.name, var.PersistToDB);
+				SPRAWL_RETHROW(*this % prepare_data(str, var.name, var.PersistToDB));
 				return *this;
 			}
 
-			virtual SerializerBase& operator%(SerializationData<JSONSerializer>&& var) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<JSONSerializer>&& var) override
 			{
 				sprawl::String str = var.val.Str();
-				*this % prepare_data(str, var.name, var.PersistToDB);
+				SPRAWL_RETHROW(*this % prepare_data(str, var.name, var.PersistToDB));
 				return *this;
 			}
 
 			JSONSerializer() : JSONSerializerBase(), Serializer()
 			{
 				if(m_bWithMetadata)
-					serialize(m_version, sizeof(m_version), "__version__", true);
+				{
+					SPRAWL_ACTION_ON_ERROR(serialize(m_version, sizeof(m_version), "__version__", true), m_bIsValid = false);
+				}
 			}
 			JSONSerializer(bool) : JSONSerializerBase(), Serializer()
 			{
@@ -1184,15 +1217,15 @@ namespace sprawl
 
 			virtual ~JSONSerializer() {}
 		protected:
-			virtual SerializerBase* GetAnother(sprawl::String const& /*data*/) override { SPRAWL_THROW_EXCEPTION(std::exception(), nullptr); }
-			virtual SerializerBase* GetAnother() override { return new JSONSerializer(false); }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother(sprawl::String const& /*data*/) override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother() override { return new JSONSerializer(false); }
 		};
 
 		class JSONDeserializer : public JSONSerializerBase, public Deserializer
 		{
 		public:
 			//Reset everything to original state.
-			virtual void Reset() override { Data(m_dataStr); }
+			virtual ErrorState<void> Reset() override { SPRAWL_RETHROW(Data(m_dataStr)); return ErrorState<void>();}
 			using Deserializer::operator%;
 			using Deserializer::IsLoading;
 
@@ -1216,52 +1249,54 @@ namespace sprawl
 			using JSONSerializerBase::GetNextKey;
 			using JSONSerializerBase::GetDeletedKeys;
 
-			virtual SerializerBase& operator%(SerializationData<Deserializer>&& var) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<Deserializer>&& var) override
 			{
 				sprawl::String str;
-				*this % str;
-				var.val.Data(str);
+				SPRAWL_RETHROW(*this % str);
+				SPRAWL_RETHROW(var.val.Data(str));
 				return *this;
 			}
-			virtual SerializerBase& operator%(SerializationData<JSONDeserializer>&& var) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> operator%(SerializationData<JSONDeserializer>&& var) override
 			{
 				sprawl::String str;
-				*this % str;
-				var.val.Data(str);
+				SPRAWL_RETHROW(*this % str);
+				SPRAWL_RETHROW(var.val.Data(str));
 				return *this;
 			}
 
-			virtual void Data(sprawl::String const& str) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& str) override
 			{
 				m_dataStr = str;
 				m_rootToken = JSONToken::fromString(m_dataStr);
+				return ErrorState<void>();
 			}
 
-			virtual void Data(const char* data, size_t length) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(const char* data, size_t length) override
 			{
 				m_dataStr = sprawl::String(data, length);
 				m_rootToken = JSONToken::fromString(m_dataStr);
+				return ErrorState<void>();
 			}
 
 
 			JSONDeserializer(sprawl::String const& data) : JSONSerializerBase(), Deserializer()
 			{
-				Data(data);
+				SPRAWL_ACTION_ON_ERROR(Data(data), m_bIsValid = false);
 			}
 			JSONDeserializer(sprawl::String const& data, bool) : JSONSerializerBase(), Deserializer()
 			{
 				m_bWithMetadata = false;
-				Data(data);
+				SPRAWL_ACTION_ON_ERROR(Data(data), m_bIsValid = false);
 			}
 
 			JSONDeserializer(const char* data, size_t length) : JSONSerializerBase(), Deserializer()
 			{
-				Data(data, length);
+				SPRAWL_ACTION_ON_ERROR(Data(data, length), m_bIsValid = false);
 			}
 			JSONDeserializer(const char* data, size_t length, bool) : JSONSerializerBase(), Deserializer()
 			{
 				m_bWithMetadata = false;
-				Data(data, length);
+				SPRAWL_ACTION_ON_ERROR(Data(data, length), m_bIsValid = false);
 			}
 
 			JSONDeserializer() : JSONSerializerBase(), Deserializer()
@@ -1276,8 +1311,8 @@ namespace sprawl
 			}
 			virtual ~JSONDeserializer(){}
 		protected:
-			virtual SerializerBase* GetAnother(sprawl::String const& data) override { return new JSONDeserializer(data, false); }
-			virtual SerializerBase* GetAnother() override { SPRAWL_THROW_EXCEPTION(std::exception(), nullptr); }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother(sprawl::String const& data) override { return new JSONDeserializer(data, false); }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; }
 		private:
 			sprawl::String m_dataStr;
 		};

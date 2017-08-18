@@ -24,54 +24,9 @@ namespace sprawl
 
 class sprawl::threading::ThreadManager
 {
+
 public:
 	typedef std::function<void()> Task;
-
-	ThreadManager();
-	~ThreadManager();
-
-	void AddThread(uint64_t threadFlags, char const* const threadName);
-	void AddThread(uint64_t threadFlags);
-
-	void AddThreads(uint64_t threadFlags, int count, char const* const threadName);
-	void AddThreads(uint64_t threadFlags, int count);
-
-	void AddTask(Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
-	void AddTask(Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
-
-	void AddTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
-	void AddTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
-
-	void SetMaxStage(uint64_t maxStage);
-
-	void AddFutureTask(Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
-	void AddFutureTask(Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
-
-	void AddFutureTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
-	void AddFutureTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
-
-	/**
-	 * @brief	Start all threads and include the calling thread in a loop controlled by the thread manager
-	 * @param	thisThreadFlags	The flags that apply to the calling thread
-	 */
-	void Run(uint64_t thisThreadFlags);
-	void RunStaged(uint64_t thisThreadFlags);
-
-	/**
-	 * @brief	Start all threads but do not block on the calling thread.
-	 * @details	If thisThreadFlags is not 0, the calling thread will be added to the thread pool.
-	 *			It will then be up to the calling thread to call Pump() to execute the tasks
-	 *			that get queued up for it.
-	 * @param	thisThreadFlags	The flags that apply to the calling thread
-	 */
-	void Start(uint64_t thisThreadFlags);
-
-	uint64_t RunNextStage();
-	void Pump();
-	void Wait();
-	uint64_t Sync();
-	void Stop();
-	void ShutDown();
 private:
 	struct TaskInfo
 	{
@@ -140,11 +95,11 @@ private:
 
 		~ThreadInfo()
 		{
-			if(data)
+			if (data)
 			{
 				delete data;
 			}
-			if(thread)
+			if (thread)
 			{
 				delete thread;
 			}
@@ -159,8 +114,56 @@ private:
 		collections::Vector<Event*> events;
 		collections::ConcurrentQueue<TaskInfo*> taskQueue;
 	};
+public:
+	typedef collections::ConcurrentQueue<TaskInfo*>::ReadReservationTicket ReservationTicket;
 
-	void pump_();
+	ThreadManager();
+	~ThreadManager();
+
+	void AddThread(uint64_t threadFlags, char const* const threadName);
+	void AddThread(uint64_t threadFlags);
+
+	void AddThreads(uint64_t threadFlags, int count, char const* const threadName);
+	void AddThreads(uint64_t threadFlags, int count);
+
+	void AddTask(Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
+	void AddTask(Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
+
+	void AddTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
+	void AddTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t whenNanosecs = time::Now(time::Resolution::Nanoseconds));
+
+	void SetMaxStage(uint64_t maxStage);
+
+	void AddFutureTask(Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
+	void AddFutureTask(Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
+
+	void AddFutureTaskStaged(uint64_t stage, Task&& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
+	void AddFutureTaskStaged(uint64_t stage, Task const& task, uint64_t threadFlags, int64_t nanosecondsFromNow);
+
+	/**
+	 * @brief	Start all threads and include the calling thread in a loop controlled by the thread manager
+	 * @param	thisThreadFlags	The flags that apply to the calling thread
+	 */
+	void Run(uint64_t thisThreadFlags);
+	void RunStaged(uint64_t thisThreadFlags);
+
+	/**
+	 * @brief	Start all threads but do not block on the calling thread.
+	 * @details	If thisThreadFlags is not 0, the calling thread will be added to the thread pool.
+	 *			It will then be up to the calling thread to call Pump() to execute the tasks
+	 *			that get queued up for it.
+	 * @param	thisThreadFlags	The flags that apply to the calling thread
+	 */
+	void Start(uint64_t thisThreadFlags);
+
+	uint64_t RunNextStage(ReservationTicket& ticket);
+	void Pump(ReservationTicket& ticket);
+	void Wait();
+	uint64_t Sync();
+	void Stop();
+	void ShutDown();
+private:
+	void pump_(ReservationTicket& ticket);
 	void pushTask_(TaskInfo* info);
 	void eventLoop_(ThreadData* threadData);
 	void mailMan_();

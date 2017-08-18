@@ -4,6 +4,7 @@
 #include "iterator/VectorIterator.hpp"
 #include "array/Helpers.hpp"
 #include "../common/compat.hpp"
+#include "../common/errors.hpp"
 #include "string.h"
 
 namespace sprawl
@@ -31,7 +32,7 @@ public:
 		return m_array[index];
 	}
 
-	T& At(ssize_t index)
+	sprawl::ErrorState<T&> At(ssize_t index)
 	{
 		if (index < 0)
 		{
@@ -39,7 +40,7 @@ public:
 		}
 		if(index > size)
 		{
-			throw std::out_of_range("sprawl::Vector::At");
+			SPRAWL_THROW_EXCEPTION(sprawl::OutOfRangeError());
 		}
 		return m_array[index];
 	}
@@ -53,7 +54,7 @@ public:
 		return m_array[index];
 	}
 
-	T const& At(ssize_t index) const
+	sprawl::ErrorState<T const&> At(ssize_t index) const
 	{
 		if (index < 0)
 		{
@@ -61,7 +62,7 @@ public:
 		}
 		if(index > size)
 		{
-			throw std::out_of_range("sprawl::Vector::At");
+			SPRAWL_THROW_EXCEPTION(sprawl::OutOfRangeError());
 		}
 		return m_array[index];
 	}

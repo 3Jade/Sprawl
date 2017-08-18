@@ -4,143 +4,143 @@ namespace sprawl
 {
 	namespace serialization
 	{
-		SerializerBase& SerializerBase::operator%(SerializationData<unsigned int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<unsigned int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<unsigned long int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<unsigned long int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<unsigned char>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<unsigned char>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<unsigned char* >&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<unsigned char* >&& var)
 		{
 			uint32_t len = (uint32_t)strlen(reinterpret_cast<char*>(var.val));
 			if(IsBinary())
 			{
-				*this % prepare_data(len, var.name, false);
+				SPRAWL_RETHROW(*this % prepare_data(len, var.name, false));
 			}
-			serialize(var.val, len, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, len, var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<bool>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<bool>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<std::vector<bool>::reference>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<std::vector<bool>::reference>&& var)
 		{
 			bool val = var.val;
-			serialize(val, sizeof(bool), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(val, sizeof(bool), var.name, var.PersistToDB));
 			return *this;
 		}
 
-		SerializerBase& SerializerBase::operator%(SerializationData<int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<long int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<long int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<long long int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<long long int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<unsigned long long int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<unsigned long long int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<unsigned short int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<unsigned short int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<long double>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<long double>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<short int>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<short int>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<float>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<float>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<double>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<double>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<char>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<char>&& var)
 		{
-			serialize(var.val, sizeof(var.val), var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, sizeof(var.val), var.name, var.PersistToDB));
 			return *this;
 		}
-		SerializerBase& SerializerBase::operator%(SerializationData<char* >&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<char* >&& var)
 		{
 			uint32_t len = (uint32_t)strlen(var.val);
 			if(IsBinary())
 			{
-				*this % prepare_data(len, var.name, false);
+				SPRAWL_RETHROW(*this % prepare_data(len, var.name, false));
 			}
-			serialize(var.val, len, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, len, var.name, var.PersistToDB));
 			return *this;
 		}
 
-		/*virtual*/ SerializerBase& SerializerBase::operator%(BinaryData&& var)
+		/*virtual*/ ErrorState<SerializerBase&> SerializerBase::operator%(BinaryData&& var)
 		{
 			uint32_t len = var.size;
-			serialize(var.val, len, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(var.val, len, var.name, var.PersistToDB));
 			return *this;
 		}
 
-		sprawl::serialization::SerializerBase& SerializerBase::operator%(SerializationData<std::string>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<std::string>&& var)
 		{
 			uint32_t len = (uint32_t)var.val.length();
 			if(IsBinary())
 			{
-				*this % prepare_data(len, var.name, false);
+				SPRAWL_RETHROW(*this % prepare_data(len, var.name, false));
 			}
-			serialize(&var.val, len, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(&var.val, len, var.name, var.PersistToDB));
 			return *this;
 		}
 
-		sprawl::serialization::SerializerBase& SerializerBase::operator%(SerializationData<sprawl::String>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<sprawl::String>&& var)
 		{
 			uint32_t len = (uint32_t)var.val.length();
 			if(IsBinary())
 			{
-				*this % prepare_data(len, var.name, false);
+				SPRAWL_RETHROW(*this % prepare_data(len, var.name, false));
 			}
-			serialize(&var.val, len, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(serialize(&var.val, len, var.name, var.PersistToDB));
 			return *this;
 		}
 
-		SerializerBase& SerializerBase::operator%(SerializationData<class Serializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class Deserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class BinarySerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class BinaryDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class JSONSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class JSONDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class YAMLDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class MongoSerializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
-		SerializerBase& SerializerBase::operator%(SerializationData<class MongoDeserializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class Serializer> &&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class Deserializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class BinarySerializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class BinaryDeserializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class JSONSerializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class JSONDeserializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class YAMLSerializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class YAMLDeserializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class MongoSerializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> SerializerBase::operator%(SerializationData<class MongoDeserializer> &&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD_ABORT; return *this; }
 		void SerializerBase::StartArray(sprawl::String const& , uint32_t&, bool){}
 		void SerializerBase::EndArray(){}
 		uint32_t SerializerBase::StartObject(sprawl::String const& , bool){ return 0; }
@@ -151,9 +151,9 @@ namespace sprawl
 
 		SerializerBase::StringSet SerializerBase::GetDeletedKeys(sprawl::String const&){ return StringSet(); }
 
-		SerializerBase* SerializerBase::GetAnother(sprawl::String const&){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> SerializerBase::GetAnother(sprawl::String const&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
-		SerializerBase* SerializerBase::GetAnother(){ SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> SerializerBase::GetAnother() { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
 		Serializer::~Serializer(){}
 

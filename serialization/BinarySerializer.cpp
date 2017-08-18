@@ -22,7 +22,7 @@ namespace sprawl
 			}
 		}
 
-		void BinarySerializerBase::Reset()
+		ErrorState<void> BinarySerializerBase::Reset()
 		{
 			if(IsSaving())
 			{
@@ -59,6 +59,7 @@ namespace sprawl
 				else
 					m_pos = 0;
 			}
+			return ErrorState<void>();
 		}
 
 		const char*BinarySerializerBase::Data()
@@ -164,7 +165,7 @@ namespace sprawl
 			}
 		}
 
-		void BinarySerializerBase::serialize(String* var, const uint32_t bytes, String const&, bool PersistToDB)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<void> BinarySerializerBase::serialize(String* var, const uint32_t bytes, String const&, bool PersistToDB)
 		{
 			if(IsLoading())
 			{
@@ -177,9 +178,10 @@ namespace sprawl
 			{
 				serialize_impl(const_cast<char*>(var->c_str()), bytes, PersistToDB);
 			}
+			return ErrorState<void>();
 		}
 
-		void BinarySerializerBase::serialize(std::string* var, const uint32_t bytes, String const&, bool PersistToDB)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<void> BinarySerializerBase::serialize(std::string* var, const uint32_t bytes, String const&, bool PersistToDB)
 		{
 			if(IsLoading())
 			{
@@ -192,19 +194,20 @@ namespace sprawl
 			{
 				serialize_impl(const_cast<char*>(var->c_str()), bytes, PersistToDB);
 			}
+			return ErrorState<void>();
 		}
 
-		SerializerBase& BinarySerializer::operator%(SerializationData<Serializer>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> BinarySerializer::operator%(SerializationData<Serializer>&& var)
 		{
 			sprawl::String str = var.val.Str();
-			*this % prepare_data(str, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(*this % prepare_data(str, var.name, var.PersistToDB));
 			return *this;
 		}
 
-		SerializerBase& BinarySerializer::operator%(SerializationData<BinarySerializer>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> BinarySerializer::operator%(SerializationData<BinarySerializer>&& var)
 		{
 			sprawl::String str = var.val.Str();
-			*this % prepare_data(str, var.name, var.PersistToDB);
+			SPRAWL_RETHROW(*this % prepare_data(str, var.name, var.PersistToDB));
 			return *this;
 		}
 
@@ -220,9 +223,9 @@ namespace sprawl
 
 		BinarySerializer::~BinarySerializer() {}
 
-		SerializerBase* BinarySerializer::GetAnother() { return new BinarySerializer(false); }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> BinarySerializer::GetAnother() { return new BinarySerializer(false); }
 
-		SerializerBase* BinarySerializer::GetAnother(String const&) { return nullptr; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> BinarySerializer::GetAnother(String const&) { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
 		BinarySerializer::BinarySerializer()
 			: BinarySerializerBase()
@@ -248,23 +251,23 @@ namespace sprawl
 			m_bInitialized = true;
 		}
 
-		SerializerBase& BinaryDeserializer::operator%(SerializationData<Deserializer>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> BinaryDeserializer::operator%(SerializationData<Deserializer>&& var)
 		{
 			sprawl::String str;
-			*this % str;
-			var.val.Data(str);
+			SPRAWL_RETHROW(*this % str);
+			SPRAWL_RETHROW(var.val.Data(str));
 			return *this;
 		}
 
-		SerializerBase& BinaryDeserializer::operator%(SerializationData<BinaryDeserializer>&& var)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase&> BinaryDeserializer::operator%(SerializationData<BinaryDeserializer>&& var)
 		{
 			sprawl::String str;
-			*this % str;
-			var.val.Data(str);
+			SPRAWL_RETHROW(*this % str);
+			SPRAWL_RETHROW(var.val.Data(str));
 			return *this;
 		}
 
-		void BinaryDeserializer::Data(const char* data, size_t length)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<void> BinaryDeserializer::Data(const char* data, size_t length)
 		{
 			if(m_data != NULL)
 			{
@@ -276,15 +279,15 @@ namespace sprawl
 				m_data = new char[ms_headerSize];
 				m_pos = 0;
 				memcpy(m_data, data, ms_headerSize);
-				serialize(m_size, sizeof(int32_t), "", false);
+				SPRAWL_RETHROW(serialize(m_size, sizeof(int32_t), "", false));
 				if(length < m_size)
 				{
 					m_bIsValid = false;
 				}
 				else
 				{
-					serialize(m_version, sizeof(int32_t), "", false);
-					serialize(m_checksum, sizeof(int32_t), "", false);
+					SPRAWL_RETHROW(serialize(m_version, sizeof(int32_t), "", false));
+					SPRAWL_RETHROW(serialize(m_checksum, sizeof(int32_t), "", false));
 					delete[] m_data;
 					m_pos = ms_headerSize;
 					m_data = new char[m_size];
@@ -304,6 +307,7 @@ namespace sprawl
 				memcpy(m_data, data, m_size);
 			}
 			m_bInitialized = true;
+			return ErrorState<void>();
 		}
 
 		BinaryDeserializer::BinaryDeserializer(bool)
@@ -316,9 +320,9 @@ namespace sprawl
 
 		BinaryDeserializer::~BinaryDeserializer(){}
 
-		SerializerBase*BinaryDeserializer::GetAnother() { return nullptr; }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> BinaryDeserializer::GetAnother() { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
 
-		SerializerBase*BinaryDeserializer::GetAnother(String const& data) { return new BinaryDeserializer(data, false); }
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> BinaryDeserializer::GetAnother(String const& data) { return new BinaryDeserializer(data, false); }
 
 		BinaryDeserializer::BinaryDeserializer()
 			: BinarySerializerBase()
@@ -332,7 +336,7 @@ namespace sprawl
 			, Deserializer()
 		{
 			m_bWithMetadata = false;
-			Data(data, length);
+			SPRAWL_ACTION_ON_ERROR(Data(data, length), m_bIsValid = false);
 		}
 
 		BinaryDeserializer::BinaryDeserializer(String const& data, bool)
@@ -340,24 +344,24 @@ namespace sprawl
 			, Deserializer()
 		{
 			m_bWithMetadata = false;
-			Data(data);
+			SPRAWL_ACTION_ON_ERROR(Data(data), m_bIsValid = false);
 		}
 
 		BinaryDeserializer::BinaryDeserializer(const char* data, size_t length)
 			: BinarySerializerBase()
 			, Deserializer()
 		{
-			Data(data, length);
+			SPRAWL_ACTION_ON_ERROR(Data(data, length), m_bIsValid = false);
 		}
 
 		BinaryDeserializer::BinaryDeserializer(String const& data)
 			: BinarySerializerBase()
 			, Deserializer()
 		{
-			Data(data);
+			SPRAWL_ACTION_ON_ERROR(Data(data), m_bIsValid = false);
 		}
 
-		void BinaryDeserializer::Data(String const& str)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<void> BinaryDeserializer::Data(String const& str)
 		{
 			if(m_data != NULL)
 			{
@@ -369,9 +373,9 @@ namespace sprawl
 				m_data = new char[ms_headerSize];
 				m_pos = 0;
 				memcpy(m_data, str.c_str(), ms_headerSize);
-				serialize(m_size, sizeof(int32_t), "", false);
-				serialize(m_version, sizeof(int32_t), "", false);
-				serialize(m_checksum, sizeof(int32_t), "", false);
+				SPRAWL_RETHROW(serialize(m_size, sizeof(int32_t), "", false));
+				SPRAWL_RETHROW(serialize(m_version, sizeof(int32_t), "", false));
+				SPRAWL_RETHROW(serialize(m_checksum, sizeof(int32_t), "", false));
 				delete[] m_data;
 				m_pos = ms_headerSize;
 				m_data = new char[m_size];
@@ -390,6 +394,7 @@ namespace sprawl
 				memcpy(m_data, str.c_str(), m_size);
 			}
 			m_bInitialized = true;
+			return ErrorState<void>();
 		}
 
 

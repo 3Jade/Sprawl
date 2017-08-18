@@ -4,6 +4,8 @@ import subprocess
 import os
 import time
 import platform
+import glob
+import shutil
 
 import csbuild
 from csbuild import log
@@ -18,6 +20,7 @@ csbuild.DisablePrecompile()
 csbuild.AddOption("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
 csbuild.AddOption("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
 csbuild.AddOption("--no-threads", action="store_true", help="Build without thread support")
+csbuild.AddOption("--no-exceptions", action="store_true", help="Build without exception support")
 csbuild.AddOption("--no-unit-tests", action="store_true", help="Don't automatically run unit tests as part of build")
 csbuild.SetHeaderInstallSubdirectory("sprawl/{project.name}")
 
@@ -35,21 +38,35 @@ csbuild.Toolchain("msvc").AddCompilerFlags(
 	"/fp:fast",
 	"/wd\"4530\"",
 	"/wd\"4067\"",
-	"/wd\"4351\""
+	"/wd\"4351\"",
+	"/constexpr:steps1000000",
 )
 
 if not csbuild.GetOption("no_threads"):
 	csbuild.Toolchain("gcc", "ios", "android").AddCompilerFlags("-pthread")
 
-@csbuild.target("debug")
-def debug():
-	csbuild.Toolchain("msvc").AddCompilerFlags(
-		"/EHsc"
-	)
+if csbuild.GetOption("no_exceptions"):
+	csbuild.Toolchain("gcc", "ios", "android").AddCompilerFlags("-fno-exceptions")
+else:
+	csbuild.Toolchain("msvc").AddCompilerFlags("/EHsc")
 
+	
 @csbuild.project("collections", "collections")
 def collections():
 	csbuild.SetOutput("libsprawl_collections", csbuild.ProjectType.StaticLibrary)
+
+	csbuild.EnableHeaderInstall()
+
+	
+@csbuild.project("tag", "tag")
+def collections():
+	csbuild.SetOutput("libsprawl_tag", csbuild.ProjectType.StaticLibrary)
+
+	csbuild.EnableHeaderInstall()
+
+@csbuild.project("if", "if")
+def collections():
+	csbuild.SetOutput("libsprawl_if", csbuild.ProjectType.StaticLibrary)
 
 	csbuild.EnableHeaderInstall()
 
@@ -181,8 +198,6 @@ def logging():
 		if platform.system() != "Darwin":
 			csbuild.Toolchain("gcc").AddLibraries(
 				"bfd",
-				"unwind",
-				"unwind-x86_64",
 			)
 		csbuild.Toolchain("msvc").AddLibraries(
 			"DbgHelp"
@@ -265,18 +280,29 @@ def UnitTests():
 		csbuild.AddExcludeFiles(
 			"UnitTests/UnitTests_MongoReplicable.cpp",
 		)
+		
+		
+@csbuild.project("QueueTests", "QueueTests", ["time", "threading"])
+def UnitTests():
+	csbuild.DisableChunkedBuild()
+	csbuild.SetOutput("QueueTests")
+	csbuild.SetOutputDirectory("bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
+	
+	csbuild.EnableOutputInstall()
 
-	if not csbuild.GetOption("no_unit_tests"):
+	csbuild.Toolchain("gcc").Compiler().AddWarnFlags("no-undef", "no-switch-enum", "no-missing-field-initializers")
+
+	csbuild.AddIncludeDirectories("QueueTests/ext/include")
+	csbuild.AddLibraryDirectories("QueueTests/ext/lib/{project.userData.subdir}-{project.outputArchitecture}")
+	csbuild.AddExcludeDirectories("QueueTests/ext")
+	csbuild.AddLibraries("tbb")
+	
+	if platform.system() == "Windows":
 		@csbuild.postMakeStep
 		def postMake(project):
-			unitTestExe = "bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/SprawlUnitTest".format(project=project)
-			if platform.system() == "Windows":
-				time.sleep(2)
-			else:
-				while not os.access(unitTestExe, os.X_OK):
-					time.sleep(1)
-
-			log.LOG_BUILD("Running unit tests...")
-			ret = subprocess.call([unitTestExe, "--all"]);
-			if ret != 0:
-				log.LOG_ERROR("Unit tests failed! Errors reported: {}".format(ret));
+			for f in glob.glob("QueueTests/ext/lib/{project.userData.subdir}-{project.outputArchitecture}/*".format(project=project)):
+				basename = os.path.basename(f)
+				dest = os.path.join(project.outputDir, basename)
+				if not os.path.exists(dest):
+					print("Copying {} to {}".format(f, dest))
+					shutil.copyfile(f, dest)

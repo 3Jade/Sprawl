@@ -57,7 +57,7 @@ namespace sprawl
 		 * @param function  Function containing the log statement
 		 * @param line      Line on which the log statement appears
 		 */
-		void Log(int level, String const& levelStr, String const& message, String const& file, String const& function, String const& line);
+		void Log(int level, StringLiteral const& levelStr, String const& message, StringLiteral const& file, StringLiteral const& function, StringLiteral const& line);
 #endif
 		/**
 		 * @brief Log a message with a filterable category
@@ -70,7 +70,7 @@ namespace sprawl
 		 * @param function  Function containing the log statement
 		 * @param line      Line on which the log statement appears
 		 */
-		void Log(int level, String const& levelStr, Category const& category, sprawl::String const& message, String const& file, String const& function, String const& line);
+		void Log(int level, StringLiteral const& levelStr, Category const& category, sprawl::String const& message, StringLiteral const& file, StringLiteral const& function, StringLiteral const& line);
 
 		/**
 		 * @brief Set the global options that will apply to any log level without its own options set
@@ -98,6 +98,8 @@ namespace sprawl
 		 * @param level  The minimum level to allow logging for.
 		 */
 		void SetRuntimeMinimumLevel(int level);
+
+		int GetRuntimeMinimumLevel();
 
 		template<typename T, typename = typename std::enable_if<std::is_enum<T>::value>::type>
 		void SetRuntimeMinimumLevel(T level)
@@ -148,7 +150,21 @@ namespace sprawl
 		 */
 		void SetTimeFormat(String const& strftimeFormat, sprawl::time::Resolution maxResolution);
 
-		typedef std::function<void(std::shared_ptr<Message> const&)> Handler;
+		/**
+		 * @brief A handler, or 'sink', to direct log messages to a destination.
+		 */
+		struct Handler
+		{
+			std::function<void(std::shared_ptr<Message> const&)> Log; /**< Function to parse and print the log message to its destination */
+			std::function<void()> Flush; /**< Function to flush the log - to ensure it has fully reached its destination */
+			void* uniqueId; /**<
+							 * A unique identifier to ensure the same log sink is only flushed once per call to Flush()
+							 * Usually this is a pointer to the underlying object (i.e., pointer to a file) but it doesn't
+							 * have to point to anything valid. This could just store a random integer value if you can guarantee
+							 * the uniqueness of that value; it's only used to guard multiple calls to the same Flush() function,
+							 * since std::function has no comparison operator.
+							 */
+		};
 
 		enum class CategoryCombinationType
 		{
@@ -212,6 +228,13 @@ namespace sprawl
 		Handler RunHandler_ThreadManager(Handler const& handler, threading::ThreadManager& manager, int64_t threadFlag);
 
 		/**
+		 * @brief Returns the File object associated with the given filename
+		 *
+		 * @detail Note that if the file gets rotated, this File object will point at the old file, not the new.
+		 */
+		filesystem::File GetHandleForFile(sprawl::String const& filename);
+
+		/**
 		 * @brief   Returns a simple handler that prints all messages directly to stdout
 		 *
 		 * @return  A valid sprawl::logging::Handler instance
@@ -259,11 +282,14 @@ namespace sprawl
 		void Init();
 
 		/**
-		 * @brief Ensure all log messages are flushed to the OS buffers. Only useful for PrintToFile_Threaded handlers;
-		 *        with PrintToFile handlers, output is flushed immediately, and with PrintToFile_ThreadManager handlers,
-		 *        the logging system does not have sufficient control of the thread manager to ensure a proper flush.
-		 */
+		* @brief Ensure all log messages are flushed
+		*/
 		void Flush();
+
+		/**
+		* @brief Ensure all log messages for the given category are flushed
+		*/
+		void Flush(Category const& category);
 
 		/**
 		 * @brief Stop the logging system. For PrintToFile_Threaded handlers, no more logs will be written, but they will be queued.
@@ -388,7 +414,7 @@ struct sprawl::logging::Options
 
 struct sprawl::logging::Message
 {
-	Message(int64_t timestamp_, int64_t threadid_, int levelInt_, String const& level_, String const& category_, String const& message_, String const& file_, String const& function_, String const& line_, Options* options_)
+	Message(int64_t timestamp_, int64_t threadid_, int levelInt_, StringLiteral const& level_, String const& category_, String const& message_, StringLiteral const& file_, StringLiteral const& function_, StringLiteral const& line_, Options* options_)
 		: timestamp(timestamp_)
 		, threadid(threadid_)
 		, levelInt(levelInt_)
@@ -413,12 +439,12 @@ struct sprawl::logging::Message
 	int64_t timestamp;
 	int64_t threadid;
 	int levelInt;
-	String level;
+	StringLiteral level;
 	String category;
 	String message;
-	String file;
-	String function;
-	String line;
+	StringLiteral file;
+	StringLiteral function;
+	StringLiteral line;
 
 	Options* messageOptions;
 
@@ -448,7 +474,7 @@ struct sprawl::logging::Message
 #define SPRAWL_STRINGIFY_2(input) #input
 #define SPRAWL_STRINGIFY(input) SPRAWL_STRINGIFY_2(input)
 
-#define LOG(LEVEL, ...) SPRAWL_LOG_LEVEL_TYPE( SPRAWL_LOG_LEVEL_PREFIX SPRAWL_MINIMUM_LOG_LEVEL ) <= SPRAWL_LOG_LEVEL_PREFIX LEVEL ? ::sprawl::logging::Log(int(SPRAWL_LOG_LEVEL_PREFIX LEVEL), #LEVEL, __VA_ARGS__, sprawl::StringLiteral(__FILE__), sprawl::StringLiteral(__FUNCTION__), sprawl::StringLiteral(SPRAWL_STRINGIFY(__LINE__))) : ::sprawl::logging::Nop()
+#define LOG(LEVEL, ...) SPRAWL_LOG_LEVEL_TYPE( SPRAWL_LOG_LEVEL_PREFIX SPRAWL_MINIMUM_LOG_LEVEL ) <= SPRAWL_LOG_LEVEL_PREFIX LEVEL && ::sprawl::logging::GetRuntimeMinimumLevel() <= int(SPRAWL_LOG_LEVEL_PREFIX LEVEL) ? ::sprawl::logging::Log(int(SPRAWL_LOG_LEVEL_PREFIX LEVEL), sprawl::StringLiteral(#LEVEL), __VA_ARGS__, sprawl::StringLiteral(__FILE__), sprawl::StringLiteral(__FUNCTION__), sprawl::StringLiteral(SPRAWL_STRINGIFY(__LINE__))) : ::sprawl::logging::Nop()
 
 #define LOG_IF(condition, LEVEL, ...) (!(!(condition))) ? LOG(LEVEL, __VA_ARGS__) : ::sprawl::logging::Nop()
 
@@ -502,5 +528,5 @@ struct sprawl::logging::Message
 		LOG(LEVEL, "Assertion failed: " #condition); \
 		LOG(LEVEL, __VA_ARGS__); \
 		::sprawl::logging::Flush(); \
-		abort(); \
+		std::terminate(); \
 	}

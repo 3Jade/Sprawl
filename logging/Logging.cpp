@@ -143,7 +143,13 @@ namespace LoggingStatic
 
 	static void addToThreadManager_(sprawl::logging::Handler const& handler, std::shared_ptr<sprawl::logging::Message> const& message, sprawl::threading::ThreadManager& manager, int64_t threadFlag)
 	{
-		manager.AddTask(std::bind(handler, message), threadFlag);
+		manager.AddTask(std::bind(handler.Log, message), threadFlag);
+	}
+
+	static void flushThreadManager_(sprawl::logging::Handler const& handler, sprawl::threading::ThreadManager& manager, int64_t threadFlag)
+	{
+		manager.AddTask(handler.Flush, threadFlag);
+		manager.Sync();
 	}
 
 	static sprawl::String modifyFilename_(sprawl::String const& filename)
@@ -185,7 +191,7 @@ namespace LoggingStatic
 	static sprawl::collections::BasicHashMap<FILE*, sprawl::threading::Mutex> streamMutexes_;
 
 	static sprawl::logging::Handler defaultHandler_ = sprawl::logging::PrintToStdout();
-	static std::map<sprawl::String, sprawl::collections::Vector<sprawl::logging::Handler>> handlers_;
+	static std::map<sprawl::String, sprawl::collections::BasicHashMap<void*, sprawl::logging::Handler>> handlers_;
 
 	static sprawl::logging::Options defaultOptions_;
 	static sprawl::collections::BasicHashMap<int, sprawl::logging::Options> options_;
@@ -363,13 +369,8 @@ namespace LoggingStatic
 }
 
 
-void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::String const& message, sprawl::String const& file, sprawl::String const& function, String const& line)
+void sprawl::logging::Log(int level, StringLiteral const& levelStr, sprawl::String const& message, StringLiteral const& file, StringLiteral const& function, StringLiteral const& line)
 {
-	if(level < LoggingStatic::minLevel_)
-	{
-		return;
-	}
-
 	Options* options;
 	auto it = LoggingStatic::options_.find(level);
 	if(it.Valid())
@@ -397,16 +398,11 @@ void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::Str
 		}
 	}
 
-	LoggingStatic::defaultHandler_(messagePtr);
+	LoggingStatic::defaultHandler_.Log(messagePtr);
 }
 
-void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::logging::Category const& category, sprawl::String const& message, sprawl::String const& file, sprawl::String const& function, String const& line)
+void sprawl::logging::Log(int level, StringLiteral const& levelStr, sprawl::logging::Category const& category, String const& message, StringLiteral const& file, StringLiteral const& function, StringLiteral const& line)
 {
-	if(level < LoggingStatic::minLevel_)
-	{
-		return;
-	}
-
 	Options* options;
 	auto it = LoggingStatic::options_.find(level);
 	if(it.Valid())
@@ -447,12 +443,12 @@ void sprawl::logging::Log(int level, sprawl::String const& levelStr, sprawl::log
 	{
 		for(auto& handler : it3->second)
 		{
-			handler(messagePtr);
+			handler.Value().Log(messagePtr);
 		}
 	}
 	else
 	{
-		LoggingStatic::defaultHandler_(messagePtr);
+		LoggingStatic::defaultHandler_.Log(messagePtr);
 	}
 }
 
@@ -469,6 +465,11 @@ void sprawl::logging::SetLevelOptions(int level, Options const& options)
 void sprawl::logging::SetRuntimeMinimumLevel(int level)
 {
 	LoggingStatic::minLevel_ = level;
+}
+
+int sprawl::logging::GetRuntimeMinimumLevel()
+{
+	return LoggingStatic::minLevel_;
 }
 
 void sprawl::logging::DisableCategory(Category const& category)
@@ -578,8 +579,8 @@ void sprawl::logging::SetDefaultHandler(Handler const& handler)
 void sprawl::logging::AddCategoryHandler(Category const& category, Handler const& handler, CategoryCombinationType type)
 {
 	sprawl::String categoryStr = category.Str();
-	sprawl::collections::Vector<Handler> handlers;
-	handlers.PushBack(handler);
+	sprawl::collections::BasicHashMap<void*, Handler>& handlers = LoggingStatic::handlers_[categoryStr];
+	handlers.Insert(handler.uniqueId, handler);
 
 	if(type == CategoryCombinationType::Combined && !LoggingStatic::handlers_.empty())
 	{
@@ -606,7 +607,7 @@ void sprawl::logging::AddCategoryHandler(Category const& category, Handler const
 				{
 					for(auto& absorbedHandler : it->second)
 					{
-						handlers.PushBack(absorbedHandler);
+						handlers.Insert(absorbedHandler.Key(), absorbedHandler.Value());
 					}
 				}
 				else if(categoryStr.length() > checkStr.length())
@@ -617,7 +618,7 @@ void sprawl::logging::AddCategoryHandler(Category const& category, Handler const
 						{
 							for(auto& absorbedHandler : it->second)
 							{
-								handlers.PushBack(absorbedHandler);
+								handlers.Insert(absorbedHandler.Key(), absorbedHandler.Value());
 							}
 						}
 					}
@@ -631,7 +632,6 @@ void sprawl::logging::AddCategoryHandler(Category const& category, Handler const
 			}
 		}
 	}
-	LoggingStatic::handlers_.emplace(categoryStr, handlers);
 }
 
 sprawl::logging::Handler sprawl::logging::PrintToFile(sprawl::String const& filename)
@@ -643,7 +643,8 @@ sprawl::logging::Handler sprawl::logging::PrintToFile(sprawl::String const& file
 		file = sprawl::filesystem::Open(modifiedFilename, "w");
 		LoggingStatic::fileMap_.Insert(filename, LoggingStatic::FileData(file, filename));
 	}
-	return std::bind(LoggingStatic::printMessageToFile_, std::placeholders::_1, std::ref(LoggingStatic::fileMap_.Get(filename)));
+	LoggingStatic::FileData& data = LoggingStatic::fileMap_.Get(filename);
+	return{ std::bind(LoggingStatic::printMessageToFile_, std::placeholders::_1, std::ref(data)), [=]() { LoggingStatic::fileMap_.Get(filename).file.Flush(); }, &data };
 }
 
 sprawl::logging::Handler sprawl::logging::RunHandler_Threaded(Handler const& handler)
@@ -660,17 +661,23 @@ sprawl::logging::Handler sprawl::logging::RunHandler_Threaded(Handler const& han
 
 sprawl::logging::Handler sprawl::logging::RunHandler_ThreadManager(Handler const& handler, sprawl::threading::ThreadManager& manager, int64_t threadFlag)
 {
-	return std::bind(LoggingStatic::addToThreadManager_, handler, std::placeholders::_1, std::ref(manager), threadFlag);
+	return { std::bind(LoggingStatic::addToThreadManager_, handler, std::placeholders::_1, std::ref(manager), threadFlag), std::bind(LoggingStatic::flushThreadManager_, handler, std::ref(manager), threadFlag), &manager };
 }
 
 sprawl::logging::Handler sprawl::logging::PrintToStdout()
 {
-	return std::bind(LoggingStatic::printMessageToStream_, std::placeholders::_1, stdout);
+	return{ std::bind(LoggingStatic::printMessageToStream_, std::placeholders::_1, stdout), []() { fflush(stdout); }, stdout };
 }
 
 sprawl::logging::Handler sprawl::logging::PrintToStderr()
 {
-	return std::bind(LoggingStatic::printMessageToStream_, std::placeholders::_1, stderr);
+	return{ std::bind(LoggingStatic::printMessageToStream_, std::placeholders::_1, stderr), [](){fflush(stderr);}, stderr };
+}
+
+
+sprawl::filesystem::File sprawl::logging::GetHandleForFile(sprawl::String const& filename)
+{
+	return LoggingStatic::fileMap_.Get(filename).file;
 }
 
 void sprawl::logging::SetRenameMethod(RenameMethod method, int arg)
@@ -695,16 +702,42 @@ void sprawl::logging::Init()
 
 void sprawl::logging::Flush()
 {
-	if(LoggingStatic::useManager_)
+	sprawl::collections::HashSet<void*> alreadyFlushed;
+
+	for(auto& kvp : LoggingStatic::handlers_)
 	{
-		LoggingStatic::logManager_.Sync();
+		for(auto& handler : kvp.second)
+		{
+			if(!alreadyFlushed.Has(handler.Key()))
+			{
+				handler.Value().Flush();
+				alreadyFlushed.Insert(handler.Key());
+			}
+		}
 	}
-	for(auto& kvp : LoggingStatic::fileMap_)
+	if(!alreadyFlushed.Has(LoggingStatic::defaultHandler_.uniqueId))
 	{
-		kvp.Value().file.Flush();
+		LoggingStatic::defaultHandler_.Flush();
+		alreadyFlushed.Insert(LoggingStatic::defaultHandler_.uniqueId);
 	}
-	fflush(stdout);
-	fflush(stderr);
+}
+
+void sprawl::logging::Flush(sprawl::logging::Category const& category)
+{
+
+	sprawl::String categoryStr = category.Str();
+	auto it = LoggingStatic::getClosestParentCategory_(LoggingStatic::handlers_, categoryStr);
+	if(it != LoggingStatic::handlers_.end())
+	{
+		for(auto& handler : it->second)
+		{
+			handler.Value().Flush();
+		}
+	}
+	else
+	{
+		LoggingStatic::defaultHandler_.Flush();
+	}
 }
 
 void sprawl::logging::Stop()
@@ -777,7 +810,7 @@ sprawl::String sprawl::logging::Message::ToString()
 		}
 	}
 
-	return LoggingStatic::format_.format(timestampStr, threadid, messageOptions->nameOverride != nullptr ? messageOptions->nameOverride : level, message, category, sprawl::path::Basename(file), function, line);
+	return LoggingStatic::format_.format(timestampStr, threadid, messageOptions->nameOverride != nullptr ? messageOptions->nameOverride : level.GetPtr(), message, category, sprawl::path::Basename(file), function, line);
 }
 
 void sprawl::logging::BacktraceToString(Backtrace const& backtrace, sprawl::StringBuilder& builder)

@@ -17,10 +17,15 @@
 #	define SPRAWL_MEMORY__RELEASE_EMPTY_BLOCKS 0
 #endif
 
+#ifndef SPRAWL_FORCE_MALLOC
+#	define SPRAWL_FORCE_MALLOC 0
+#endif
+
 namespace sprawl
 {
 	namespace memory
 	{
+#if !SPRAWL_FORCE_MALLOC
 		template<size_t sizeOfType>
 		struct MemoryBit
 		{
@@ -28,6 +33,7 @@ namespace sprawl
 			MemoryBit* next;
 			unsigned char data[sizeOfType];
 		};
+#endif
 
 		template<size_t sizeOfType>
 		class PoolAllocator
@@ -44,31 +50,29 @@ namespace sprawl
 			};
 
 		private:
-			static size_t const ms_blocksPerAlloc;
-			static size_t const ms_allocSize;
-
+#if !SPRAWL_FORCE_MALLOC
 #if SPRAWL_MULTITHREADED
 			static sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> ms_firstBit;
 #else
 			static MemoryBit<sizeOfType>* ms_firstBit;
 #endif
-			static inline size_t max_(size_t a, size_t b)
+			static inline constexpr size_t max_(size_t a, size_t b)
 			{
 				return a < b ? b : a;
 			}
 
-			static inline size_t getPageSize_()
+			static inline constexpr size_t getPageSize_()
 			{
-#ifdef _WIN32
-				SYSTEM_INFO info;
-				GetSystemInfo(&info);
-				return PoolAllocator::max_(info.dwPageSize, sizeOfType);
-#else
-				return PoolAllocator::max_(sysconf(_SC_PAGESIZE), sizeOfType);
-#endif
+				// TODO HACK: Assuming page size is 4096 because otherwise this gets into initialization order problems with global vars.
+				return PoolAllocator::max_(4096, sizeOfType);
 			}
+
+			static constexpr size_t ms_blocksPerAlloc = PoolAllocator<sizeOfType>::max_(PoolAllocator<sizeOfType>::getPageSize_() / sizeof(MemoryBit<sizeOfType>), 32);
+			static constexpr size_t ms_allocSize = ms_blocksPerAlloc * sizeof(MemoryBit<sizeOfType>);
+#endif
 		};
 
+#if !SPRAWL_FORCE_MALLOC
 #if SPRAWL_MULTITHREADED
 		template<size_t sizeOfType>
 		sprawl::threading::ThreadLocal<MemoryBit<sizeOfType>*> PoolAllocator<sizeOfType>::ms_firstBit;
@@ -76,24 +80,26 @@ namespace sprawl
 		template<size_t sizeOfType>
 		MemoryBit<sizeOfType>* PoolAllocator<sizeOfType>::ms_firstBit = nullptr;
 #endif
-
-		template<size_t sizeOfType>
-		size_t const PoolAllocator<sizeOfType>::ms_blocksPerAlloc = PoolAllocator<sizeOfType>::max_(PoolAllocator<sizeOfType>::getPageSize_() / sizeof(MemoryBit<sizeOfType>), 32);
-
-		template<size_t sizeOfType>
-		size_t const PoolAllocator<sizeOfType>::ms_allocSize = ms_blocksPerAlloc * sizeof(MemoryBit<sizeOfType>);
+#endif
 
 		template<size_t sizeOfType>
 		void* PoolAllocator<sizeOfType>::alloc(size_t count)
 		{
+#if SPRAWL_FORCE_MALLOC
+			return malloc(count*sizeOfType);
+#else
 			void* ret = malloc(count*sizeOfType + (sizeof(intptr_t) * 2));
 			memset(ret, 1, sizeof(intptr_t) * 2);
 			return reinterpret_cast<unsigned char*>(ret) + (sizeof(intptr_t) * 2);
+#endif
 		}
 
 		template<size_t sizeOfType>
 		void* PoolAllocator<sizeOfType>::alloc()
 		{
+#if SPRAWL_FORCE_MALLOC
+			return malloc(sizeOfType);
+#else
 #if SPRAWL_MULTITHREADED
 			MemoryBit<sizeOfType>* bit = *ms_firstBit;
 #else
@@ -126,11 +132,15 @@ namespace sprawl
 			ms_firstBit = &newBits[1];
 
 			return newBits[0].data;
+#endif
 		}
 
 		template<size_t sizeOfType>
 		void PoolAllocator<sizeOfType>::free(void* addr)
 		{
+#if SPRAWL_FORCE_MALLOC
+			::free(addr);
+#else
 			void* allocType = reinterpret_cast<void*>(reinterpret_cast<intptr_t*>(addr)[-2]);
 			if(allocType == 0)
 			{
@@ -147,6 +157,7 @@ namespace sprawl
 			{
 				::free(reinterpret_cast<intptr_t*>(addr)-2);
 			}
+#endif
 		}
 	}
 }

@@ -3,7 +3,13 @@
 #include <cmath>
 #include <stdlib.h>
 
-#define SPRAWL_STRICT_JSON
+#ifndef SPRAWL_STRICT_JSON
+#	define SPRAWL_STRICT_JSON 0
+#endif
+
+#ifdef _WIN32
+#	define snprintf _snprintf
+#endif
 
 namespace sprawl
 {
@@ -38,12 +44,12 @@ namespace sprawl
 			return m_holder->m_arrayChildren[index];
 		}
 
-		JSONToken& JSONToken::operator[](sprawl::String const& key)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::operator[](sprawl::String const& key)
 		{
 			StringData keyData(key.c_str(), key.length());
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			auto it = m_holder->m_objectChildren->find( keyData );
@@ -57,11 +63,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::operator[](ssize_t index)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::operator[](ssize_t index)
 		{
 			if( m_holder->m_type != JSONType::Array || index >= m_holder->m_arrayChildren.Size() )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			return m_holder->m_arrayChildren[index];
@@ -102,91 +108,91 @@ namespace sprawl
 			return outString.Str();
 		}
 
-		JSONToken& JSONToken::PushBack(JSONToken const& token)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(JSONToken const& token)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( token );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(unsigned long long value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(unsigned long long value)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::Integer, value );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(long long value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(long long value)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::Integer, value );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(long double value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(long double value)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::Double, value );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(bool value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(bool value)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::Boolean, value );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(const char* const value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(const char* const value)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::String, sprawl::String(value) );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(const char* const value, size_t length)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(const char* const value, size_t length)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::String, sprawl::String(value, length) );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::PushBack(sprawl::String const& value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::PushBack(sprawl::String const& value)
 		{
 			if( m_holder->m_type != JSONType::Array )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 			m_holder->m_arrayChildren.EmplaceBack( JSONType::String, value );
 			return m_holder->m_arrayChildren.Back();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, JSONToken const& token)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, JSONToken const& token)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -195,11 +201,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, unsigned long long value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, unsigned long long value)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -208,11 +214,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, long long value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, long long value)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -221,11 +227,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, long double value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, long double value)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -234,11 +240,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, bool value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, bool value)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -247,11 +253,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, const char* const value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, const char* const value)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -260,11 +266,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, const char* const value, size_t length)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, const char* const value, size_t length)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -273,11 +279,11 @@ namespace sprawl
 			return it.Value();
 		}
 
-		JSONToken& JSONToken::Insert(sprawl::String const& name, sprawl::String const& value)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<JSONToken&> JSONToken::Insert(sprawl::String const& name, sprawl::String const& value)
 		{
 			if( m_holder->m_type != JSONType::Object )
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), staticEmpty);
+				SPRAWL_THROW_EXCEPTION(sprawl::InvalidJsonData());
 			}
 
 			StringData nameData(name.c_str(), name.length());
@@ -323,11 +329,7 @@ namespace sprawl
 		{
 			::new(m_holder) Holder(statedType);
 			char buf[128];
-#ifdef _WIN32
-			_snprintf( buf, 128, "%lld", data );
-#else
 			snprintf( buf, 128, "%lld", data );
-#endif
 			m_holder->m_data = StringData( buf, strlen( buf ) );
 			m_holder->m_data.CommitStorage();
 		}
@@ -338,11 +340,7 @@ namespace sprawl
 		{
 			::new(m_holder) Holder(statedType);
 			char buf[128];
-#ifdef _WIN32
-			_snprintf( buf, 128, "%llu", data );
-#else
 			snprintf( buf, 128, "%llu", data );
-#endif
 			m_holder->m_data = StringData( buf, strlen( buf ) );
 			m_holder->m_data.CommitStorage();
 		}
@@ -353,11 +351,7 @@ namespace sprawl
 		{
 			::new(m_holder) Holder(statedType);
 			char buf[128];
-#ifdef _WIN32
-			_snprintf( buf, 128, "%.20Lg", data );
-#else
 			snprintf( buf, 128, "%.20Lg", data );
-#endif
 			m_holder->m_data = StringData( buf, strlen( buf ) );
 			m_holder->m_data.CommitStorage();
 		}
@@ -405,11 +399,7 @@ namespace sprawl
 			m_key.CommitStorage();
 			::new(m_holder) Holder(statedType);
 			char buf[128];
-#ifdef _WIN32
-			_snprintf( buf, 128, "%lld", data );
-#else
 			snprintf( buf, 128, "%lld", data );
-#endif
 			m_holder->m_data = StringData( buf, strlen( buf ) );
 			m_holder->m_data.CommitStorage();
 		}
@@ -421,11 +411,7 @@ namespace sprawl
 			m_key.CommitStorage();
 			::new(m_holder) Holder(statedType);
 			char buf[128];
-#ifdef _WIN32
-			_snprintf( buf, 128, "%llu", data );
-#else
 			snprintf( buf, 128, "%llu", data );
-#endif
 			m_holder->m_data = StringData( buf, strlen( buf ) );
 			m_holder->m_data.CommitStorage();
 		}
@@ -437,11 +423,7 @@ namespace sprawl
 			m_key.CommitStorage();
 			::new(m_holder) Holder(statedType);
 			char buf[128];
-#ifdef _WIN32
-			_snprintf( buf, 128, "%.20Lg", data );
-#else
 			snprintf( buf, 128, "%.20Lg", data );
-#endif
 			m_holder->m_data = StringData( buf, strlen( buf ) );
 			m_holder->m_data.CommitStorage();
 		}
@@ -678,7 +660,7 @@ namespace sprawl
 		{
 			if(
 				*data == 't'
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				&& *(data + 1) == 'r'
 				&& *(data + 2) == 'u'
 				&& *(data + 3) == 'e'
@@ -690,7 +672,7 @@ namespace sprawl
 			}
 			else if(
 				*data == 'f'
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				&& *(data + 1) == 'a'
 				&& *(data + 2) == 'l'
 				&& *(data + 3) == 's'
@@ -701,10 +683,10 @@ namespace sprawl
 				m_holder->m_data = StringData(data, 5);
 				data += 5;
 			}
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 			else
 			{
-				SPRAWL_THROW_EXCEPTION(ex_invalid_data(), );
+				SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 			}
 #endif
 			return;
@@ -766,20 +748,20 @@ namespace sprawl
 					data += 4;
 					break;
 				}
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				default:
 				{
-					abort();
+					SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 				}
 #endif
 				}
 
 				SkipWhitespace(data);
 
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				if(*data != ',' && *data != ']')
 				{
-					abort();
+					SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 				}
 #endif
 
@@ -808,10 +790,10 @@ namespace sprawl
 					return;
 				}
 
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				if(*data != '\"')
 				{
-					abort();
+					SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 				}
 #endif
 
@@ -827,10 +809,10 @@ namespace sprawl
 
 				SkipWhitespace(data);
 
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				if(*data != ':')
 				{
-					abort();
+					SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 				}
 #endif
 
@@ -879,29 +861,29 @@ namespace sprawl
 				case 'n':
 				{
 					m_holder->m_objectChildren->Insert( JSONToken( JSONType::Null ) );
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 					if(*(data + 1) != 'u' || *(data + 2) != 'l' || *(data + 3) != 'l')
 					{
-						abort();
+						SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 					}
 #endif
 					data += 4;
 					break;
 				}
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				default:
 				{
-					abort();
+					SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 				}
 #endif
 				}
 
 				SkipWhitespace(data);
 
-#ifdef SPRAWL_STRICT_JSON
+#if SPRAWL_STRICT_JSON
 				if(*data != ',' && *data != '}')
 				{
-					abort();
+					SPRAWL_THROW_EXCEPTION_OR_ABORT(sprawl::InvalidJsonData());
 				}
 #endif
 
@@ -976,7 +958,7 @@ namespace sprawl
 					newHolder->m_objectChildren->Insert( JSONToken(kvp.Key(), kvp.Value()) );
 				}
 			}
-			return std::move(ret);
+			return ret;
 		}
 
 		JSONToken JSONToken::DeepCopy()
@@ -989,7 +971,7 @@ namespace sprawl
 			{
 				for(int i = 0; i < m_holder->m_arrayChildren.Size(); ++i)
 				{
-					newHolder->m_arrayChildren.EmplaceBack(std::move(m_holder->m_arrayChildren[i].DeepCopy()));
+					newHolder->m_arrayChildren.EmplaceBack(m_holder->m_arrayChildren[i].DeepCopy());
 				}
 			}
 			if(newHolder->m_type == JSONType::Object)
@@ -999,7 +981,7 @@ namespace sprawl
 					newHolder->m_objectChildren->Insert( kvp.Value().DeepCopy() );
 				}
 			}
-			return std::move(ret);
+			return ret;
 		}
 
 		JSONToken& JSONToken::operator=(JSONToken const& other)

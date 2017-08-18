@@ -1,8 +1,35 @@
 #include "StringBuilder.hpp"
 #include "String.hpp"
+#include "../collections/BitVector.hpp"
 
 namespace sprawl
 {
+	namespace StringbBuilderStatic
+	{
+		struct Modifiers
+		{
+			enum Flags
+			{
+				Octal = 1,
+				Hex,
+				Scientific,
+				Uppercase,
+				Short,
+				JustifyLeft,
+				ForceSign,
+				NoSignSpace,
+				BasePrefix,
+				ForceDecimalPoint,
+				LeftPadZeroes,
+				SpecifiesWidth,
+				SpecifiesPrecision,
+				MAX
+			};
+			size_t precision;
+			size_t width;
+			collections::BitSet<Flags::MAX> flags;
+		};
+	}
 	StringBuilder::StringBuilder(size_t const startingBufferSize, bool allowGrowth)
 		: m_staticBuffer()
 		, m_dynamicBuffer(nullptr)

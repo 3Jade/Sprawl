@@ -50,7 +50,7 @@ public:
 		return ((m_bitArray[offset] & (uint64_t(1) << bit)) != 0);
 	}
 
-	SPRAWL_CONSTEXPR uint64_t Size() const
+	constexpr uint64_t Size() const
 	{
 		return maxBits;
 	}

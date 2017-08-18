@@ -1,7 +1,7 @@
 #include "../collections/BitVector.hpp"
 #include <stdio.h>
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 class BitSetTest : public testing::Test

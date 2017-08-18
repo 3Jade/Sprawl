@@ -7,12 +7,13 @@
 #include "async_network.hpp"
 #include <sstream>
 #include "../common/logging.hpp"
+#include "../common/compat.hpp"
 
 #ifdef _WIN32
 #	define close closesocket
 #	include <time.h>
 
-#	if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+#	if SPRAWL_COMPILER_MSVC || defined(_MSC_EXTENSIONS)
 #		define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
 #	else
 #		define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
@@ -735,7 +736,7 @@ namespace sprawl
 			{
 				ret.push_back(connection);
 			}
-			return std::move(ret);
+			return ret;
 		}
 
 		ConnectionWPtr ServerSocket::GetConnection(int i)

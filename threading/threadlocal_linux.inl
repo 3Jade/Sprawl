@@ -44,6 +44,17 @@ void sprawl::threading::ThreadLocal<T>::set(T const& value)
 }
 
 template<typename T>
+void sprawl::threading::ThreadLocal<T>::Clear()
+{
+	T* oldValue = reinterpret_cast<T*>(pthread_getspecific(m_key));
+	if(oldValue)
+	{
+		delete oldValue;
+		pthread_setspecific(m_key, nullptr);
+	}
+}
+
+template<typename T>
 sprawl::threading::ThreadLocal<T*>::ThreadLocal()
 {
 	pthread_key_create(&m_key, NULL);

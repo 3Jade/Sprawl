@@ -1,50 +1,5 @@
 #include "coroutine.hpp"
 #include "threadlocal.hpp"
-#include <Windows.h>
-
-namespace CoroutineStatic
-{
-	static VOID CALLBACK EntryPoint(PVOID lpParameter)
-	{
-		typedef void(*entryPoint)();
-		entryPoint ep = (entryPoint)(lpParameter);
-		ep();
-	}
-}
-
-sprawl::threading::CoroutineBase::Holder::Holder()
-	: m_function(nullptr)
-	, m_stackSize(0)
-	, m_stack(nullptr)
-	, m_stackPointer(nullptr)
-	, m_state(CoroutineState::Created)
-	, m_refCount(1)
-	, m_priorCoroutine(nullptr)
-{
-	if(!IsThreadAFiber())
-	{
-		ConvertThreadToFiber(nullptr);
-	}
-	m_stackPointer = GetCurrentFiber();
-}
-
-/*virtual*/ sprawl::threading::CoroutineBase::Holder::~Holder()
-{
-    // NOP
-}
-
-
-sprawl::threading::CoroutineBase::Holder::Holder(std::function<void()> function, size_t stackSize)
-	: m_function(function)
-	, m_stackSize(stackSize)
-	, m_stack(nullptr)
-	, m_stackPointer(nullptr)
-	, m_state(CoroutineState::Created)
-	, m_refCount(1)
-	, m_priorCoroutine(nullptr)
-{
-	m_stackPointer = CreateFiberEx(0, m_stackSize, 0, &CoroutineStatic::EntryPoint, &CoroutineBase::entryPoint_);
-}
 
 void sprawl::threading::CoroutineBase::Resume()
 {
@@ -58,6 +13,12 @@ void sprawl::threading::CoroutineBase::Resume()
 
 	ms_coroutineInitHelper = this;
 	SwitchToFiber(m_holder->m_stackPointer);
+#if SPRAWL_EXCEPTIONS_ENABLED
+	if(m_holder->m_exception)
+	{
+		std::rethrow_exception(m_holder->m_exception);
+	}
+#endif
 }
 
 void sprawl::threading::CoroutineBase::reactivate_()
@@ -69,6 +30,12 @@ void sprawl::threading::CoroutineBase::reactivate_()
 
 	currentlyActiveCoroutine.releaseRef_();
 	SwitchToFiber(m_holder->m_stackPointer);
+#if SPRAWL_EXCEPTIONS_ENABLED
+	if(m_holder->m_exception)
+	{
+		std::rethrow_exception(m_holder->m_exception);
+	}
+#endif
 }
 
 void sprawl::threading::CoroutineBase::Pause()

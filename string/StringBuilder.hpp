@@ -122,7 +122,7 @@ namespace sprawl
 
 		void checkGrow_(size_t amount);
 
-		static SPRAWL_CONSTEXPR size_t staticBufferSize = SPRAWL_STATIC_STRING_SIZE;
+		static constexpr size_t staticBufferSize = SPRAWL_STATIC_STRING_SIZE;
 
 		char m_staticBuffer[staticBufferSize];
 		char* m_dynamicBuffer;

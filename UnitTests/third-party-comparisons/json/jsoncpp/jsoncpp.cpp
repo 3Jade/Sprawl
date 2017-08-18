@@ -74,6 +74,7 @@ license you like.
 
 
 #include "json/json.h"
+#include "../../common/errors.hpp"
 
 #ifndef JSON_IS_AMALGAMATION
 #error "Compile with -I PATH_TO_JSON_DIRECTORY"
@@ -2525,11 +2526,19 @@ LogicError::LogicError(std::string const& msg)
 {}
 void throwRuntimeError(std::string const& msg)
 {
+#if SPRAWL_EXCEPTIONS_ENABLED
   throw RuntimeError(msg);
+#else
+  (void)(msg);
+#endif
 }
 void throwLogicError(std::string const& msg)
 {
+#if SPRAWL_EXCEPTIONS_ENABLED
   throw LogicError(msg);
+#else
+  (void)(msg);
+#endif
 }
 
 // //////////////////////////////////////////////////////////////////

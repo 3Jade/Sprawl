@@ -1,60 +1,16 @@
 #include "coroutine.hpp"
 
-
 /*static*/ sprawl::threading::ThreadLocal<sprawl::threading::CoroutineBase*> sprawl::threading::CoroutineBase::ms_coroutineInitHelper;
 /*static*/ sprawl::threading::ThreadLocal<sprawl::threading::CoroutineBase> sprawl::threading::CoroutineBase::ms_thisThreadCoroutine;
 
-/*static*/ void sprawl::threading::CoroutineBase::Yield()
-{
-	CoroutineBase routine = *CoroutineBase::ms_thisThreadCoroutine;
-	routine.releaseRef_();
-	routine.Pause();
-}
-
-sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Holder::Create()
-{
-	typedef memory::PoolAllocator<sizeof(Holder)> holderAlloc;
-
-	Holder* ret = (Holder*)holderAlloc::alloc();
-	new(ret) Holder();
-	return ret;
-}
-
-sprawl::threading::CoroutineBase::Holder* sprawl::threading::CoroutineBase::Holder::Create(std::function<void()> function, size_t stackSize)
-{
-	typedef memory::PoolAllocator<sizeof(Holder)> holderAlloc;
-
-	Holder* ret = (Holder*)holderAlloc::alloc();
-	new(ret) Holder(function, stackSize);
-	return ret;
-}
-
-void sprawl::threading::CoroutineBase::Holder::Release()
-{
-	typedef memory::PoolAllocator<sizeof(Holder)> holderAlloc;
-
-	this->~Holder();
-	holderAlloc::free(this);
-}
-
-void sprawl::threading::CoroutineBase::Holder::IncRef()
-{
-	++m_refCount;
-}
-
-bool sprawl::threading::CoroutineBase::Holder::DecRef()
-{
-	return (--m_refCount == 0);
-}
-
 sprawl::threading::CoroutineBase::CoroutineBase()
-	: m_holder(Holder::Create())
+	: m_holder(Holder<void>::Create())
 	, m_ownsHolder(true)
 {
 	// NOP
 }
 
-sprawl::threading::CoroutineBase::CoroutineBase(sprawl::threading::CoroutineBase::Holder* holder)
+sprawl::threading::CoroutineBase::CoroutineBase(sprawl::threading::CoroutineBase::Holder<void>* holder)
 	: m_holder(holder)
 	, m_ownsHolder(true)
 {
@@ -93,14 +49,25 @@ sprawl::threading::CoroutineBase::~CoroutineBase()
 	}
 }
 
-sprawl::threading::CoroutineBase::CoroutineState sprawl::threading::CoroutineBase::State()
+sprawl::threading::CoroutineState sprawl::threading::CoroutineBase::State()
 {
 	return m_holder ? m_holder->m_state : CoroutineState::Invalid;
 }
 
 void sprawl::threading::CoroutineBase::run_()
 {
-	m_holder->m_function();
+#if SPRAWL_EXCEPTIONS_ENABLED
+	try
+	{
+		m_holder->RunFunction();
+	}
+	catch(...)
+	{
+		m_holder->m_exception = std::current_exception();
+	}
+#else
+	m_holder->RunFunction();
+#endif
 	m_holder->m_state = CoroutineState::Completed;
 	m_holder->m_priorCoroutine.reactivate_();
 }
@@ -122,4 +89,19 @@ void sprawl::threading::CoroutineBase::releaseRef_()
 size_t sprawl::threading::CoroutineBase::StackSize()
 {
 	return m_holder->m_stackSize;
+}
+
+/*static*/ sprawl::threading::CoroutineBase sprawl::threading::CoroutineBase::GetCurrentCoroutine()
+{
+	return *ms_thisThreadCoroutine;
+}
+
+sprawl::threading::CoroutineBase sprawl::threading::CoroutineBase::GetCallingCoroutine()
+{
+	return m_holder->m_priorCoroutine;
+}
+
+sprawl::threading::CoroutineType sprawl::threading::CoroutineBase::Type()
+{
+	return m_holder->Type();
 }

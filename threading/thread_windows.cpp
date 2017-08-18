@@ -1,5 +1,6 @@
 #include "thread.hpp"
 #include "../time/time.hpp"
+#include "../common/compat.hpp"
 
 namespace ThreadStatic
 {
@@ -10,6 +11,8 @@ namespace ThreadStatic
 		return 0;
 	}
 }
+
+/*static*/ sprawl::threading::ThreadDestructionBehavior sprawl::threading::Thread::ms_defaultDestructionBehavior = sprawl::threading::ThreadDestructionBehavior::Abort;
 
 int64_t sprawl::threading::Handle::GetUniqueId() const
 {
@@ -69,9 +72,46 @@ sprawl::threading::Handle sprawl::this_thread::GetHandle()
 
 sprawl::threading::Thread::~Thread()
 {
+	if(m_destructionBehavior == ThreadDestructionBehavior::Default)
+	{
+		m_destructionBehavior = ms_defaultDestructionBehavior;
+	}
+
 	if(Joinable())
 	{
-		abort();
+#if SPRAWL_EXCEPTIONS_ENABLED
+		if(m_exception)
+		{
+			try
+			{
+				std::rethrow_exception(m_exception);
+			}
+			catch(std::exception& e)
+			{
+				fprintf(stderr, "Thread %" SPRAWL_I64FMT "d destroyed without being joined after thread was terminated with a std::exception. e.what(): %s\n", GetHandle().GetUniqueId(), e.what());
+			}
+			catch(...)
+			{
+				fprintf(stderr, "Thread %" SPRAWL_I64FMT "d destroyed without being joined after thread was terminated with an exception of unknown type.\n", GetHandle().GetUniqueId());
+			}
+			fflush(stderr);
+			std::terminate();
+		}
+#endif
+		switch(m_destructionBehavior)
+		{
+		case ThreadDestructionBehavior::Abort:
+		case ThreadDestructionBehavior::Default:
+		default:
+			std::terminate();
+			break;
+		case ThreadDestructionBehavior::Detach:
+			PlatformDetach();
+			break;
+		case ThreadDestructionBehavior::Join:
+			PlatformJoin();
+			break;
+		}
 	}
 	CloseHandle(m_handle.GetNativeHandle());
 }

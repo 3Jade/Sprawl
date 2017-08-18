@@ -50,7 +50,7 @@ TEST_F(EventTest, SimpleEventWorks)
 	t.Join();
 }
 
-TEST_F(EventTest, EventDoesntReturnEarly)
+TEST_F(EventTest, EventDoesntReturnUntilNotified)
 {
 	sprawl::threading::Thread t([&]()
 	{
@@ -98,7 +98,7 @@ TEST_F(EventTest, EventWokenUpEarlyWhenSignaledDuringWaitFor)
 	sprawl::threading::Thread t([&]()
 	{
 		int64_t start = sprawl::time::Now();
-		event.WaitFor(1000 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_TRUE(event.WaitFor(1000 * sprawl::time::Resolution::Milliseconds));
 		int64_t end = sprawl::time::Now();
 		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
 	});
@@ -108,14 +108,15 @@ TEST_F(EventTest, EventWokenUpEarlyWhenSignaledDuringWaitFor)
 	t.Join();
 }
 
-TEST_F(EventTest, EventDoesntReturnEarlyWithWaitFor)
+TEST_F(EventTest, EventDoesntReturnUntilNotifiedWithWaitFor)
 {
 	sprawl::threading::Thread t([&]()
 	{
 		int64_t start = sprawl::time::Now();
-		event.WaitFor(1000 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_TRUE(event.WaitFor(1000 * sprawl::time::Resolution::Milliseconds));
 		int64_t end = sprawl::time::Now();
 		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
 	});
 
 	t.Start();
@@ -135,7 +136,7 @@ TEST_F(EventTest, MultipleNotifiesWhileNotWaitingOnlyWakeOnce)
 
 		//Second wait should take the full duration.
 		int64_t start = sprawl::time::Now();
-		event.WaitFor(500 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_FALSE(event.WaitFor(500 * sprawl::time::Resolution::Milliseconds));
 		int64_t end = sprawl::time::Now();
 
 		ASSERT_GE(end - start, 500 * sprawl::time::Resolution::Milliseconds);
@@ -178,11 +179,11 @@ TEST_F(EventTest, NotifyOnlyWakesOneThread)
 	ASSERT_EQ(1, nWoken.load());
 }
 
-TEST_F(EventTest, WaitingForMultipleEventsWorks)
+TEST_F(EventTest, WaitingForAnyEventWorks)
 {
 	sprawl::threading::Thread t([&]()
 	{
-		ASSERT_EQ(&event3, sprawl::threading::Event::WaitMultiple(group));
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(group));
 	});
 	t.Start();
 
@@ -192,11 +193,62 @@ TEST_F(EventTest, WaitingForMultipleEventsWorks)
 	t.Join();
 }
 
-TEST_F(EventTest, MultiEventTriggersWhenNotifyBeforeWait)
+TEST_F(EventTest, WaitingForAnyEventWorks_Templated)
 {
-	sprawl::threading::Thread t([&](){
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(event, event2, event3, event4, event5));
+	});
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventDoesntReturnUntilNotified)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(group));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventDoesntReturnUntilNotified_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(event, event2, event3, event4, event5));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventTriggersWhenNotifyBeforeWait)
+{
+	sprawl::threading::Thread t([&]()
+	{
 		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
-		ASSERT_EQ(&event3, sprawl::threading::Event::WaitMultiple(group));
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(group));
 	});
 
 	t.Start();
@@ -208,23 +260,51 @@ TEST_F(EventTest, MultiEventTriggersWhenNotifyBeforeWait)
 	t.Join();
 }
 
-TEST_F(EventTest, MultiEventTimesOutWithWaitFor)
+TEST_F(EventTest, AnyEventTriggersWhenNotifyBeforeWait_Templated)
 {
 	sprawl::threading::Thread t([&]()
 	{
-		ASSERT_EQ(nullptr, sprawl::threading::Event::WaitMultipleFor(group, 500 * sprawl::time::Resolution::Milliseconds));
+		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(event, event2, event3, event4, event5));
+	});
+
+	t.Start();
+
+	event4.Notify();
+	event5.Notify();
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventTimesOutWithWaitFor)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_EQ(nullptr, sprawl::threading::Event::WaitAnyFor(group, 500 * sprawl::time::Resolution::Milliseconds));
 	});
 
 	t.Start();
 	t.Join();
 }
 
-TEST_F(EventTest, MultiEventWokenUpEarlyWhenSignaledDuringWaitFor)
+TEST_F(EventTest, AnyEventTimesOutWithWaitFor_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_EQ(nullptr, sprawl::threading::Event::WaitAnyFor(event, event2, event3, event4, event5, 500 * sprawl::time::Resolution::Milliseconds));
+	});
+
+	t.Start();
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventWokenUpEarlyWhenSignaledDuringWaitFor)
 {
 	sprawl::threading::Thread t([&]()
 	{
 		int64_t start = sprawl::time::Now();
-		ASSERT_EQ(&event3, sprawl::threading::Event::WaitMultipleFor(group, 1000 * sprawl::time::Resolution::Milliseconds));
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAnyFor(group, 1000 * sprawl::time::Resolution::Milliseconds));
 		int64_t end = sprawl::time::Now();
 		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
 	});
@@ -234,16 +314,69 @@ TEST_F(EventTest, MultiEventWokenUpEarlyWhenSignaledDuringWaitFor)
 	t.Join();
 }
 
-TEST_F(EventTest, MultiEventMultipleNotifiesWhileNotWaitingOnlyWakeOnce)
+TEST_F(EventTest, AnyEventWokenUpEarlyWhenSignaledDuringWaitFor_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAnyFor(event, event2, event3, event4, event5, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+	event3.Notify();
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventDoesntReturnUntilNotifiedWithWaitFor)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAnyFor(group, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventDoesntReturnUntilNotifiedWithWaitFor_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAnyFor(event, event2, event3, event4, event5, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, AnyEventMultipleNotifiesWhileNotWaitingOnlyWakeOnce)
 {
 	sprawl::threading::Thread t([&]()
 	{
 		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
-		ASSERT_EQ(&event3, sprawl::threading::Event::WaitMultiple(group));
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(group));
 
 		//Second wait should take the full duration.
 		int64_t start = sprawl::time::Now();
-		ASSERT_EQ(nullptr, sprawl::threading::Event::WaitMultipleFor(group, 500 * sprawl::time::Resolution::Milliseconds));
+		ASSERT_EQ(nullptr, sprawl::threading::Event::WaitAnyFor(group, 500 * sprawl::time::Resolution::Milliseconds));
 		int64_t end = sprawl::time::Now();
 
 		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
@@ -256,45 +389,38 @@ TEST_F(EventTest, MultiEventMultipleNotifiesWhileNotWaitingOnlyWakeOnce)
 
 	t.Join();
 }
-// Invalid test. Multi-event + multi-thread is verbotin. Not reliable and not supported.
-//
-//TEST_F(EventTest, MultiEventNotifyOnlyWakesOneThread)
-//{
-//	std::atomic<int> nWoken(0);
-//	sprawl::threading::Thread t([&]()
-//	{
-//		if(sprawl::threading::Event::WaitMultipleFor(group, 500 * sprawl::time::Resolution::Milliseconds) != nullptr)
-//		{
-//			++nWoken;
-//		}
-//	});
-//	sprawl::threading::Thread t2([&]()
-//	{
-//		if(sprawl::threading::Event::WaitMultipleFor(group, 500 * sprawl::time::Resolution::Milliseconds) != nullptr)
-//		{
-//			++nWoken;
-//		}
-//	});
-//
-//	t.Start();
-//	t2.Start();
-//
-//	event3.Notify();
-//
-//	t.Join();
-//	t2.Join();
-//
-//	ASSERT_EQ(1, nWoken.load());
-//}
 
-TEST_F(EventTest, NotifyDuringMultiEventProperlyClearsStateForSingleEvent)
+TEST_F(EventTest, AnyEventMultipleNotifiesWhileNotWaitingOnlyWakeOnce_Templated)
 {
 	sprawl::threading::Thread t([&]()
 	{
-		ASSERT_EQ(&event3, sprawl::threading::Event::WaitMultiple(group));
+		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(group));
+
+		//Second wait should take the full duration.
+		int64_t start = sprawl::time::Now();
+		ASSERT_EQ(nullptr, sprawl::threading::Event::WaitAnyFor(event, event2, event3, event4, event5, 500 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	event3.Notify();
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, NotifyDuringAnyEventProperlyClearsStateForSingleEvent)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(group));
 
 		int64_t start = sprawl::time::Now();
-		event3.WaitFor(500 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_FALSE(event3.WaitFor(500 * sprawl::time::Resolution::Milliseconds));
 		int64_t end = sprawl::time::Now();
 		ASSERT_GE(end - start, 500 * sprawl::time::Resolution::Milliseconds);
 	});
@@ -302,6 +428,323 @@ TEST_F(EventTest, NotifyDuringMultiEventProperlyClearsStateForSingleEvent)
 	t.Start();
 
 	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, NotifyDuringAnyEventProperlyClearsStateForSingleEvent_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_EQ(&event3, sprawl::threading::Event::WaitAny(event, event2, event3, event4, event5));
+
+		int64_t start = sprawl::time::Now();
+		ASSERT_FALSE(event3.WaitFor(500 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GE(end - start, 500 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	event3.Notify();
+
+	t.Join();
+}
+
+TEST_F(EventTest, WaitingForAllEventWorks)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::threading::Event::WaitAll(group);
+	});
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+
+	sprawl::threading::Event::NotifyAll(group);
+
+	t.Join();
+}
+
+TEST_F(EventTest, WaitingForAllEventWorks_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::threading::Event::WaitAll(event, event2, event3, event4, event5);
+	});
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventDoesntReturnUntilNotified)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		sprawl::threading::Event::WaitAll(group);
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	sprawl::threading::Event::NotifyAll(group);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventDoesntReturnUntilNotified_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		sprawl::threading::Event::WaitAll(event, event2, event3, event4, event5);
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventTriggersWhenNotifyBeforeWait)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+		sprawl::threading::Event::WaitAll(group);
+	});
+
+	t.Start();
+	
+	sprawl::threading::Event::NotifyAll(group);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventTriggersWhenNotifyBeforeWait_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+		sprawl::threading::Event::WaitAll(event, event2, event3, event4, event5);
+	});
+
+	t.Start();
+
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventTimesOutWithWaitFor)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_FALSE(sprawl::threading::Event::WaitAllFor(group, 500 * sprawl::time::Resolution::Milliseconds));
+	});
+
+	t.Start();
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventTimesOutWithWaitFor_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_FALSE(sprawl::threading::Event::WaitAllFor(event, event2, event3, event4, event5, 500 * sprawl::time::Resolution::Milliseconds));
+	});
+
+	t.Start();
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventTimesOutWithWaitForWhenAllButOneEventNotified)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_FALSE(sprawl::threading::Event::WaitAllFor(group, 500 * sprawl::time::Resolution::Milliseconds));
+	});
+
+	sprawl::threading::Event::EventGroup subgroup;
+	subgroup.PushBack(&event);
+	subgroup.PushBack(&event2);
+	subgroup.PushBack(&event3);
+	subgroup.PushBack(&event4);
+	t.Start();
+	sprawl::threading::Event::NotifyAll(subgroup);
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventTimesOutWithWaitForWhenAllButOneEventNotified_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		ASSERT_FALSE(sprawl::threading::Event::WaitAllFor(event, event2, event3, event4, event5, 500 * sprawl::time::Resolution::Milliseconds));
+	});
+
+	t.Start();
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4);
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventWokenUpEarlyWhenSignaledDuringWaitFor)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_TRUE(sprawl::threading::Event::WaitAllFor(group, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+	sprawl::threading::Event::NotifyAll(group);
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventWokenUpEarlyWhenSignaledDuringWaitFor_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_TRUE(sprawl::threading::Event::WaitAllFor(event, event2, event3, event4, event5, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventDoesntReturnUntilNotifiedWithWaitFor)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_TRUE(sprawl::threading::Event::WaitAllFor(group, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	sprawl::threading::Event::NotifyAll(group);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventDoesntReturnUntilNotifiedWithWaitFor_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		int64_t start = sprawl::time::Now();
+		ASSERT_TRUE(sprawl::threading::Event::WaitAllFor(event, event2, event3, event4, event5, 1000 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+		ASSERT_LT(end - start, 1000 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventMultipleNotifiesWhileNotWaitingOnlyWakeOnce)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+		sprawl::threading::Event::WaitAll(group);
+
+		//Second wait should take the full duration.
+		int64_t start = sprawl::time::Now();
+		ASSERT_FALSE(sprawl::threading::Event::WaitAnyFor(group, 500 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::threading::Event::NotifyAll(group);
+	sprawl::threading::Event::NotifyAll(group);
+
+	t.Join();
+}
+
+TEST_F(EventTest, AllEventMultipleNotifiesWhileNotWaitingOnlyWakeOnce_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::this_thread::Sleep(500 * sprawl::time::Resolution::Milliseconds);
+		sprawl::threading::Event::WaitAll(event, event2, event3, event4, event5);
+
+		//Second wait should take the full duration.
+		int64_t start = sprawl::time::Now();
+		ASSERT_FALSE(sprawl::threading::Event::WaitAnyFor(event, event2, event3, event4, event5, 500 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+
+		ASSERT_GT(end - start, 450 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
+
+	t.Join();
+}
+
+TEST_F(EventTest, NotifyDuringAllEventProperlyClearsStateForSingleEvent)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::threading::Event::WaitAll(group);
+
+		int64_t start = sprawl::time::Now();
+		ASSERT_FALSE(sprawl::threading::Event::WaitAnyFor(group, 500 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GE(end - start, 500 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::threading::Event::NotifyAll(group);
+
+	t.Join();
+}
+
+TEST_F(EventTest, NotifyDuringAllEventProperlyClearsStateForSingleEvent_Templated)
+{
+	sprawl::threading::Thread t([&]()
+	{
+		sprawl::threading::Event::WaitAll(event, event2, event3, event4, event5);
+
+		int64_t start = sprawl::time::Now();
+		ASSERT_FALSE(sprawl::threading::Event::WaitAnyFor(event, event2, event3, event4, event5, 500 * sprawl::time::Resolution::Milliseconds));
+		int64_t end = sprawl::time::Now();
+		ASSERT_GE(end - start, 500 * sprawl::time::Resolution::Milliseconds);
+	});
+
+	t.Start();
+
+	sprawl::threading::Event::NotifyAll(event, event2, event3, event4, event5);
 
 	t.Join();
 }

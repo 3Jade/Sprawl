@@ -3,7 +3,7 @@
 #include "../collections/HashMap.hpp"
 #include "../string/String.hpp"
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 namespace CollectionTest

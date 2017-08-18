@@ -1,7 +1,7 @@
 #include "../collections/Array.hpp"
 #include <stdio.h>
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 class ArrayTest : public testing::Test

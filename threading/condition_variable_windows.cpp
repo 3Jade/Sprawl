@@ -14,12 +14,12 @@ sprawl::threading::ConditionVariable::~ConditionVariable()
 
 void sprawl::threading::ConditionVariable::Wait(SharedLock& lock)
 {
-	SleepConditionVariableCS(&m_conditionVariable, &lock.GetMutex()->GetNativeMutex(), INFINITE);
+	SleepConditionVariableSRW(&m_conditionVariable, &lock.GetMutex()->GetNativeMutex(), INFINITE, 0);
 }
 
 void sprawl::threading::ConditionVariable::WaitFor(SharedLock& lock, int64_t nanoseconds)
 {
-	SleepConditionVariableCS(&m_conditionVariable, &lock.GetMutex()->GetNativeMutex(), time::Convert(nanoseconds, time::Resolution::Nanoseconds, time::Resolution::Milliseconds));
+	SleepConditionVariableSRW(&m_conditionVariable, &lock.GetMutex()->GetNativeMutex(), time::Convert(nanoseconds, time::Resolution::Nanoseconds, time::Resolution::Milliseconds), 0);
 }
 
 void sprawl::threading::ConditionVariable::WaitUntil(SharedLock& lock, int64_t nanosecondTimestamp)

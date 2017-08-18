@@ -73,7 +73,7 @@ namespace sprawl
 			{
 				if(m_size == SPRAWL_REPLICABLE_MAX_DEPTH)
 				{
-					SPRAWL_ABORT_MSG("Replicable key depth (%d) exceeded. Redefine SPRAWL_REPLICABLE_MAX_DEPTH", SPRAWL_REPLICABLE_MAX_DEPTH);
+					SPRAWL_ABORT_MSG_F("Replicable key depth (%d) exceeded. Redefine SPRAWL_REPLICABLE_MAX_DEPTH", SPRAWL_REPLICABLE_MAX_DEPTH);
 				}
 				m_data[m_size++] = val;
 			}
@@ -117,7 +117,7 @@ namespace sprawl
 				m_size = 0;
 			}
 
-			void Serialize(SerializerBase& s);
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Serialize(SerializerBase& s);
 
 		protected:
 			friend struct RKeyHash;
@@ -180,7 +180,7 @@ namespace sprawl
 			}
 
 			virtual bool IsMongoStream() override { return m_serializer->IsMongoStream(); }
-			virtual void Reset() override
+			virtual ErrorState<void> Reset() override
 			{
 				this->m_data.clear();
 				this->m_depth_tracker.clear();
@@ -191,6 +191,7 @@ namespace sprawl
 				this->m_highest_name = 1;
 				this->m_current_key.clear();
 				this->m_keyindex.clear();
+				return ErrorState<void>();
 			}
 
 			virtual bool IsReplicable() override { return true; }
@@ -318,7 +319,7 @@ namespace sprawl
 				return 0;
 			}
 
-			void EndMap()
+			virtual void EndMap() override
 			{
 				m_current_map_key.pop_back();
 				PopKey();
@@ -372,118 +373,135 @@ namespace sprawl
 				}
 				DecrementCurrentKeyCounter();
 				PopKey();
-				return std::move(deleted_keys);
+				return deleted_keys;
 			}
 
 		protected:
 			template<typename T2>
-			void serialize_impl( T2* var, sprawl::String const& name, bool PersistToDB)
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize_impl( T2* var, sprawl::String const& name, bool PersistToDB)
 			{
 				m_serializer->Reset();
 				PushKey(name);
 				if(IsLoading())
 				{
 					typename T::serializer_type serializer;
-					serializer % m_current_key;
+					SPRAWL_RETHROW(serializer % m_current_key);
 
 					//Do nothing if this element hasn't changed.
 					auto it = m_diffs.find(m_current_key);
 					if(it != m_diffs.end())
 					{
-						m_serializer->Data(it->second);
-						(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+						SPRAWL_RETHROW(m_serializer->Data(it->second));
+						SPRAWL_RETHROW((*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB));
 						m_diffs.erase(it);
 					}
 				}
 				else
 				{
-					(*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+					SPRAWL_RETHROW((*m_serializer) % sprawl::serialization::prepare_data(*var, name, PersistToDB));
 					m_data.insert(std::make_pair(m_current_key, m_serializer->Str()));
 					if(!m_marked)
 					{
-						(*m_baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB);
+						SPRAWL_RETHROW((*m_baseline) % sprawl::serialization::prepare_data(*var, name, PersistToDB));
 					}
 				}
 				PopKey();
+				return ErrorState<void>();
 			}
 
 		public:
-			virtual void serialize(int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB)  override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB)  override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(float* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(float* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(long double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(long double* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(bool* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(bool* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned long long int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned short int* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
-			virtual void serialize(unsigned char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(unsigned char* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
-			virtual void serialize(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(std::string* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
-			virtual void serialize(sprawl::String* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> serialize(sprawl::String* var, const uint32_t /*bytes*/, sprawl::String const& name, bool PersistToDB) override
 			{
-				serialize_impl(var, name, PersistToDB);
+				SPRAWL_RETHROW(serialize_impl(var, name, PersistToDB));
+				return ErrorState<void>();
 			}
 
 		protected:
@@ -567,11 +585,12 @@ namespace sprawl
 			using ReplicableBase<T>::GetNextKey;
 			using ReplicableBase<T>::GetDeletedKeys;
 
-			virtual void Reset() override
+			virtual ErrorState<void> Reset() override
 			{
 				ReplicableBase<T>::Reset();
 				m_marked_data.clear();
 				this->m_marked = false;
+				return ErrorState<void>();
 			}
 
 			virtual void Mark()
@@ -606,15 +625,15 @@ namespace sprawl
 				//But it does sacrifice some control over when these two things happen - most people will probably not care.
 				sprawl::String ret = diff();
 				Mark();
-				return std::move(ret);
+				return ret;
 			}
 
-			sprawl::String diff()
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<sprawl::String> diff()
 			{
 				return GetDiff( this->m_data, this->m_marked_data );
 			}
 
-			sprawl::String rdiff()
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<sprawl::String> rdiff()
 			{
 				return GetDiff( this->m_marked_data, this->m_data );
 			}
@@ -625,7 +644,7 @@ namespace sprawl
 			}
 
 		protected:
-			sprawl::String GetDiff(
+			SPRAWL_WARN_UNUSED_RESULT ErrorState<sprawl::String> GetDiff(
 				const typename ReplicableBase<T>::ReplicationMap& data,
 				const typename ReplicableBase<T>::ReplicationMap& markedData
 			)
@@ -679,9 +698,9 @@ namespace sprawl
 					this->m_keyindex[kvp.second] = kvp.first;
 				}
 
-				serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex");
-				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
-				serializer % sprawl::serialization::prepare_data(this->m_removed, "removed");
+				SPRAWL_RETHROW(serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex"));
+				SPRAWL_RETHROW(serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs"));
+				SPRAWL_RETHROW(serializer % sprawl::serialization::prepare_data(this->m_removed, "removed"));
 
 				return serializer.Str();
 			}
@@ -696,13 +715,14 @@ namespace sprawl
 			ReplicableDeserializer(sprawl::String const& data)
 				: ReplicableBase<T>()
 				, Deserializer()
+				, m_bIsValid(true)
 			{
 				this->m_serializer = new T("", 0, false);
 				T serializer(data);
 
-				serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex");
-				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
-				serializer % sprawl::serialization::prepare_data(this->m_removed, "removed");
+				SPRAWL_ACTION_ON_ERROR(serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex"), m_bIsValid = false);
+				SPRAWL_ACTION_ON_ERROR(serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs"), m_bIsValid = false);
+				SPRAWL_ACTION_ON_ERROR(serializer % sprawl::serialization::prepare_data(this->m_removed, "removed"), m_bIsValid = false);
 
 				for(auto& kvp : this->m_keyindex)
 				{
@@ -713,13 +733,14 @@ namespace sprawl
 			ReplicableDeserializer(const char* data, size_t length)
 				: ReplicableBase<T>()
 				, Deserializer()
+				, m_bIsValid(true)
 			{
 				this->m_serializer = new T("", 0, false);
 				T serializer(data, length);
 
-				serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex");
-				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
-				serializer % sprawl::serialization::prepare_data(this->m_removed, "removed");
+				SPRAWL_ACTION_ON_ERROR(serializer % sprawl::serialization::prepare_data(this->m_keyindex, "keyindex"), m_bIsValid = false);
+				SPRAWL_ACTION_ON_ERROR(serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs"), m_bIsValid = false);
+				SPRAWL_ACTION_ON_ERROR(serializer % sprawl::serialization::prepare_data(this->m_removed, "removed"), m_bIsValid = false);
 
 				for(auto& kvp : this->m_keyindex)
 				{
@@ -734,7 +755,7 @@ namespace sprawl
 			using ReplicableBase<T>::IsBinary;
 			using ReplicableBase<T>::IsMongoStream;
 			using ReplicableBase<T>::IsReplicable;
-			using ReplicableBase<T>::IsValid;
+			virtual bool IsValid() override { return m_bIsValid; }
 			using ReplicableBase<T>::GetVersion;
 			using ReplicableBase<T>::SetVersion;
 			using ReplicableBase<T>::Size;
@@ -759,26 +780,29 @@ namespace sprawl
 				return "";
 			}
 
-			void Data(sprawl::String const& data)
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(sprawl::String const& data) override
 			{
 				this->m_diffs.clear();
 				this->m_data.clear();
 				this->m_depth_tracker.clear();
 				T serializer(data);
-				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
+				SPRAWL_RETHROW(serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs"));
+				return ErrorState<void>();
 			}
 
-			void Data(const char* data, size_t length)
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<void> Data(const char* data, size_t length) override
 			{
 				this->m_diffs.clear();
 				this->m_data.clear();
 				this->m_depth_tracker.clear();
 				T serializer(data, length);
-				serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs");
+				SPRAWL_RETHROW(serializer % sprawl::serialization::prepare_data(this->m_diffs, "diffs"));
+				return ErrorState<void>();
 			}
 		protected:
-			virtual SerializerBase* GetAnother(sprawl::String const& data) override { return new T(data, false); }
-			virtual SerializerBase* GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother(sprawl::String const& data) override { return new T(data, false); }
+			virtual SPRAWL_WARN_UNUSED_RESULT ErrorState<SerializerBase*> GetAnother() override { SPRAWL_UNIMPLEMENTED_BASE_CLASS_METHOD; return nullptr; }
+			bool m_bIsValid;
 		};
 
 		class JSONSerializer;

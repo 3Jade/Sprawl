@@ -1,11 +1,12 @@
 #include "../memory/PoolAllocator.hpp"
 #include "../memory/StlWrapper.hpp"
+#include "../memory/opaque_type.hpp"
 #include <algorithm>
 #include "../threading/thread.hpp"
 #include "../string/String.hpp"
 #include "../time/time.hpp"
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 const int iterations_alloc = 10000;
@@ -164,3 +165,295 @@ TEST(PoolAllocatorTest, TestAllocatorThreadSafe)
 	printf("\tThreaded string allod/dealloc - %d runs. Best: %" SPRAWL_I64FMT "d us, Worst: %" SPRAWL_I64FMT "d us, Average: %" SPRAWL_I64FMT "d us\n", iterations_threaded, low, high, total / iterations_threaded);
 }
 #endif
+
+namespace OpaquePointersCallCorrectConstructorsAndDestructors
+{
+	bool constructed = false;
+	bool destructed = false;
+}
+
+TEST(OpaqueTypeTest, OpaquePointersCallCorrectConstructorsAndDestructors)
+{
+
+	struct ConstructDestruct
+	{
+		ConstructDestruct() { OpaquePointersCallCorrectConstructorsAndDestructors::constructed = true; }
+		~ConstructDestruct() { OpaquePointersCallCorrectConstructorsAndDestructors::destructed = true; }
+	};
+
+	{
+		sprawl::memory::OpaqueType<sizeof(ConstructDestruct)> value = sprawl::memory::OpaqueType<sizeof(ConstructDestruct)>(sprawl::memory::CreateAs<ConstructDestruct>());
+		ASSERT_TRUE(OpaquePointersCallCorrectConstructorsAndDestructors::constructed);
+		ASSERT_FALSE(OpaquePointersCallCorrectConstructorsAndDestructors::destructed);
+	}
+	ASSERT_TRUE(OpaquePointersCallCorrectConstructorsAndDestructors::destructed);
+}
+
+TEST(OpaqueTypeTest, AccessingElementsWorksCorrectly)
+{
+	struct AccessTest
+	{
+		AccessTest(int i, sprawl::String const& s, bool b, sprawl::String const& s2, double d)
+			: i(i)
+			, s(s)
+			, b(b)
+			, s2(s2)
+			, d(d)
+		{
+
+		}
+
+		int i;
+		sprawl::String s;
+		bool b;
+		sprawl::String s2;
+		double d;
+	};
+
+	double d = 123485.1235199283758919293875; // Random.
+	sprawl::memory::OpaqueType<sizeof(AccessTest)> value(sprawl::memory::CreateAs<AccessTest>(), 5, "Hello", false, "World", d);
+	ASSERT_EQ(5, value.As<AccessTest>().i);
+	ASSERT_FALSE(value.As<AccessTest>().b);
+	ASSERT_EQ(sprawl::String("Hello"), value.As<AccessTest>().s);
+	ASSERT_EQ(sprawl::String("World"), value.As<AccessTest>().s2);
+	ASSERT_EQ(d, value.As<AccessTest>().d);
+}
+
+TEST(OpaqueTypeTest, ConversionOperatorWorks)
+{
+	struct AccessTest
+	{
+		AccessTest(int i, sprawl::String const& s, bool b, sprawl::String const& s2, double d)
+			: i(i)
+			, s(s)
+			, b(b)
+			, s2(s2)
+			, d(d)
+		{
+
+		}
+
+		int i;
+		sprawl::String s;
+		bool b;
+		sprawl::String s2;
+		double d;
+	};
+
+	double d = 123485.1235199283758919293875; // Random.
+	sprawl::memory::OpaqueType<sizeof(AccessTest)> value(sprawl::memory::CreateAs<AccessTest>(), 5, "Hello", false, "World", d);
+	AccessTest& test = value;
+	ASSERT_EQ(5, test.i);
+	ASSERT_FALSE(test.b);
+	ASSERT_EQ(sprawl::String("Hello"), test.s);
+	ASSERT_EQ(sprawl::String("World"), test.s2);
+	ASSERT_EQ(d, test.d);
+}
+
+TEST(OpaqueTypeTest, PolymorphismWorks)
+{
+	struct AccessTest
+	{
+		AccessTest(int i, sprawl::String const& s, bool b)
+			: i(i)
+			, s(s)
+			, b(b)
+		{
+
+		}
+
+		int i;
+		sprawl::String s;
+		bool b;
+	};
+
+	struct AddExtraData : public AccessTest
+	{
+
+		AddExtraData(int i, sprawl::String const& s, bool b, sprawl::String const& s2, double d)
+			: AccessTest(i, s, b)
+			, s2(s2)
+			, d(d)
+		{
+
+		}
+		sprawl::String s2;
+		double d;
+	};
+
+	double d = 123485.1235199283758919293875; // Random.
+	sprawl::memory::OpaqueType<sizeof(AddExtraData)> value(sprawl::memory::CreateAs<AddExtraData>(), 5, "Hello", false, "World", d);
+	AccessTest& test = value.As<AddExtraData>();
+	ASSERT_EQ(5, test.i);
+	ASSERT_FALSE(test.b);
+	ASSERT_EQ(sprawl::String("Hello"), test.s);
+}
+
+template<typename T, typename U>
+struct is_same_with_compile_error_if_not
+{
+	static bool const value = false;
+
+	typename T::FirstType_IntentionalCompileTimeError t;
+	typename U::SecondType_IntentionalCompileTimeError u;
+};
+
+template<typename T>
+struct is_same_with_compile_error_if_not<T, T>
+{
+	static bool const value = true;
+};
+
+TEST(OpaqueTypeTest, OpaqueTypeListWorks)
+{
+
+	struct ListTest
+	{
+		char c;
+		int i;
+		sprawl::String s;
+		bool b;
+		sprawl::String s2;
+		double d;
+	};
+
+	struct ListTest2
+	{
+		char c;
+		int i;
+		sprawl::String s;
+		bool b;
+	};
+
+	struct ListTest3
+	{
+		char c;
+		int i;
+		sprawl::String s;
+		bool b;
+		sprawl::String s2;
+		double d;
+		char c2;
+	};
+
+	struct ListTest4
+	{
+		char c;
+		int i;
+		sprawl::String s;
+		bool b;
+		sprawl::String s2;
+	};
+
+	struct ListTest5
+	{
+		int i;
+		double d;
+		int i2;
+		double d2;
+	};
+
+	struct ListTest6
+	{
+		double d;
+		int i;
+		double d2;
+		int i2;
+	};
+
+	struct JustAChar
+	{
+		char c;
+	};
+
+	struct SeveralChars
+	{
+		char c;
+		char c2;
+		char c3;
+		char c4;
+		char c5;
+		char c6;
+		char c7;
+		char c8;
+		char c9;
+		char c10;
+	};
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(ListTest), alignof(ListTest)>,
+			sprawl::memory::OpaqueTypeList<char, int, sprawl::String, bool, sprawl::String, double>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(ListTest2), alignof(ListTest2)>,
+			sprawl::memory::OpaqueTypeList<char, int, sprawl::String, bool>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(ListTest3), alignof(ListTest3)>,
+			sprawl::memory::OpaqueTypeList<char, int, sprawl::String, bool, sprawl::String, double, char>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(ListTest4), alignof(ListTest4)>,
+			sprawl::memory::OpaqueTypeList<char, int, sprawl::String, bool, sprawl::String>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(ListTest5), alignof(ListTest5)>,
+			sprawl::memory::OpaqueTypeList<int, double, int, double>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(ListTest6), alignof(ListTest6)>,
+			sprawl::memory::OpaqueTypeList<double, int, double, int>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(JustAChar), alignof(JustAChar)>,
+			sprawl::memory::OpaqueTypeList<char>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+
+	static_assert(
+		is_same_with_compile_error_if_not<
+			sprawl::memory::OpaqueType<sizeof(SeveralChars), alignof(SeveralChars)>,
+			sprawl::memory::OpaqueTypeList<char, char, char, char, char, char, char, char, char, char>
+		>::value,
+		"OpaqueTypeList broke."
+	);
+}
+
+TEST(OpaqueTypeTest, DefaultAlignSafeForSmallerTypes)
+{
+	struct JustAChar
+	{
+		JustAChar(char c_) : c(c_) {}
+		char c;
+	};
+
+	sprawl::memory::OpaqueType<sizeof(char)> t(sprawl::memory::CreateAs<JustAChar>(), 'c');
+
+	ASSERT_EQ('c', t.As<JustAChar>().c);
+}

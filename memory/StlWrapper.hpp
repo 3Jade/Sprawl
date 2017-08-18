@@ -124,25 +124,11 @@ namespace sprawl
 				::new ((void *)ptr) T(other);
 			}
 
-#if (defined(_WIN32) && _MSC_VER < 1800)
-#	define SPRAWL_ALLOC_MEMBER_CONSTRUCT( \
-	TEMPLATE_LIST, PADDING_LIST, LIST, COMMA, CALL_OPT, X2, X3, X4) \
-	template<class _Objty COMMA LIST(_CLASS_TYPE)> \
-	void construct(_Objty *_Ptr COMMA LIST(_TYPE_REFREF_ARG)) \
-			{ \
-	::new ((void *)_Ptr) _Objty(LIST(_FORWARD_ARG)); \
-		}
-
-			_VARIADIC_EXPAND_0X(SPRAWL_ALLOC_MEMBER_CONSTRUCT, , , , )
-#	undef SPRAWL_ALLOC_MEMBER_CONSTRUCT
-#else
 			template< typename T2, typename... Args >
 			void construct( T2* ptr, Args&&... args )
 			{
 				::new ((void*)ptr) T2(std::forward<Args>(args)...);
 			}
-
-#endif
 
 			template<class T2>
 			void destroy(T2* ptr)

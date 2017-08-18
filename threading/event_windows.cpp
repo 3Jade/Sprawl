@@ -11,17 +11,17 @@ sprawl::threading::Event::~Event()
 	CloseHandle(m_event);
 }
 
-void sprawl::threading::Event::Notify()
+void sprawl::threading::Event::Notify() const
 {
 	SetEvent(m_event);
 }
 
-void sprawl::threading::Event::Wait()
+void sprawl::threading::Event::Wait() const
 {
 	WaitForSingleObject(m_event, INFINITE);
 }
 
-bool sprawl::threading::Event::WaitFor(int64_t nanoseconds)
+bool sprawl::threading::Event::WaitFor(int64_t nanoseconds) const
 {
 	if(nanoseconds < 0)
 	{
@@ -31,9 +31,9 @@ bool sprawl::threading::Event::WaitFor(int64_t nanoseconds)
 	return ret == WAIT_OBJECT_0;
 }
 
-/*static*/ sprawl::threading::Event* sprawl::threading::Event::WaitMultiple(EventGroup& values)
+/*static*/ sprawl::threading::Event const* sprawl::threading::Event::WaitAny(EventGroup const& values)
 {
-	HANDLE events[256];
+	HANDLE events[SPRAWL_EVENT_MAX_MULTIPLE_WAIT];
 	for(int i = 0; i < values.Size(); ++i)
 	{
 		events[i] = values[i]->m_event;
@@ -47,9 +47,9 @@ bool sprawl::threading::Event::WaitFor(int64_t nanoseconds)
 	return values[ret - WAIT_OBJECT_0];
 }
 
-/*static*/ sprawl::threading::Event* sprawl::threading::Event::WaitMultipleFor(EventGroup& values, int64_t nanoseconds)
+/*static*/ sprawl::threading::Event const* sprawl::threading::Event::WaitAnyFor(EventGroup const& values, int64_t nanoseconds)
 {
-	HANDLE events[256];
+	HANDLE events[SPRAWL_EVENT_MAX_MULTIPLE_WAIT];
 	for(int i = 0; i < values.Size(); ++i)
 	{
 		events[i] = values[i]->m_event;
@@ -61,4 +61,31 @@ bool sprawl::threading::Event::WaitFor(int64_t nanoseconds)
 		return nullptr;
 	}
 	return values[ret - WAIT_OBJECT_0];
+}
+
+/*static*/ void sprawl::threading::Event::WaitAll(EventGroup const& values)
+{
+	HANDLE events[SPRAWL_EVENT_MAX_MULTIPLE_WAIT];
+	for(int i = 0; i < values.Size(); ++i)
+	{
+		events[i] = values[i]->m_event;
+	}
+
+	DWORD ret = WaitForMultipleObjects(values.Size(), events, true, INFINITE);
+}
+
+/*static*/ bool sprawl::threading::Event::WaitAllFor(EventGroup const& values, int64_t nanoseconds)
+{
+	HANDLE events[SPRAWL_EVENT_MAX_MULTIPLE_WAIT];
+	for(int i = 0; i < values.Size(); ++i)
+	{
+		events[i] = values[i]->m_event;
+	}
+
+	DWORD ret = WaitForMultipleObjects(values.Size(), events, true, time::Convert(nanoseconds, time::Resolution::Nanoseconds, time::Resolution::Milliseconds));
+	if(ret < WAIT_OBJECT_0 || ret >= WAIT_OBJECT_0 + values.Size())
+	{
+		return false;
+	}
+	return true;
 }

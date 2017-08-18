@@ -19,7 +19,7 @@ namespace sprawl
 				return ( x << r ) | ( x >> (32 - r) );
 			}
 		}
-		size_t Hash(const void* const data, const size_t size)
+		size_t Hash(const void* const data, const size_t size, const size_t seed)
 		{
 			const uint32_t c1 = 0xcc9e2d51;
 			const uint32_t c2 = 0x1b873593;
@@ -32,7 +32,7 @@ namespace sprawl
 			const uint32_t remainder = size % sizeof(uint32_t);
 			const uint32_t numChunks = (size - remainder) / sizeof(uint32_t);
 
-			uint32_t outputHash = Murmur3Cpp::seed;
+			uint32_t outputHash = seed;
 
 			for(uint32_t i = 0; i < numChunks; ++i, buffer += sizeof(uint32_t))
 			{
@@ -83,7 +83,7 @@ namespace sprawl
 				return ( x << r ) | ( x >> (64 - r) );
 			}
 		}
-		size_t Hash(const void* const data, const size_t size)
+		size_t Hash(const void* const data, const size_t size, const size_t seed)
 		{
 			const uint64_t c1 = 0x87c37b91114253d5ULL;
 			const uint64_t c2 = 0x4cf5ad432745937fULL;
@@ -96,7 +96,7 @@ namespace sprawl
 			const uint64_t remainder = size % sizeof(uint64_t);
 			const uint64_t numChunks = (size - remainder) / sizeof(uint64_t);
 
-			uint64_t outputHash = Murmur3Cpp::seed;
+			uint64_t outputHash = seed;
 
 			for(uint64_t i = 0; i < numChunks; ++i, buffer += sizeof(uint64_t))
 			{
@@ -118,6 +118,10 @@ namespace sprawl
 				// Intentional fallthrough cases to calculate the final chunk value.
 				switch(remainder)
 				{
+					case 7: finalChunk |= uint64_t(*buffer); finalChunk <<= 8; ++buffer;
+					case 6: finalChunk |= uint64_t(*buffer); finalChunk <<= 8; ++buffer;
+					case 5: finalChunk |= uint64_t(*buffer); finalChunk <<= 8; ++buffer;
+					case 4: finalChunk |= uint64_t(*buffer); finalChunk <<= 8; ++buffer;
 					case 3: finalChunk |= uint64_t(*buffer); finalChunk <<= 8; ++buffer;
 					case 2: finalChunk |= uint64_t(*buffer); finalChunk <<= 8; ++buffer;
 					case 1: finalChunk |= uint64_t(*buffer); ++buffer;
@@ -140,6 +144,11 @@ namespace sprawl
 			return outputHash;
 		}
 #endif
+		size_t Hash(const void* const data, const size_t size)
+		{
+			return Hash(data, size, Murmur3Cpp::seed);
+		}
+
 		size_t HashInt32(uint32_t data)
 		{
 			data ^= (data >> 16);

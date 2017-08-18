@@ -3,7 +3,7 @@
 #include <iostream>
 #include "../threading/thread.hpp"
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 TEST(TimeTest, SystemClockWorks)

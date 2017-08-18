@@ -5,7 +5,7 @@
 #include "../filesystem/filesystem.hpp"
 #include "../filesystem/path.hpp"
 #include "../threading/thread.hpp"
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 #ifdef _WIN32
@@ -177,11 +177,10 @@ TEST(LoggingTest, CategoryHandlersWork)
 {
 	sprawl::logging::SetRenameMethod(sprawl::logging::RenameMethod::Counter, 5);
 	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
-	ASSERT_TRUE(sprawl::String("Test::Test2") < sprawl::String("Test::Test3"));
-	ASSERT_FALSE(sprawl::String("Test::Test3") < sprawl::String("Test::Test2"));
 	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test"), sprawl::logging::PrintToFile("test2.log"));
 	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test", "Test"), sprawl::logging::PrintToFile("test3.log"), sprawl::logging::CategoryCombinationType::Exclusive);
 	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test", "Test3"), sprawl::logging::PrintToFile("test4.log"));
+	sprawl::logging::AddCategoryHandler(sprawl::logging::Category("Test", "Test3", "Test4"), sprawl::logging::PrintToFile("test5.log"));
 	sprawl::logging::Init();
 
 	int line = __LINE__;
@@ -198,6 +197,9 @@ TEST(LoggingTest, CategoryHandlersWork)
 
 	int line5 = __LINE__;
 	LOG(INFO, sprawl::logging::Category("Test", "Test3"), "This is my message.");
+
+	int line6 = __LINE__;
+	LOG(INFO, sprawl::logging::Category("Test", "Test3", "Test4"), "This is my message.");
 
 	sprawl::logging::ShutDown();
 	ASSERT_TRUE(sprawl::path::Exists("test.log"));
@@ -231,6 +233,12 @@ TEST(LoggingTest, CategoryHandlersWork)
 	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
 	EXPECT_EQ(
 		sprawl::Format("{} [INFO] This is my message. [Test::Test3] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line5 + 1, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message. [Test::Test3::Test4] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line6 + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -249,6 +257,20 @@ TEST(LoggingTest, CategoryHandlersWork)
 	f.Seek(27, sprawl::filesystem::RelativeTo::Beginning);
 	EXPECT_EQ(
 		sprawl::Format("{} [INFO] This is my message. [Test::Test3] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line5 + 1, sprawl::filesystem::LineSeparator()),
+		f.ReadLine()
+	);
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message. [Test::Test3::Test4] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line6 + 1, sprawl::filesystem::LineSeparator()),
+		f.Read()
+	);
+	f.Close();
+	f = sprawl::filesystem::Open("test5.log", "r");
+	//Skip timestamp.
+	f.Seek(27, sprawl::filesystem::RelativeTo::CurrentPosition);
+	EXPECT_EQ(
+		sprawl::Format("{} [INFO] This is my message. [Test::Test3::Test4] (", sprawl::this_thread::GetHandle().GetUniqueId()) + sprawl::path::Basename(__FILE__) + sprawl::String(":") + sprawl::String(__FUNCTION__) + sprawl::String(":{}){}").format(line6 + 1, sprawl::filesystem::LineSeparator()),
 		f.Read()
 	);
 	f.Close();
@@ -380,7 +402,16 @@ TEST(LoggingTest, CompileTimeLevelFilterWorks)
 	sprawl::logging::SetDefaultHandler(sprawl::logging::PrintToFile("test.log"));
 	sprawl::logging::Init();
 
-	LOG(TRACE, sprawl::logging::Category("Test", "Test"), "This is my message.");
+	bool executed = false;
+	auto GetMessage = [&]()
+	{
+		executed = true;
+		return "This is my message.";
+	};
+
+	LOG(TRACE, sprawl::logging::Category("Test", "Test"), GetMessage());
+
+	EXPECT_FALSE(executed);
 
 	sprawl::logging::ShutDown();
 	ASSERT_TRUE(sprawl::path::Exists("test.log"));
@@ -399,7 +430,16 @@ TEST(LoggingTest, RunTimeLevelFilterWorks)
 	sprawl::logging::SetRuntimeMinimumLevel(LogLevel::INFO);
 	sprawl::logging::Init();
 
-	LOG(DEBUG, sprawl::logging::Category("Test", "Test"), "This is my message.");
+	bool executed = false;
+	auto GetMessage = [&]()
+	{
+		executed = true;
+		return "This is my message.";
+	};
+
+	LOG(DEBUG, sprawl::logging::Category("Test", "Test"), GetMessage());
+
+	EXPECT_FALSE(executed);
 
 	sprawl::logging::ShutDown();
 	ASSERT_TRUE(sprawl::path::Exists("test.log"));

@@ -192,7 +192,7 @@ namespace sprawl
 			ret.m_holder->m_data = ret.m_holder->m_dynamicData;
 		}
 		ret.m_holder->m_length = fullLength;
-		return std::move(ret);
+		return ret;
 	}
 
 	sprawl::String String::operator+(const char* other) const
@@ -218,7 +218,7 @@ namespace sprawl
 			ret.m_holder->m_data = ret.m_holder->m_dynamicData;
 		}
 		ret.m_holder->m_length = fullLength;
-		return std::move(ret);
+		return ret;
 	}
 
 	sprawl::String& String::operator+=(sprawl::String const& other)

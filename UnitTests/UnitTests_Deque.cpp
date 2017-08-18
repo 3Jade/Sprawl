@@ -1,6 +1,6 @@
 #include "../collections/Deque.hpp"
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 class DequeTest : public testing::Test

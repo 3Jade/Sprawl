@@ -37,25 +37,26 @@ namespace sprawl
 			return m_size < other.m_size;
 		}
 
-		void ReplicationKey::Serialize(SerializerBase& s)
+		SPRAWL_WARN_UNUSED_RESULT ErrorState<void> ReplicationKey::Serialize(SerializerBase& s)
 		{
 			if(s.IsBinary())
 			{
-				s % prepare_data(m_size, "size", true);
+				SPRAWL_RETHROW(s % prepare_data(m_size, "size", true));
 			}
 			s.StartArray("ReplicationKey", m_size, true);
 			if(s.IsBinary())
 			{
-				s.serialize(m_data, m_size * sizeof(int32_t), "data", true);
+				SPRAWL_RETHROW(s.serialize(m_data, m_size * sizeof(int32_t), "data", true));
 			}
 			else
 			{
 				for(uint32_t i=0; i<m_size; ++i)
 				{
-					s % prepare_data(m_data[i], "data");
+					SPRAWL_RETHROW(s % prepare_data(m_data[i], "data"));
 				}
 			}
 			s.EndArray();
+			return ErrorState<void>();
 		}
 
 		bool StartsWith(ReplicationKey const& x, ReplicationKey const& y)

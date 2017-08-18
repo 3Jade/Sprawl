@@ -1,7 +1,7 @@
 #include "../collections/List.hpp"
 #include "../collections/ForwardList.hpp"
 
-#include "gtest_printers.hpp"
+#include "gtest_helpers.hpp"
 #include <gtest/gtest.h>
 
 class ListTest : public testing::Test

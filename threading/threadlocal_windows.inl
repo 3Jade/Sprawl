@@ -44,6 +44,17 @@ void sprawl::threading::ThreadLocal<T>::set(T const& value)
 }
 
 template<typename T>
+void sprawl::threading::ThreadLocal<T>::Clear()
+{
+	T* oldValue = reinterpret_cast<T*>(TlsGetValue(m_key));
+	if(oldValue)
+	{
+		delete oldValue;
+		TlsSetValue(m_key, nullptr);
+	}
+}
+
+template<typename T>
 sprawl::threading::ThreadLocal<T*>::ThreadLocal()
 {
 	m_key = TlsAlloc();

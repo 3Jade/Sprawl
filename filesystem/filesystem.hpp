@@ -65,6 +65,7 @@ namespace sprawl
 			void Sync();
 			void Flush();
 			int FileNo();
+			FILE* NativeHandle() { return m_file; }
 			bool IsATTY();
 
 			String Read(int numBytes = -1);
