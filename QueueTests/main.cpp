@@ -868,7 +868,7 @@ double OpsPerSecond(int64_t duration, size_t numOps)
 	return opsPerSecond;
 }
 
-constexpr int nIters = 5;
+constexpr int nIters = 1;
 
 template<typename t_ElementType, typename t_QueueType, TicketType t_TicketType = TicketType::PERSISTENT>
 void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueThreads, bool useMoves = false)
@@ -908,22 +908,6 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 						enqueueFunc
 					)
 				);
-#ifdef _WIN32
-				if(!SetThreadAffinityMask(threads.back().native_handle(), 1 << (i % std::thread::hardware_concurrency())))
-				{
-					abort();
-				}
-#else
-				cpu_set_t cpuset;
-				pthread_t thread = threads.back().native_handle();
-
-				CPU_ZERO(&cpuset);
-				CPU_SET((i % std::thread::hardware_concurrency()), &cpuset);
-				if(pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) != 0)
-				{
-					abort();
-				}
-#endif
 			}
 			while(started.load() < enqueueThreads) {}
 			started.store(0);
@@ -950,22 +934,6 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 						dequeueFunc
 					)
 				);
-#ifdef _WIN32
-				if(!SetThreadAffinityMask(threads.back().native_handle(), 1 << (i % std::thread::hardware_concurrency())))
-				{
-					abort();
-				}
-#else
-				cpu_set_t cpuset;
-				pthread_t thread = threads.back().native_handle();
-
-				CPU_ZERO(&cpuset);
-				CPU_SET((i % std::thread::hardware_concurrency()), &cpuset);
-				if(pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) != 0)
-				{
-					abort();
-				}
-#endif
 			}
 			while(started.load() < dequeueThreads) {}
 			started.store(0);
@@ -997,22 +965,6 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 							fn
 						)
 					);
-#ifdef _WIN32
-					if(!SetThreadAffinityMask(threads.back().native_handle(), 1 << ((enq + deq) % std::thread::hardware_concurrency())))
-					{
-						abort();
-					}
-#else
-					cpu_set_t cpuset;
-					pthread_t thread = threads.back().native_handle();
-
-					CPU_ZERO(&cpuset);
-					CPU_SET(((enq + deq) % std::thread::hardware_concurrency()), &cpuset);
-					if(pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) != 0)
-					{
-						abort();
-					}
-#endif
 				}
 				if (++enq <= enqueueThreads)
 				{
@@ -1023,22 +975,6 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 							fn
 						)
 					);
-#ifdef _WIN32
-					if(!SetThreadAffinityMask(threads.back().native_handle(), 1 << ((enq + deq) % std::thread::hardware_concurrency())))
-					{
-						abort();
-					}
-#else
-					cpu_set_t cpuset;
-					pthread_t thread = threads.back().native_handle();
-
-					CPU_ZERO(&cpuset);
-					CPU_SET(((enq + deq) % std::thread::hardware_concurrency()), &cpuset);
-					if(pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset))
-					{
-						abort();
-					}
-#endif
 				}
 				if (enq >= enqueueThreads && deq >= dequeueThreads)
 				{
@@ -1071,22 +1007,6 @@ void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueTh
 						fn
 					)
 				);
-#ifdef _WIN32
-				if (!SetThreadAffinityMask(threads.back().native_handle(), 1 << (i % std::thread::hardware_concurrency())))
-				{
-					abort();
-				}
-#else
-				cpu_set_t cpuset;
-				pthread_t thread = threads.back().native_handle();
-
-				CPU_ZERO(&cpuset);
-				CPU_SET((i % std::thread::hardware_concurrency()), &cpuset);
-				if (pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset) != 0)
-				{
-					abort();
-				}
-#endif
 			}
 			while(started.load() < dequeueThreads) {}
 			started.store(0);
