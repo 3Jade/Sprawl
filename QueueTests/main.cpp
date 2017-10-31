@@ -868,7 +868,7 @@ double OpsPerSecond(int64_t duration, size_t numOps)
 	return opsPerSecond;
 }
 
-constexpr int nIters = 1;
+constexpr int nIters = 5;
 
 template<typename t_ElementType, typename t_QueueType, TicketType t_TicketType = TicketType::PERSISTENT>
 void RunTestsOnQueueTypeWithThreadCounts(size_t enqueueThreads, size_t dequeueThreads, bool useMoves = false)
