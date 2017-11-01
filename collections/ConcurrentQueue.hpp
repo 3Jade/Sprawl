@@ -1059,7 +1059,9 @@ public:
 		: m_readIdx(0)
 		, m_writeIdx(0)
 		, m_readSubQueue(maxConcurrentTicketFreeReads)
+		, m_failedReads(0)
 		, m_writeSubQueue(maxConcurrentTicketFreeWrites)
+		, m_failedWrites(0)
 	{
 		memset(m_buffer, 0, c_adjustedSize * sizeof(BufferElement));
 	}
