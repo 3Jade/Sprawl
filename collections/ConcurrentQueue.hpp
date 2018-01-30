@@ -6,10 +6,11 @@
 
 #include <limits>
 
+#include <type_traits>
+
 #include "../common/compat.hpp"
 #include "../common/errors.hpp"
 #include "../common/CachePad.hpp"
-#include "../threading/thread.hpp"
 
 #ifndef SPRAWL_CONCURRENT_QUEUE_DEBUG_ASSERTS
 #	define SPRAWL_CONCURRENT_QUEUE_DEBUG_ASSERTS 0
@@ -48,14 +49,16 @@ namespace sprawl
 			constexpr uint64_t pow2_2(uint64_t const x) { return pow2_4(x | x >> 2); }
 			constexpr uint64_t pow2_1(uint64_t const x) { return pow2_2(x | x >> 1); }
 
-			constexpr uint64_t nextPowerOf2(uint64_t const x)
+			template<typename t_IntegerType>
+			constexpr t_IntegerType nextPowerOf2(t_IntegerType const x, typename std::enable_if<sizeof(t_IntegerType) == 8>::type* = nullptr)
 			{
-				return pow2_1(x - 1);
+				return pow2_1(uint64_t(x - 1));
 			}
-
-			constexpr uint32_t nextPowerOf2(uint32_t const x)
+			
+			template<typename t_IntegerType>
+			constexpr t_IntegerType nextPowerOf2(t_IntegerType const x, typename std::enable_if<sizeof(t_IntegerType) == 4>::type* = nullptr)
 			{
-				return pow2_1(x - 1);
+				return pow2_1(uint32_t(x - 1));
 			}
 
 			static_assert(nextPowerOf2(uint64_t(1)) == 1, "nextPowerOf2 failed");
@@ -385,7 +388,6 @@ public:
 					// Another thread is likely trying to read this one still.
 					// This can happen even when max concurrent reads is not exceeded, but is rare.
 					// We will block on a loop until we're able to write.
-					sprawl::this_thread::Yield();
 				}
 				failedRead.item = std::move(ticket);
 				failedRead.pos.store(pos, std::memory_order_release);
