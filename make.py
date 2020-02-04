@@ -10,236 +10,200 @@ import shutil
 import csbuild
 from csbuild import log
 
-csbuild.Toolchain("gcc").Compiler().SetCppStandard("c++11")
-csbuild.Toolchain("gcc").SetCxxCommand("clang++")
+csbuild.ToolchainGroup("gnu").AddCompilerCxxFlags(
+	"-std=c++17",
+	"-Wall",
+	"-Wextra",
+	"-Wctor-dtor-privacy",
+	"-Woverloaded-virtual",
+	"-Winit-self",
+	"-Wmissing-include-dirs",
+	"-Wswitch-default", 
+	"-Wno-switch-enum", 
+	"-Wundef", 
+	"-Wno-old-style-cast"
+)
 
-csbuild.Toolchain("gcc").Compiler().AddWarnFlags("all", "extra", "ctor-dtor-privacy", "overloaded-virtual", "init-self", "missing-include-dirs", "switch-default", "no-switch-enum", "undef", "no-old-style-cast")
-
-csbuild.DisablePrecompile()
-
-csbuild.AddOption("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
-csbuild.AddOption("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
-csbuild.AddOption("--no-threads", action="store_true", help="Build without thread support")
-csbuild.AddOption("--no-exceptions", action="store_true", help="Build without exception support")
-csbuild.AddOption("--no-unit-tests", action="store_true", help="Don't automatically run unit tests as part of build")
-csbuild.SetHeaderInstallSubdirectory("sprawl/{project.name}")
+#csbuild.AddOption("--with-mongo", action="store", help="Path to mongo include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
+#csbuild.AddOption("--with-boost", action="store", help="Path to boost include directory. If not specified, mongo will not be built.", nargs="?", default=None, const="/usr")
+#csbuild.AddOption("--no-threads", action="store_true", help="Build without thread support")
+#csbuild.AddOption("--no-exceptions", action="store_true", help="Build without exception support")
+#csbuild.AddOption("--no-unit-tests", action="store_true", help="Don't automatically run unit tests as part of build")
+#csbuild.SetHeaderInstallSubdirectory("sprawl/{name}")
 
 csbuild.SetUserData("subdir", platform.system())
 
 if platform.system() == "Darwin":
+	csbuild.ToolchainGroup("gnu").AddCompilerCxxFlags(
+		"-D_XOPEN_SOURCE",
+		"-stdlib=libc++"
+	)
 	csbuild.Toolchain("gcc").AddDefines("_XOPEN_SOURCE");
 	csbuild.Toolchain("gcc").SetCppStandardLibrary("libc++")
 
-csbuild.SetOutputDirectory("lib/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
-csbuild.SetIntermediateDirectory("Intermediate/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}/{project.name}")
+csbuild.SetOutputDirectory("lib/{userData.subdir}/{toolchainName}/{architectureName}/{targetName}")
+csbuild.SetIntermediateDirectory("Intermediate/{userData.subdir}/{toolchainName}/{architectureName}/{targetName}/{name}")
 
 
-csbuild.Toolchain("msvc").AddCompilerFlags(
+csbuild.Toolchain("msvc").AddCompilerCxxFlags(
 	"/fp:fast",
 	"/wd\"4530\"",
 	"/wd\"4067\"",
 	"/wd\"4351\"",
 	"/constexpr:steps1000000",
+    "/std:c++17",
+    "/Zc:__cplusplus"
 )
 
-if not csbuild.GetOption("no_threads"):
-	csbuild.Toolchain("gcc", "ios", "android").AddCompilerFlags("-pthread")
+#if not csbuild.GetOption("no_threads"):
+csbuild.ToolchainGroup("gnu").AddCompilerFlags("-pthread")
 
-if csbuild.GetOption("no_exceptions"):
-	csbuild.Toolchain("gcc", "ios", "android").AddCompilerFlags("-fno-exceptions")
-else:
-	csbuild.Toolchain("msvc").AddCompilerFlags("/EHsc")
+#if csbuild.GetOption("no_exceptions"):
+#	csbuild.Toolchain("gcc", "ios", "android").AddCompilerCxxFlags("-fno-exceptions")
+#else:
+csbuild.Toolchain("msvc").AddCompilerCxxFlags("/EHsc")
 
 	
-@csbuild.project("collections", "collections")
-def collections():
+with csbuild.Project("collections", "collections"):
 	csbuild.SetOutput("libsprawl_collections", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableHeaderInstall()
 
 	
-@csbuild.project("tag", "tag")
-def collections():
+with csbuild.Project("tag", "tag"):
 	csbuild.SetOutput("libsprawl_tag", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableHeaderInstall()
-
-@csbuild.project("if", "if")
-def collections():
+with csbuild.Project("if", "if"):
 	csbuild.SetOutput("libsprawl_if", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableHeaderInstall()
-
-
-@csbuild.project("network", "network")
-def network():
+with csbuild.Project("network", "network"):
 	csbuild.SetOutput("libsprawl_network", csbuild.ProjectType.StaticLibrary)
 	
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
-	
-@csbuild.project("serialization", "serialization")
-def serialization():
+with csbuild.Project("serialization", "serialization"):
 	csbuild.SetOutput("libsprawl_serialization", csbuild.ProjectType.StaticLibrary)
 	csbuild.AddExcludeDirectories("serialization/mongo")
-
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
 	
-@csbuild.project("time", "time")
-def timeProject():
+with csbuild.Project("time", "time"):
 	csbuild.SetOutput("libsprawl_time", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.Toolchain("gcc").AddExcludeFiles("time/*_windows.cpp")
+	csbuild.ToolchainGroup("gnu").AddExcludeFiles("time/*_windows.cpp")
 	if platform.system() == "Darwin":
-		csbuild.Toolchain("gcc").AddExcludeFiles("time/*_linux.cpp")
+		csbuild.ToolchainGroup("gnu").AddExcludeFiles("time/*_linux.cpp")
 	else:
-		csbuild.Toolchain("gcc").AddExcludeFiles("time/*_osx.cpp")
+		csbuild.ToolchainGroup("gnu").AddExcludeFiles("time/*_osx.cpp")
 
 	csbuild.Toolchain("msvc").AddExcludeFiles("time/*_linux.cpp", "time/*_osx.cpp")
 
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
 	
-@csbuild.project("filesystem", "filesystem")
-def filesystem():
+with csbuild.Project("filesystem", "filesystem"):
 	csbuild.SetOutput("libsprawl_filesystem", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.Toolchain("gcc").AddExcludeFiles("filesystem/*_windows.cpp")
+	csbuild.ToolchainGroup("gnu").AddExcludeFiles("filesystem/*_windows.cpp")
 	csbuild.Toolchain("msvc").AddExcludeFiles("filesystem/*_linux.cpp")
 
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
 	
-@csbuild.project("threading", "threading")
-def threading():
+with csbuild.Project("threading", "threading"):
 	csbuild.SetOutput("libsprawl_threading", csbuild.ProjectType.StaticLibrary)
 
 	if platform.system() != "Darwin":
-		@csbuild.scope(csbuild.ScopeDef.Final)
-		def finalScope():
-			csbuild.Toolchain("gcc").Linker().AddLinkerFlags("-pthread")
+		with csbuild.Scope(csbuild.ScopeDef.Final):
+			csbuild.ToolchainGroup("gnu").AddLinkerFlags("-pthread")
 
-	csbuild.Toolchain("gcc").AddExcludeFiles("threading/*_windows.cpp")
+	csbuild.ToolchainGroup("gnu").AddExcludeFiles("threading/*_windows.cpp")
 	if platform.system() == "Darwin":
-		csbuild.Toolchain("gcc").AddExcludeFiles("threading/event_linux.cpp")
+		csbuild.ToolchainGroup("gnu").AddExcludeFiles("threading/event_linux.cpp")
 	else:
-		csbuild.Toolchain("gcc").AddExcludeFiles("threading/event_osx.cpp")
+		csbuild.ToolchainGroup("gnu").AddExcludeFiles("threading/event_osx.cpp")
 
 	csbuild.Toolchain("msvc").AddExcludeFiles(
 		"threading/*_linux.cpp",
 		"threading/*_osx.cpp"
 	)
 
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
+#MongoDir = csbuild.GetOption("with_mongo")
+#BoostDir = csbuild.GetOption("with_boost")
+#if (not MongoDir) ^ (not BoostDir):
+#	log.LOG_ERROR("Both mongo and boost directories must be specified to build MongoSerializer.");
+#	csbuild.Exit(1)
+#	
+#if MongoDir and BoostDir:
+#	MongoDir = os.path.abspath(MongoDir)
+#	BoostDir = os.path.abspath(BoostDir)
+#	@csbuild.project("serialization-mongo", "serialization/mongo")
+#	def serialization():
+#		csbuild.SetOutput("libsprawl_serialization-mongo", csbuild.ProjectType.StaticLibrary)
+#		csbuild.AddDefines("BOOST_ALL_NO_LIB")
+#		
+#		csbuild.AddIncludeDirectories(
+#			"./serialization",
+#			os.path.join(MongoDir, "include"),
+#			os.path.join(BoostDir, "include")
+#		)
+#
+#		csbuild.AddLibraryDirectories(
+#			os.path.join(MongoDir, "lib"),
+#			os.path.join(BoostDir, "lib")
+#		)
+#	
+#		csbuild.SetHeaderInstallSubdirectory("sprawl/serialization")
+#		csbuild.EnableOutputInstall()
+#		csbuild.EnableHeaderInstall()
 
-MongoDir = csbuild.GetOption("with_mongo")
-BoostDir = csbuild.GetOption("with_boost")
-if (not MongoDir) ^ (not BoostDir):
-	log.LOG_ERROR("Both mongo and boost directories must be specified to build MongoSerializer.");
-	csbuild.Exit(1)
-	
-if MongoDir and BoostDir:
-	MongoDir = os.path.abspath(MongoDir)
-	BoostDir = os.path.abspath(BoostDir)
-	@csbuild.project("serialization-mongo", "serialization/mongo")
-	def serialization():
-		csbuild.SetOutput("libsprawl_serialization-mongo", csbuild.ProjectType.StaticLibrary)
-		csbuild.AddDefines("BOOST_ALL_NO_LIB")
-		
-		csbuild.AddIncludeDirectories(
-			"./serialization",
-			os.path.join(MongoDir, "include"),
-			os.path.join(BoostDir, "include")
-		)
-
-		csbuild.AddLibraryDirectories(
-			os.path.join(MongoDir, "lib"),
-			os.path.join(BoostDir, "lib")
-		)
-	
-		csbuild.SetHeaderInstallSubdirectory("sprawl/serialization")
-		csbuild.EnableOutputInstall()
-		csbuild.EnableHeaderInstall()
-
-@csbuild.project("memory", "memory")
-def memory():
+with csbuild.Project("memory", "memory"):
 	csbuild.SetOutput("libsprawl_memory", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableHeaderInstall()
-
-
-@csbuild.project("string", "string")
-def string():
+with csbuild.Project("string", "string"):
 	csbuild.SetOutput("libsprawl_string", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
-
-@csbuild.project("hash", "hash")
-def hash():
+with csbuild.Project("hash", "hash"):
 	csbuild.SetOutput("libsprawl_hash", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
-@csbuild.project("logging", "logging")
-def logging():
+with csbuild.Project("logging", "logging"):
 	csbuild.SetOutput("libsprawl_logging", csbuild.ProjectType.StaticLibrary)
 
-	@csbuild.scope(csbuild.ScopeDef.Final)
-	def finalScope():
+	with csbuild.Scope(csbuild.ScopeDef.Final):
 		if platform.system() != "Darwin":
-			csbuild.Toolchain("gcc").AddLibraries(
+			csbuild.ToolchainGroup("gnu").AddLibraries(
 				"bfd",
 			)
 		csbuild.Toolchain("msvc").AddLibraries(
 			"DbgHelp"
 		)
 
-	csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_windows.cpp")
+	csbuild.ToolchainGroup("gnu").AddExcludeFiles("logging/*_windows.cpp")
 	if platform.system() == "Darwin":
-		csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_linux.cpp")
+		csbuild.ToolchainGroup("gnu").AddExcludeFiles("logging/*_linux.cpp")
 	else:
-		csbuild.Toolchain("gcc").AddExcludeFiles("logging/*_osx.cpp")
+		csbuild.ToolchainGroup("gnu").AddExcludeFiles("logging/*_osx.cpp")
 	csbuild.Toolchain("msvc").AddExcludeFiles(
 		"logging/*_linux.cpp",
 		"logging/*_osx.cpp"
 	)
 
-	csbuild.EnableOutputInstall()
-	csbuild.EnableHeaderInstall()
-
-@csbuild.project("common", "common")
-def common():
+with csbuild.Project("common", "common"):
 	csbuild.SetOutput("libsprawl_common", csbuild.ProjectType.StaticLibrary)
 
-	csbuild.EnableHeaderInstall()
 
 UnitTestDepends = ["serialization", "string", "hash", "time", "threading", "filesystem", "logging"]
-if MongoDir:
-	UnitTestDepends.append("serialization-mongo")
+#if MongoDir:
+#	UnitTestDepends.append("serialization-mongo")
 
-@csbuild.project("UnitTests", "UnitTests", UnitTestDepends)
-def UnitTests():
-	csbuild.DisableChunkedBuild()
+with csbuild.Project("UnitTests", "UnitTests", UnitTestDepends):
+	#csbuild.DisableChunkedBuild()
 	csbuild.SetOutput("SprawlUnitTest")
-	csbuild.SetOutputDirectory("bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
+	csbuild.SetOutputDirectory("bin/{userData.subdir}/{toolchainName}/{architectureName}/{targetName}")
 	
-	csbuild.EnableOutputInstall()
+	#csbuild.EnableOutputInstall()
 	
 	csbuild.AddIncludeDirectories(
 		"UnitTests/gtest",
 		"UnitTests/gtest/include",
 	)
 
-	csbuild.Toolchain("gcc").Compiler().AddWarnFlags("no-undef", "no-switch-enum", "no-missing-field-initializers")
+	csbuild.ToolchainGroup("gnu").AddCompilerCxxFlags(
+		"-Wno-undef", 
+		"-Wno-switch-enum", 
+		"-Wno-missing-field-initializers"
+	)
 
 	csbuild.AddExcludeFiles(
 		"UnitTests/gtest/src/gtest-death-test.cc",
@@ -252,57 +216,61 @@ def UnitTests():
 		"UnitTests/gtest/src/gtest.cc",
 	)
 
-	if MongoDir:
-		csbuild.AddIncludeDirectories(
-			"./serialization",
-			os.path.join(MongoDir, "include"),
-			os.path.join(BoostDir, "include")
-		)
-
-		csbuild.AddLibraryDirectories(
-			os.path.join(MongoDir, "lib"),
-			os.path.join(BoostDir, "lib")
-		)
+	#if MongoDir:
+	#	csbuild.AddIncludeDirectories(
+	#		"./serialization",
+	#		os.path.join(MongoDir, "include"),
+	#		os.path.join(BoostDir, "include")
+	#	)
+	#
+	#	csbuild.AddLibraryDirectories(
+	#		os.path.join(MongoDir, "lib"),
+	#		os.path.join(BoostDir, "lib")
+	#	)
+	#	
+	#	csbuild.AddLibraries(
+	#		"mongoclient",
+	#		"boost_filesystem",
+	#		"boost_system",
+	#		"boost_thread",
+	#		"boost_program_options",
+	#		"ssl",
+	#		"crypto",
+	#	)
+	#	csbuild.Toolchain("gcc").AddLibraries("pthread")
+	#	csbuild.Toolchain("gcc").AddCompilerFlags("-pthread")
+	#	csbuild.AddDefines("WITH_MONGO")
+	#else:
+	csbuild.AddExcludeFiles(
+		"UnitTests/UnitTests_MongoReplicable.cpp",
+	)
 		
-		csbuild.AddLibraries(
-			"mongoclient",
-			"boost_filesystem",
-			"boost_system",
-			"boost_thread",
-			"boost_program_options",
-			"ssl",
-			"crypto",
-		)
-		csbuild.Toolchain("gcc").AddLibraries("pthread")
-		csbuild.Toolchain("gcc").AddCompilerFlags("-pthread")
-		csbuild.AddDefines("WITH_MONGO")
-	else:
-		csbuild.AddExcludeFiles(
-			"UnitTests/UnitTests_MongoReplicable.cpp",
-		)
 		
-		
-@csbuild.project("QueueTests", "QueueTests", ["time", "threading"])
-def UnitTests():
-	csbuild.DisableChunkedBuild()
+with csbuild.Project("QueueTests", "QueueTests", ["time", "threading"]):
+	#csbuild.DisableChunkedBuild()
 	csbuild.SetOutput("QueueTests")
-	csbuild.SetOutputDirectory("bin/{project.userData.subdir}/{project.activeToolchainName}/{project.outputArchitecture}/{project.targetName}")
+	csbuild.SetOutputDirectory("bin/{userData.subdir}/{toolchainName}/{architectureName}/{targetName}")
 	
-	csbuild.EnableOutputInstall()
-
-	csbuild.Toolchain("gcc").Compiler().AddWarnFlags("no-undef", "no-switch-enum", "no-missing-field-initializers")
+	#csbuild.EnableOutputInstall()
+	
+	csbuild.ToolchainGroup("gnu").AddCompilerCxxFlags(
+		"-Wno-undef", 
+		"-Wno-switch-enum", 
+		"-Wno-missing-field-initializers"
+	)
 
 	csbuild.AddIncludeDirectories("QueueTests/ext/include")
-	csbuild.AddLibraryDirectories("QueueTests/ext/lib/{project.userData.subdir}-{project.outputArchitecture}")
+	csbuild.AddLibraryDirectories("QueueTests/ext/lib/{userData.subdir}-{architectureName}")
 	csbuild.AddExcludeDirectories("QueueTests/ext")
 	csbuild.AddLibraries("tbb")
 	
 	if platform.system() == "Windows":
-		@csbuild.postMakeStep
-		def postMake(project):
-			for f in glob.glob("QueueTests/ext/lib/{project.userData.subdir}-{project.outputArchitecture}/*".format(project=project)):
-				basename = os.path.basename(f)
-				dest = os.path.join(project.outputDir, basename)
-				if not os.path.exists(dest):
-					print("Copying {} to {}".format(f, dest))
-					shutil.copyfile(f, dest)
+		@csbuild.OnBuildFinished
+		def postMake(projects):
+			for project in projects:
+				for f in glob.glob("QueueTests/ext/lib/{project.userData.subdir}-{project.architectureName}/*".format(project=project)):
+					basename = os.path.basename(f)
+					dest = os.path.join(project.outputDir, basename)
+					if not os.path.exists(dest):
+						print("Copying {} to {}".format(f, dest))
+						shutil.copyfile(f, dest)

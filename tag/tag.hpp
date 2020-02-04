@@ -5,8 +5,11 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#include "../common/compat.hpp"
 #include "../if/if.hpp"
+#include "../common/compat.hpp"
+#include "../string/String.hpp"
+#include "../string/StringBuilder.hpp"
+#include "../time/time.hpp"
 
 #ifndef SPRAWL_CHR_MAX
 #define SPRAWL_CHR_MAX 64
@@ -65,7 +68,7 @@ static_assert(SPRAWL_CHR_MAX >= 2 && (SPRAWL_CHR_MAX & (SPRAWL_CHR_MAX - 1)) == 
 #define SPRAWL_CHR_MACRO(val) SPRAWL_CHR_MACRO_2(val)
 #define SPRAWL_CHR_MAX_MACRO SPRAWL_CHR_MACRO(SPRAWL_CHR_MAX)
 
-#define SPRAWL_TAG(s) ::sprawl::detail::TagWrapper< ::sprawl::detail::SizeChecker<sizeof(s) - 1>::value, 1, ::sprawl::Tag<0>, ::sprawl::detail::IsPositive<sizeof(s) - 1>::value, true, SPRAWL_CHR_MAX_MACRO(s, sizeof(s), 0)>::type
+#define SPRAWL_TAG(s) ::sprawl::detail::TagWrapper< ::sprawl::detail::SizeChecker<sizeof(s) - 1>::value, 1, ::sprawl::detail::TagBuilder<>, ::sprawl::detail::IsPositive<sizeof(s) - 1>::value, true, SPRAWL_CHR_MAX_MACRO(s, sizeof(s), 0)>::type
 
 #include "detail/tag_detail.hpp"
 #include "type_list.hpp"
@@ -232,21 +235,35 @@ namespace sprawl
 		static constexpr char value = t_PreviousChar == -1 ? Upper<t_PreviousChar, t_CurrentChar>::value : Lower<t_PreviousChar, t_CurrentChar>::value;
 	};
 
-	template<ssize_t t_Len, char... t_Chars>
+	template<typename t_Tag, typename t_ParameterType>
+	struct NamedFormatParameter
+	{
+		typedef t_Tag parameterName;
+		t_ParameterType& parameter;
+	};
+
+	template<typename t_Tag, typename t_ParameterType>
+	NamedFormatParameter<t_Tag, t_ParameterType> FormatParameter(t_ParameterType&& parameter)
+	{
+		return { parameter };
+	}
+	
+
+	template<char... t_Chars>
 	struct Tag
 	{
 	public:
-		static constexpr ssize_t length = t_Len;
-		static CONSTEXPR_ARRAY char name[t_Len + 1] SPRAWL_CONSTEXPR_INCLASS_INIT({ t_Chars..., '\0' });
+		static constexpr ssize_t length = sizeof...(t_Chars);
+		static CONSTEXPR_ARRAY char name[length + 1] SPRAWL_CONSTEXPR_INCLASS_INIT({ t_Chars..., '\0' });
 		typedef ssize_t length_type;
 		typedef char char_type;
 
-		constexpr Tag(){}
+		constexpr Tag() {}
 
-		template<ssize_t t_Idx, ssize_t t_Length = t_Len - t_Idx>
-		using Substring = typename detail::TagWrapper<(t_Idx < 0 ? 0 : (t_Length >(t_Len - t_Idx)) ? (t_Len - t_Idx) : t_Length), t_Idx < 0 ? 0 : (1 - t_Idx), Tag<0>, detail::IsPositive<t_Idx < 0 ? 0 : ((t_Length >(t_Len - t_Idx)) ? (t_Len - t_Idx) : t_Length)>::value, detail::IsPositive<t_Idx < 0 ? 0 : (1 - t_Idx)>::value, t_Chars...>::type;
+		template<ssize_t t_Idx, ssize_t t_Length = length - t_Idx>
+		using Substring = typename detail::TagWrapper<(t_Idx < 0 ? 0 : (t_Length > (length - t_Idx)) ? (length - t_Idx) : t_Length), t_Idx < 0 ? 0 : (1 - t_Idx), detail::TagBuilder<>, detail::IsPositive < t_Idx < 0 ? 0 : ((t_Length > (length - t_Idx)) ? (length - t_Idx) : t_Length)>::value, detail::IsPositive<t_Idx < 0 ? 0 : (1 - t_Idx)>::value, t_Chars...>::type;
 
-		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t Find()
 		{
 			return detail::FindTag<Substring<t_Start, t_End - t_Start>, t_OtherTagType, 0>::result != -1 ? detail::FindTag<Substring<t_Start, t_End - t_Start>, t_OtherTagType, 0>::result + t_Start : -1;
@@ -254,73 +271,73 @@ namespace sprawl
 
 
 		template<ssize_t t_Length>
-		static constexpr ssize_t Find(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t Find(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return t_Length - 1 <= Tag::length && t_Length - 1 <= (end - start) ? find_(0, start, end, str, t_Chars...) : -1;
 		}
 
-		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t RFind()
 		{
 			return detail::RFindTag<Substring<t_Start, t_End - t_Start>, t_OtherTagType, 0>::result != -1 ? detail::RFindTag<Substring<t_Start, t_End - t_Start>, t_OtherTagType, 0>::result + t_Start : -1;
 		}
 
 		template<ssize_t t_Length>
-		static constexpr ssize_t RFind(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t RFind(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return t_Length - 1 <= Tag::length && t_Length - 1 <= (end - start) ? rfind_(0, start, end, str, t_Chars...) : -1;
 		}
 
-		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t FindFirstOf()
 		{
 			return detail::FindPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result != -1 ? detail::FindPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result + t_Start : -1;
 		}
 
 		template<ssize_t t_Length>
-		static constexpr ssize_t FindFirstOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t FindFirstOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return findFirstOf_(0, start, end, str, t_Chars...);
 		}
 
-		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t FindLastOf()
 		{
 			return detail::RFindPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result != -1 ? detail::RFindPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result + t_Start : -1;
 		}
 
 		template<ssize_t t_Length>
-		static constexpr ssize_t FindLastOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t FindLastOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return findLastOf_(0, start, end, str, t_Chars...);
 		}
 
-		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t FindFirstNotOf()
 		{
 			return detail::FindNotPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result != -1 ? detail::FindNotPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result + t_Start : -1;
 		}
 
 		template<ssize_t t_Length>
-		static constexpr ssize_t FindFirstNotOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t FindFirstNotOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return findFirstNotOf_(0, start, end, str, t_Chars...);
 		}
 
-		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_PredType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t FindLastNotOf()
 		{
 			return detail::RFindNotPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result != -1 ? detail::RFindNotPred<Substring<t_Start, t_End - t_Start>, t_PredType, 0>::result + t_Start : -1;
 		}
 
 		template<ssize_t t_Length>
-		static constexpr ssize_t FindLastNotOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t FindLastNotOf(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return findLastNotOf_(0, start, end, str, t_Chars...);
 		}
 
 		template<template <char t_PreviousChar, char t_CurrentChar> class t_TransformType>
-		using Transform = typename detail::TransformTag<t_TransformType, Tag<0>, -1, t_Chars...>::type;
+		using Transform = typename detail::TransformTag<t_TransformType, Tag<>, -1, t_Chars...>::type;
 
 		//Using as a namespace so following namespace naming conventions despite being a struct.
 		struct tag_detail
@@ -331,77 +348,10 @@ namespace sprawl
 
 			};
 
-			template<ssize_t t_OtherLength, char... t_OtherChars>
-			struct AppendTagHelper<Tag<t_OtherLength, t_OtherChars...>>
+			template<char... t_OtherChars>
+			struct AppendTagHelper<Tag<t_OtherChars...>>
 			{
-				typedef Tag<t_Len + t_OtherLength, t_Chars..., t_OtherChars...> type;
-			};
-
-#if SPRAWL_COMPILER_MSVC
-			template<ssize_t t_TargetIdx, bool t_CharWithinBounds, char... t_AdditionalChars>
-			struct CharAt;
-
-			template<ssize_t t_TargetIdx, bool t_CharWithinBounds, char t_FirstChar, char... t_AdditionalChars>
-			struct CharAt<t_TargetIdx, t_CharWithinBounds, t_FirstChar, t_AdditionalChars...>
-			{
-				static constexpr char value = t_TargetIdx < 0 ? -1 :
-					t_TargetIdx == 0 ? t_FirstChar :
-					CharAt<t_TargetIdx - 1, t_CharWithinBounds, t_AdditionalChars...>::value;
-			};
-
-			template<ssize_t t_TargetIdx, bool t_CharWithinBounds, char t_FirstChar>
-			struct CharAt<t_TargetIdx, t_CharWithinBounds, t_FirstChar>
-			{
-				static constexpr char value = t_TargetIdx < 0 ? -1 : t_TargetIdx == 0 ? t_FirstChar : -1;
-			};
-
-			template<ssize_t t_TargetIdx, bool t_CharWithinBounds>
-			struct CharAt<t_TargetIdx, t_CharWithinBounds>
-			{
-				static constexpr char value = -1;
-			};
-
-			template<char t_NextChar, bool t_CharWithinBounds>
-			struct CharAt<-1, t_CharWithinBounds, t_NextChar>
-			{
-				static constexpr char value = -1;
-			};
-#else
-			template<ssize_t t_TargetIdx, bool t_CharWithinBounds, char... t_Ignored>
-			struct CharAt
-			{
-				static constexpr char value = name[t_TargetIdx];
-			};
-
-			template<ssize_t t_TargetIdx, char... t_Ignored>
-			struct CharAt<t_TargetIdx, false, t_Ignored...>
-			{
-				static constexpr char value = -1;
-			};
-#endif
-
-			template<typename t_PredicateType, ssize_t t_Idx = 0, bool t_ShouldStrip = t_PredicateType::template Check<CharAt<t_Idx, t_Idx >= 0 && t_Idx <= t_Len, t_Chars...>::value>::value>
-			struct LStripHelper
-			{
-				typedef typename LStripHelper<t_PredicateType, t_Idx + 1>::type type;
-			};
-
-			template<typename t_PredicateType, ssize_t t_Idx>
-			struct LStripHelper<t_PredicateType, t_Idx, false>
-			{
-				typedef Substring<t_Idx> type;
-			};
-
-			template<typename t_PredicateType, ssize_t t_Idx = 0, bool t_ShouldStrip = t_PredicateType::template Check<CharAt<t_Len - t_Idx - 1, (t_Len - t_Idx - 1) >= 0 && (t_Len - t_Idx - 1) <= t_Len, t_Chars...>::value>::value>
-			struct RStripHelper
-			{
-				typedef typename RStripHelper<t_PredicateType, t_Idx + 1>::type type;
-			};
-
-			template<typename t_PredicateType, ssize_t t_Idx>
-			struct RStripHelper<t_PredicateType, t_Idx, false>
-			{
-				typedef Substring<0, t_Len - t_Idx> type;
+				typedef Tag<t_Chars..., t_OtherChars...> type;
 			};
 
 			template<typename t_SearchStringType, ssize_t t_SplitLocation>
@@ -737,33 +687,33 @@ namespace sprawl
 		};
 
 		template<typename t_PredicateType = IsWhitespace>
-		using LStrip = typename tag_detail::template LStripHelper<t_PredicateType>::type;
+		using LStrip = Substring<FindFirstNotOf<t_PredicateType>()>;
 
 		template<typename t_PredicateType = IsWhitespace>
-		using RStrip = typename tag_detail::template RStripHelper<t_PredicateType>::type;
+		using RStrip = Substring<0, FindLastNotOf<t_PredicateType>()+1>;
 
 		template<typename t_PredicateType = IsWhitespace>
 		using Strip = typename LStrip<t_PredicateType>::template RStrip<t_PredicateType>;
 
 		template<char t_CharToAdd>
-		using AppendChar = Tag<t_Len + 1, t_Chars..., t_CharToAdd>;
+		using AppendChar = Tag<t_Chars..., t_CharToAdd>;
 
 		template<typename t_OtherTagType>
 		using Append = typename tag_detail::template AppendTagHelper<t_OtherTagType>::type;
 
-		template<ssize_t t_Start, ssize_t t_Length = t_Len - t_Start>
-		using Erase = typename Substring<0, t_Start>::template Append<Substring<t_Start + t_Length, t_Len - (t_Start + t_Length)>>;
+		template<ssize_t t_Start, ssize_t t_Length = length - t_Start>
+		using Erase = typename Substring<0, t_Start>::template Append<Substring<t_Start + t_Length, length - (t_Start + t_Length)>>;
 
 		template<typename t_AccessibleByGetType>
 		using Join = typename detail::JoinTags<Tag, t_AccessibleByGetType, 0, detail::HasGet<t_AccessibleByGetType, 1>>::type;
 
-		template<typename t_AccessibleByGetType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_AccessibleByGetType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t FindFirstInList()
 		{
 			return detail::FindTagInList<Substring<t_Start, t_End - t_Start>, t_AccessibleByGetType, 0, detail::HasGet<t_AccessibleByGetType, 1>>::value;
 		}
 
-		template<typename t_AccessibleByGetType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_AccessibleByGetType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t FindLastInList()
 		{
 			return detail::RFindTagInList<Substring<t_Start, t_End - t_Start>, t_AccessibleByGetType, 0, detail::HasGet<t_AccessibleByGetType, 1>>::value;
@@ -809,20 +759,20 @@ namespace sprawl
 			return detail::MeetsComplexCondition<sprawl::IsTitle, -1, t_Chars...>::value;
 		}
 
-		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr bool StartsWith()
 		{
 			return t_OtherTagType::length <= length && t_OtherTagType::length <= (t_End - t_Start) && Substring<t_Start, t_End - t_Start>::template Substring<0, t_OtherTagType::length>::template EqualTo<t_OtherTagType>();
 		}
 
-		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr bool EndsWith()
 		{
 			return t_OtherTagType::length <= length && t_OtherTagType::length <= (t_End - t_Start) && Substring<t_Start, t_End - t_Start>::template Substring<Substring<t_Start, t_End - t_Start>::length - t_OtherTagType::length, t_OtherTagType::length>::template EqualTo<t_OtherTagType>();
 		}
 
 		template<ssize_t t_Length>
-		static constexpr bool StartsWith(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr bool StartsWith(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 #if SPRAWL_COMPILER_MSVC
 			(void)(str);
@@ -833,7 +783,7 @@ namespace sprawl
 		}
 
 		template<ssize_t t_Length>
-		static constexpr bool EndsWith(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr bool EndsWith(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 #if SPRAWL_COMPILER_MSVC
 			(void)(str);
@@ -855,14 +805,14 @@ namespace sprawl
 			return Find(str) != -1;
 		}
 
-		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = t_Len>
+		template<typename t_OtherTagType, ssize_t t_Start = 0, ssize_t t_End = length>
 		static constexpr ssize_t Count()
 		{
 			return detail::CountTag<Tag, t_OtherTagType, t_Start, t_End>::value;
 		}
 
 		template<size_t t_Length>
-		static constexpr ssize_t Count(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = t_Len)
+		static constexpr ssize_t Count(char const (&str)[t_Length], ssize_t start = 0, ssize_t end = length)
 		{
 			return Find(str, start, end) != -1 ? 1 + Count(str, Find(str, start, end) + 1, end) : 0;
 		}
@@ -870,7 +820,7 @@ namespace sprawl
 		template<ssize_t t_Idx>
 		static constexpr char CharAt()
 		{
-			return tag_detail::template CharAt<t_Idx, t_Idx >= 0 && t_Idx <= t_Len, t_Chars...>::value;
+			return name[t_Idx] ;
 		}
 
 		template<typename t_Type>
@@ -960,17 +910,545 @@ namespace sprawl
 			return t_HashType::template Hash<t_Chars...>::value;
 		}
 
-		template<ssize_t t_Start, ssize_t t_End = t_Len, ssize_t t_Interval = 1>
+		template<typename... t_Types>
+		static sprawl::String FormatAuto(t_Types&& ... params)
+		{
+			sprawl::StringBuilder builder(length * 2);
+			formatAuto_(builder, std::forward<t_Types>(params)...);
+			return builder.Str();
+		}
+
+		template<typename... t_Types>
+		static sprawl::String FormatManual(t_Types&& ... params)
+		{
+			sprawl::StringBuilder builder(length * 2);
+			formatManual_(builder, std::forward<t_Types>(params)...);
+			return builder.Str();
+		}
+
+		template<typename... t_Types>
+		static sprawl::String FormatNamed(t_Types&& ... params)
+		{
+			sprawl::StringBuilder builder(length * 2);
+			formatNamed_(builder, std::forward<t_Types>(params)...);
+			return builder.Str();
+		}
+
+		template<sprawl::time::Resolution t_Resolution = sprawl::time::Resolution::Seconds>
+		static sprawl::String Strftime(int64_t time)
+		{
+			int64_t seconds = time;
+			int64_t nanoseconds = 0;
+			if (t_Resolution != sprawl::time::Resolution::Seconds)
+			{
+				seconds = sprawl::time::Convert<t_Resolution, sprawl::time::Resolution::Seconds>(time);
+				nanoseconds = sprawl::time::Convert<t_Resolution, sprawl::time::Resolution::Nanoseconds>(time) - sprawl::time::Convert<sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds>(seconds);
+			}
+			sprawl::StringBuilder builder;
+			struct tm* timeInfo;
+			time_t secAsTimeT = time_t(seconds);
+			timeInfo = gmtime(&secAsTimeT);
+			timeInfo->tm_year += 1900;
+			strfTime_<false, t_Chars...>(builder, timeInfo, nanoseconds, 0, 0);
+			return builder.Str();
+		}
+
+		static sprawl::String Strftime(double time)
+		{
+			int64_t seconds = int64_t(time);
+			int64_t nanoseconds = int64_t((time - seconds) * sprawl::time::Resolution::Seconds);
+			sprawl::StringBuilder builder;
+			struct tm* timeInfo;
+			time_t secAsTimeT = time_t(seconds);
+			timeInfo = gmtime(&secAsTimeT);
+			timeInfo->tm_year += 1900;
+			strfTime_<false, t_Chars...>(builder, timeInfo, nanoseconds, 0, 0);
+			return builder.Str();
+		}
+
+
+		template<sprawl::time::Resolution t_Resolution = sprawl::time::Resolution::Seconds>
+		static sprawl::String Strftime(int64_t time, int utcOffsetHours, int utcOffsetMinutes=0)
+		{
+			int64_t seconds = time;
+			int64_t nanoseconds = 0;
+			if (t_Resolution != sprawl::time::Resolution::Seconds)
+			{
+				seconds = sprawl::time::Convert<t_Resolution, sprawl::time::Resolution::Seconds>(time);
+				nanoseconds = sprawl::time::Convert<t_Resolution, sprawl::time::Resolution::Nanoseconds>(time) - sprawl::time::Convert<sprawl::time::Resolution::Seconds, sprawl::time::Resolution::Nanoseconds>(seconds);
+			}
+			sprawl::StringBuilder builder;
+			struct tm* timeInfo;
+			time_t secAsTimeT = time_t(seconds);
+			timeInfo = gmtime(&secAsTimeT);
+			timeInfo->tm_year += 1900;
+			strfTime_<false, t_Chars...>(builder, timeInfo, nanoseconds, utcOffsetHours, abs(utcOffsetMinutes));
+			return builder.Str();
+		}
+
+		static sprawl::String Strftime(double time, int utcOffsetHours, int utcOffsetMinutes = 0)
+		{
+			int64_t seconds = int64_t(time);
+			int64_t nanoseconds = int64_t((time - seconds) * sprawl::time::Resolution::Seconds);
+			sprawl::StringBuilder builder;
+			struct tm* timeInfo;
+			time_t secAsTimeT = time_t(seconds);
+			timeInfo = gmtime(&secAsTimeT);
+			timeInfo->tm_year += 1900;
+			strfTime_<false, t_Chars...>(builder, timeInfo, nanoseconds, utcOffsetHours, abs(utcOffsetMinutes));
+			return builder.Str();
+		}
+
+		template<ssize_t t_Start, ssize_t t_End = length, ssize_t t_Interval = 1>
 		using Slice = typename detail::SliceTag<
-			Tag, 
-			Tag<0>, 
-			(t_Start >= t_Len ? t_Len - 1 : t_Start < 0 ? 0 : t_Start), 
-			(t_End > t_Len ? t_Len : t_End < -1 ? -1 : t_End), 
-			t_Interval, 
-			(t_Start >= t_Len ? t_Len - 1 : t_Start < 0 ? 0 : t_Start),
-			((t_Start < t_End ? t_Start < t_End : t_Start > t_End) && ((t_End - t_Start)/t_Interval) > 0)
-		>::type;
-	private:
+			Tag,
+			Tag<>,
+			(t_Start >= length ? length - 1 : t_Start < 0 ? 0 : t_Start),
+			(t_End > length ? length : t_End < -1 ? -1 : t_End),
+			t_Interval,
+			(t_Start >= length ? length - 1 : t_Start < 0 ? 0 : t_Start),
+			((t_Start < t_End ? t_Start < t_End : t_Start > t_End) && ((t_End - t_Start) / t_Interval) > 0)
+			>::type;
+	protected:
+		template<char... t_Chars>
+		friend struct Tag;
+
+		struct timeTables_
+		{
+			static constexpr char const* a[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
+			static constexpr char const* A[] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+			static constexpr char const* b[] = {
+				"Jan",
+				"Feb",
+				"Mar",
+				"Apr",
+				"May",
+				"Jun",
+				"Jul",
+				"Aug",
+				"Sep",
+				"Oct",
+				"Nov",
+				"Dec"
+			};
+			static constexpr char const* B[] = {
+				"January",
+				"February",
+				"March",
+				"April",
+				"May",
+				"June",
+				"July",
+				"August",
+				"September",
+				"October",
+				"November",
+				"December"
+			};
+		};
+
+		static void strfTimeInPlace_(sprawl::StringBuilder& builder, struct tm* timeInfo, int64_t nanoseconds, int utcOffsetHours, int utcOffsetMinutes = 0)
+		{
+			strfTime_<false, t_Chars...>(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+		}
+
+		template<bool t_IsPercent>
+		static void strfTime_(sprawl::StringBuilder& builder, struct tm* timeInfo, int64_t nanoseconds, int utcOffsetHours, int utcOffsetMinutes = 0)
+		{
+		}
+
+		template<bool t_IsPercent, char t_Char, char... t_Chars>
+		static void strfTime_(sprawl::StringBuilder& builder, struct tm* timeInfo, int64_t nanoseconds, int utcOffsetHours, int utcOffsetMinutes = 0)
+		{
+			if(t_IsPercent)
+			{
+				switch (t_Char)
+				{
+				case 'a':
+					builder << timeTables_::a[timeInfo->tm_wday];
+					break;
+				case 'A':
+					builder << timeTables_::A[timeInfo->tm_wday];
+					break;
+				case 'b':
+				case 'h':
+					builder << timeTables_::b[timeInfo->tm_mon];
+					break;
+				case 'B':
+					builder << timeTables_::B[timeInfo->tm_mon];
+					break;
+				case 'c':
+					SPRAWL_TAG("%a %b %d %H:%M:%S %Y")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'C':
+					builder << timeInfo->tm_year / 100;
+					break;
+				case 'd':
+					if (timeInfo->tm_mday < 10)
+					{
+						builder << '0';
+					}
+					builder << timeInfo->tm_mday;
+					break;
+				case 'D':
+					SPRAWL_TAG("%m/%d/%y")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'e':
+					if (timeInfo->tm_mday < 10)
+					{
+						builder << ' ';
+					}
+					builder << timeInfo->tm_mday;
+					break;
+				case 'F':
+					SPRAWL_TAG("%Y-%m-%d")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'H':
+					if (timeInfo->tm_hour < 10)
+					{
+						builder << '0';
+					}
+					builder << timeInfo->tm_hour;
+					break;
+				case 'I':
+				{
+					int hour = (timeInfo->tm_hour + 11) % 12 + 1;
+					if (hour < 10)
+					{
+						builder << '0';
+					}
+					builder << hour;
+					break;
+				}
+				case 'm':
+					if (timeInfo->tm_mon < 9)
+					{
+						builder << '0';
+					}
+					builder << (timeInfo->tm_mon + 1);
+					break;
+				case 'M':
+					if (timeInfo->tm_min < 10)
+					{
+						builder << '0';
+					}
+					builder << timeInfo->tm_min;
+					break;
+				case 'n':
+					builder << '\n';
+					break;
+				case 'p':
+					builder << ((timeInfo->tm_hour >= 12) ? "PM" : "AM");
+					break;
+				case 'P':
+					builder << ((timeInfo->tm_hour >= 12) ? "pm" : "am");
+					break;
+				case 'r':
+					SPRAWL_TAG("%I:%M:%S %p")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'R':
+					SPRAWL_TAG("%H:%M")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 's':
+					builder << mktime(timeInfo);
+					break;
+				case 'S':
+					if (timeInfo->tm_sec < 10)
+					{
+						builder << '0';
+					}
+					builder << timeInfo->tm_sec;
+					break;
+				case 't':
+					builder << '\t';
+					break;
+				case 'T':
+					SPRAWL_TAG("%H:%M:%S")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'u':
+					builder << timeInfo->tm_wday;
+					break;
+				case 'U':
+				{
+					int value = ((timeInfo->tm_yday - timeInfo->tm_wday + 7) / 7);
+					if (value < 10)
+					{
+						builder << '0';
+					}
+					builder << value;
+					break;
+				}
+				case 'w':
+					builder << timeInfo->tm_wday;
+					break;
+				case 'x':
+					SPRAWL_TAG("%m/%d/%y")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'X':
+					SPRAWL_TAG("%H:%M:%S")::strfTimeInPlace_(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+					break;
+				case 'y':
+				{
+					int value = timeInfo->tm_year % 100;
+					if (value < 10)
+					{
+						builder << '0';
+					}
+					builder << value;
+					break;
+				}
+				case 'Y':
+					builder << timeInfo->tm_year;
+					break;
+				case 'z':
+					builder << (utcOffsetHours < 0 ? '-' : '+');
+					if (utcOffsetHours < 10)
+					{
+						builder << '0';
+					}
+					builder << utcOffsetHours;
+					if (utcOffsetMinutes < 10)
+					{
+						builder << '0';
+					}
+					builder << utcOffsetMinutes;
+					break;
+				case '%':
+					builder << '%';
+					break;
+				case 'L':
+				case '3':
+				{
+					int64_t millis = sprawl::time::Convert<sprawl::time::Resolution::Nanoseconds, sprawl::time::Resolution::Milliseconds>(nanoseconds);
+					if (millis < 100)
+					{
+						builder << '0';
+						if (millis < 10)
+						{
+							builder << '0';
+						}
+					}
+					builder << millis;
+					break;
+				}
+				case '6':
+				{
+					int64_t micros = sprawl::time::Convert<sprawl::time::Resolution::Nanoseconds, sprawl::time::Resolution::Microseconds>(nanoseconds);
+					if (micros < 100000)
+					{
+						builder << '0';
+						if (micros < 10000)
+						{
+							builder << '0';
+							if (micros < 1000)
+							{
+								builder << '0';
+								if (micros < 100)
+								{
+									builder << '0';
+									if (micros < 10)
+									{
+										builder << '0';
+									}
+								}
+							}
+						}
+					}
+					builder << micros;
+					break;
+				}
+				case '9':
+				{
+					if (nanoseconds < 100000000)
+					{
+						builder << '0';
+						if (nanoseconds < 10000000)
+						{
+							builder << '0';
+							if (nanoseconds < 1000000)
+							{
+								builder << '0';
+								if (nanoseconds < 100000)
+								{
+									builder << '0';
+									if (nanoseconds < 10000)
+									{
+										builder << '0';
+										if (nanoseconds < 1000)
+										{
+											builder << '0';
+											if (nanoseconds < 100)
+											{
+												builder << '0';
+												if (nanoseconds < 10)
+												{
+													builder << '0';
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+					builder << nanoseconds;
+					break;
+				}
+				}
+			}
+			else if(t_Char == '%')
+			{
+				strfTime_<true, t_Chars...>(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+				return;
+			}
+			else
+			{
+				builder << t_Char;
+			}
+			strfTime_<false, t_Chars...>(builder, timeInfo, nanoseconds, utcOffsetHours, utcOffsetMinutes);
+		}
+
+		template<typename t_Type, typename... t_Types>
+		static void formatAuto_(sprawl::StringBuilder& builder, t_Type&& param, t_Types&& ... params)
+		{
+			constexpr ssize_t split = findEscaped_(0, 0, length, "{}", false, '{', t_Chars...);
+			ssize_t split2 = findEscaped_(0, 0, length, "{}", false, '{', t_Chars...);
+			if (split != -1)
+			{
+				typedef Substring<0, split>::template Replace<SPRAWL_TAG("{{}"), SPRAWL_TAG("{}")> start;
+				builder << sprawl::StringRef(start::name, start::length);
+				builder << param;
+				Substring<split + 2>::formatAuto_(builder, std::forward<t_Types>(params)...);
+			}
+			else
+			{
+				builder << sprawl::StringRef(name, length);
+			}
+		}
+
+		template<typename t_Type, typename... t_Types>
+		static void formatAuto_(sprawl::StringBuilder& builder, t_Type&& param)
+		{
+			constexpr ssize_t split = findEscaped_(0, 0, length, "{}", false, '{', t_Chars...);
+			if (split != -1)
+			{
+				typedef Substring<0, split>::template Replace<SPRAWL_TAG("{{}"), SPRAWL_TAG("{}")> start;
+				builder << sprawl::StringRef(start::name, start::length);
+				builder << param;
+				builder << sprawl::StringRef(Substring<split + 2>::name, Substring<split + 2>::length);
+			}
+			else
+			{
+				builder << sprawl::StringRef(name, length);
+			}
+		}
+
+		template<ssize_t t_Idx, typename t_Type, typename... t_Types>
+		static void writeParamToString_(sprawl::StringBuilder& builder, t_Type&& param, t_Types&& ... params)
+		{
+			if (t_Idx == 0)
+			{
+				builder << param;
+			}
+			else
+			{
+				writeParamToString_<t_Idx - 1>(builder, std::forward<t_Types>(params)...);
+			}
+		}
+
+		template<ssize_t t_Idx, typename t_Type>
+		static void writeParamToString_(sprawl::StringBuilder& builder, t_Type&& param)
+		{
+			if (t_Idx == 0)
+			{
+				builder << param;
+			}
+		}
+
+		template<typename... t_Types>
+		static void formatManual_(sprawl::StringBuilder& builder, t_Types&& ... params)
+		{
+			constexpr ssize_t split = find_(0, 0, length, "{", t_Chars...);
+			if (split != -1)
+			{
+				typedef Substring<split + 1> AfterSplit;
+				if (AfterSplit::CharAt<0>() == '{')
+				{
+					builder << '{';
+					Substring<split + 2>::formatManual_(builder, std::forward<t_Types>(params)...);
+				}
+				else
+				{
+					constexpr ssize_t end = AfterSplit::Find("}");
+
+					constexpr int idx = AfterSplit::Substring<0, end>::As<int>();
+
+					typedef Substring<0, split>::template Replace<SPRAWL_TAG("{{"), SPRAWL_TAG("{")> start;
+
+					builder << sprawl::StringRef(start::name, start::length);
+					writeParamToString_<idx>(builder, std::forward<t_Types>(params)...);
+					Substring<split + end + 2>::formatManual_(builder, std::forward<t_Types>(params)...);
+				}
+			}
+			else
+			{
+				builder << sprawl::StringRef(name, length);
+			}
+		}
+
+		template<typename t_Tag, typename t_ParameterType, typename... t_Types>
+		static void writeNamedParamToString_(sprawl::StringBuilder& builder, sprawl::NamedFormatParameter<t_Tag, t_ParameterType>&& param, t_Types&& ... params)
+		{
+			builder << param.parameter;
+		}
+
+		template<typename t_Tag, typename t_ParameterType, typename... t_Types>
+		static void writeNamedParamToString_(sprawl::StringBuilder& builder, sprawl::NamedFormatParameter<t_Tag, t_ParameterType>&& param)
+		{
+			builder << param.parameter;
+		}
+
+		template<typename t_Tag, typename t_Type, typename... t_Types>
+		static void writeNamedParamToString_(sprawl::StringBuilder& builder, t_Type&& type, t_Types&& ... params)
+		{
+			writeNamedParamToString_<t_Tag>(builder, std::forward<t_Types>(params)...);
+		}
+
+		template<typename t_Tag, typename t_Type>
+		static void writeNamedParamToString_(sprawl::StringBuilder& builder, t_Type&& type)
+		{
+
+		}
+
+		template<typename... t_Types>
+		static void formatNamed_(sprawl::StringBuilder& builder, t_Types&& ... params)
+		{
+			constexpr ssize_t split = find_(0, 0, length, "{", t_Chars...);
+			if (split != -1)
+			{
+				typedef Substring<split + 1> AfterSplit;
+				if (AfterSplit::CharAt<0>() == '{')
+				{
+					builder << '{';
+					Substring<split + 2>::formatNamed_(builder, std::forward<t_Types>(params)...);
+				}
+				else
+				{
+					constexpr ssize_t end = AfterSplit::Find("}");
+
+					typedef Substring<0, split>::template Replace<SPRAWL_TAG("{{"), SPRAWL_TAG("{")> start;
+
+					builder << sprawl::StringRef(start::name, start::length);
+					writeNamedParamToString_<AfterSplit::Substring<0, end>>(builder, std::forward<t_Types>(params)...);
+					Substring<split + end + 2>::formatNamed_(builder, std::forward<t_Types>(params)...);
+				}
+			}
+			else
+			{
+				builder << sprawl::StringRef(name, length);
+			}
+		}
+
 		template<size_t t_Length>
 		static constexpr bool equalTo_(ssize_t /*idx*/, ssize_t /*length_*/, ssize_t /*offset*/, char const (&/*str*/)[t_Length])
 		{
@@ -1016,6 +1494,12 @@ namespace sprawl
 				-1;
 		}
 
+		template<size_t t_Length>
+		static constexpr ssize_t find_(ssize_t idx, ssize_t start, size_t end, char const (&str)[t_Length])
+		{
+			return -1;
+		}
+
 		template<size_t t_Length, typename t_FirstCharType, typename... t_MorCharTypes>
 		static constexpr ssize_t find_(ssize_t idx, ssize_t start, size_t end, char const (&str)[t_Length], t_FirstCharType compareChar, t_MorCharTypes... moreChars)
 		{
@@ -1033,6 +1517,51 @@ namespace sprawl
 				find_(idx + 1, start, end, str, moreChars...)
 				:
 				find_(idx + 1, start, end, str, moreChars...);
+		}
+
+
+		template<size_t t_Length>
+		static constexpr ssize_t findEscaped_(ssize_t idx, ssize_t start, size_t end, char const (&str)[t_Length], bool inEscape, char escapeChar, char compareChar)
+		{
+			return
+				idx + t_Length - 1 > end
+				?
+				-1
+				:
+				idx >= start
+				?
+				equalTo_(0, t_Length - 1, 0, str, compareChar) && !inEscape
+				?
+				idx
+				:
+				-1
+				:
+				-1;
+		}
+
+		template<size_t t_Length>
+		static constexpr ssize_t findEscaped_(ssize_t idx, ssize_t start, size_t end, char const (&str)[t_Length], bool inEscape, char escapeChar)
+		{
+			return -1;
+		}
+
+		template<size_t t_Length, typename t_FirstCharType, typename... t_MorCharTypes>
+		static constexpr ssize_t findEscaped_(ssize_t idx, ssize_t start, size_t end, char const (&str)[t_Length], bool inEscape, char escapeChar, t_FirstCharType compareChar, t_MorCharTypes... moreChars)
+		{
+			return
+				idx + t_Length - 1 > end
+				?
+				-1
+				:
+				idx >= start
+				?
+				equalTo_(0, t_Length - 1, 0, str, compareChar, moreChars...) && !inEscape
+				?
+				idx
+				:
+				findEscaped_(idx + 1, start, end, str, (compareChar == escapeChar) ^ inEscape, escapeChar, moreChars...)
+				:
+				findEscaped_(idx + 1, start, end, str, (compareChar == escapeChar) ^ inEscape, escapeChar, moreChars...);
 		}
 
 		template<size_t t_Length>
@@ -1244,9 +1773,6 @@ namespace sprawl
 		}
 	};
 
-	template<ssize_t t_Len, char... t_Chars>
-	CONSTEXPR_ARRAY char Tag<t_Len, t_Chars...>::name[t_Len + 1] SPRAWL_CONSTEXPR_OUT_OF_CLASS_INIT({ t_Chars..., '\0' });
-
 	namespace detail
 	{
 		template<typename t_Type>
@@ -1282,7 +1808,7 @@ namespace sprawl
 			//Gotta do this the hard way since we can't sizeof()...
 			typedef typename ::sprawl::detail::TagWrapper<
 				::sprawl::detail::SizeChecker<nameSize.size - 1>::value, 1,
-				::sprawl::Tag<0>,
+				::sprawl::detail::TagBuilder<>,
 				::sprawl::detail::IsPositive<nameSize.size - 1>::value,
 				true,
 				SPRAWL_CHR_MAX_MACRO(nameSize.name, nameSize.size, 0)
@@ -1325,43 +1851,43 @@ namespace sprawl
 		template<typename t_Type, t_Type t_Value, size_t t_Base, bool t_Capitalize, bool t_IsSingleDigit = (t_Value >= 0 && t_Value < t_Base), bool t_IsNegative = (t_Value < 0)>
 		struct TagFromInt
 		{
-			typedef typename TagFromInt<t_Type, t_Value / t_Base, t_Base, t_Capitalize>::type::template Append<Tag<1, t_Capitalize ? intBaseValuesUpper[t_Value % t_Base] : intBaseValues[t_Value % t_Base]>> type;
+			typedef typename TagFromInt<t_Type, t_Value / t_Base, t_Base, t_Capitalize>::type::template Append<Tag<t_Capitalize ? intBaseValuesUpper[t_Value % t_Base] : intBaseValues[t_Value % t_Base]>> type;
 		};
 
 		template<typename t_Type, t_Type t_Value, size_t t_Base, bool t_Capitalize>
 		struct TagFromInt<t_Type, t_Value, t_Base, t_Capitalize, true, false>
 		{
-			typedef Tag<1, t_Capitalize ? intBaseValuesUpper[t_Value] : intBaseValues[t_Value]> type;
+			typedef Tag<t_Capitalize ? intBaseValuesUpper[t_Value] : intBaseValues[t_Value]> type;
 		};
 
 		template<typename t_Type, t_Type t_Value, size_t t_Base, bool t_Capitalize>
 		struct TagFromInt<t_Type, t_Value, t_Base, t_Capitalize, false, true>
 		{
-			typedef typename Tag<1, '-'>::Append<typename TagFromInt<t_Type, 0 - t_Value, t_Base, t_Capitalize>::type> type;
+			typedef typename Tag<'-'>::Append<typename TagFromInt<t_Type, 0 - t_Value, t_Base, t_Capitalize>::type> type;
 		};
 
 		template<typename t_Type, t_Type t_Value, size_t t_Base, bool t_Capitalize, bool t_IsSingleDigit = (t_Value >= 0 && t_Value < t_Base)>
 		struct TagFromUInt
 		{
-			typedef typename TagFromUInt<t_Type, t_Value / t_Base, t_Base, t_Capitalize>::type::template Append<Tag<1, t_Capitalize ? intBaseValuesUpper[t_Value % t_Base] : intBaseValues[t_Value % t_Base]>> type;
+			typedef typename TagFromUInt<t_Type, t_Value / t_Base, t_Base, t_Capitalize>::type::template Append<Tag<t_Capitalize ? intBaseValuesUpper[t_Value % t_Base] : intBaseValues[t_Value % t_Base]>> type;
 		};
 
 		template<typename t_Type, t_Type t_Value, size_t t_Base, bool t_Capitalize>
 		struct TagFromUInt<t_Type, t_Value, t_Base, t_Capitalize, true>
 		{
-			typedef Tag<1, t_Capitalize ? intBaseValuesUpper[t_Value] : intBaseValues[t_Value]> type;
+			typedef Tag<t_Capitalize ? intBaseValuesUpper[t_Value] : intBaseValues[t_Value]> type;
 		};
 
 		template<bool t_Value>
 		struct TagFromBool
 		{
-			typedef Tag<4, 't', 'r', 'u', 'e'> type;
+			typedef Tag<'t', 'r', 'u', 'e'> type;
 		};
 
 		template<>
 		struct TagFromBool<false>
 		{
-			typedef Tag<5, 'f', 'a', 'l', 's', 'e'> type;
+			typedef Tag<'f', 'a', 'l', 's', 'e'> type;
 		};
 	}
 	template<typename t_Type>
@@ -1374,7 +1900,7 @@ namespace sprawl
 	struct TagFrom<char>
 	{
 		template<char t_Char>
-		using FromValue = Tag<1, t_Char>;
+		using FromValue = Tag<t_Char>;
 	};
 
 	template<> struct TagFrom<signed char> { template<signed char t_Value, size_t t_Base = 10, bool t_Capitalize = true> using FromValue = typename detail::TagFromInt<signed char, t_Value, t_Base, t_Capitalize>::type; };
@@ -1395,6 +1921,6 @@ namespace sprawl
 	struct TagFrom<std::nullptr_t>
 	{
 		template<std::nullptr_t value>
-		using FromValue = Tag<6, '(', 'n', 'u', 'l', 'l', ')'>;
+		using FromValue = Tag<'(', 'n', 'u', 'l', 'l', ')'>;
 	};
 }

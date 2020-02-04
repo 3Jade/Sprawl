@@ -66,10 +66,10 @@ namespace sprawl
 				+ time::DaysFromCivil(t_YearTagType::template As<int64_t>(), time::numericMonth_<t_MonthTagType>::value, t_DayTagType::template As<int64_t>()) * 24 * 60 * 60;
 		};
 
-		template<ssize_t t_Len, char t_FirstChar, char... t_MoreChars>
-		struct TagToDateTime<sprawl::Tag<t_Len, t_FirstChar, t_MoreChars...>>
+		template<char t_FirstChar, char... t_MoreChars>
+		struct TagToDateTime<sprawl::Tag<t_FirstChar, t_MoreChars...>>
 		{
-			typedef sprawl::Tag<t_Len, t_FirstChar, t_MoreChars...> TagType;
+			typedef sprawl::Tag<t_FirstChar, t_MoreChars...> TagType;
 			static constexpr int64_t value = TagToDateTime<typename TagType::template Replace<SPRAWL_TAG("  "), SPRAWL_TAG(" ")>::template Replace<SPRAWL_TAG(":"), SPRAWL_TAG(" ")>::template Split<SPRAWL_TAG(" ")>>::value;
 		};
 	}

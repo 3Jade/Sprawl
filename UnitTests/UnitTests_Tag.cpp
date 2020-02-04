@@ -674,3 +674,117 @@ TEST(TagTest, TestTagName)
 {
 	ASSERT_EQ(sprawl::String(SPRAWL_TAG("ABCDEFG")::name), sprawl::String("ABCDEFG"));
 }
+
+TEST(TagTest, TestFormatAuto)
+{
+	typedef SPRAWL_TAG("{}{}{}") t1;
+	typedef SPRAWL_TAG("{{}{}{}{}") t2;
+	typedef SPRAWL_TAG("1({})2({})3({})") t3;
+	ASSERT_EQ(t1::FormatAuto(1, 2, 3), sprawl::String("123"));
+	ASSERT_EQ(t2::FormatAuto(1, 2, 3), sprawl::String("{}123"));
+	ASSERT_EQ(t3::FormatAuto(1, 2, 3), sprawl::String("1(1)2(2)3(3)"));
+}
+
+TEST(TagTest, TestFormatManual)
+{
+	typedef SPRAWL_TAG("{0}{1}{2}") t1;
+	typedef SPRAWL_TAG("{{0}{0}{1}{2}") t2;
+	typedef SPRAWL_TAG("1({0})2({1})3({2})") t3;
+
+	typedef SPRAWL_TAG("{0}{1}{0}") t4;
+	typedef SPRAWL_TAG("{{0}{0}{1}{0}") t5;
+	typedef SPRAWL_TAG("1({0})2({1})3({0})") t6;
+
+	typedef SPRAWL_TAG("{2}{1}{0}") t7;
+	typedef SPRAWL_TAG("{{0}{2}{1}{0}") t8;
+	typedef SPRAWL_TAG("1({2})2({1})3({0})") t9;
+
+	ASSERT_EQ(t1::FormatManual(1, 2, 3), sprawl::String("123"));
+	ASSERT_EQ(t2::FormatManual(1, 2, 3), sprawl::String("{0}123"));
+	ASSERT_EQ(t3::FormatManual(1, 2, 3), sprawl::String("1(1)2(2)3(3)"));
+
+	ASSERT_EQ(t4::FormatManual(1, 2, 3), sprawl::String("121"));
+	ASSERT_EQ(t5::FormatManual(1, 2, 3), sprawl::String("{0}121"));
+	ASSERT_EQ(t6::FormatManual(1, 2, 3), sprawl::String("1(1)2(2)3(1)"));
+
+	ASSERT_EQ(t7::FormatManual(1, 2, 3), sprawl::String("321"));
+	ASSERT_EQ(t8::FormatManual(1, 2, 3), sprawl::String("{0}321"));
+	ASSERT_EQ(t9::FormatManual(1, 2, 3), sprawl::String("1(3)2(2)3(1)"));
+}
+
+TEST(TagTest, TestFormatNamed)
+{
+	typedef SPRAWL_TAG("{foo}{bar}{baz}") t1;
+	typedef SPRAWL_TAG("{{foo}{foo}{bar}{baz}") t2;
+	typedef SPRAWL_TAG("1({foo})2({bar})3({baz})") t3;
+
+	typedef SPRAWL_TAG("{foo}{bar}{foo}") t4;
+	typedef SPRAWL_TAG("{{foo}{foo}{bar}{foo}") t5;
+	typedef SPRAWL_TAG("1({foo})2({bar})3({foo})") t6;
+
+	typedef SPRAWL_TAG("{baz}{bar}{foo}") t7;
+	typedef SPRAWL_TAG("{{foo}{baz}{bar}{foo}") t8;
+	typedef SPRAWL_TAG("1({baz})2({bar})3({foo})") t9;
+
+	ASSERT_EQ(t1::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("123"));
+	ASSERT_EQ(t2::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("{foo}123"));
+	ASSERT_EQ(t3::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("1(1)2(2)3(3)"));
+	ASSERT_EQ(t4::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("121"));
+	ASSERT_EQ(t5::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("{foo}121"));
+	ASSERT_EQ(t6::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("1(1)2(2)3(1)"));
+	ASSERT_EQ(t7::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("321"));
+	ASSERT_EQ(t8::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("{foo}321"));
+	ASSERT_EQ(t9::FormatNamed(sprawl::FormatParameter<SPRAWL_TAG("foo")>(1), sprawl::FormatParameter<SPRAWL_TAG("bar")>(2), sprawl::FormatParameter<SPRAWL_TAG("baz")>(3)), sprawl::String("1(3)2(2)3(1)"));
+}
+
+TEST(TagTest, TestStrfTime)
+{
+	int timestamp = 558369296;
+
+	typedef SPRAWL_TAG("%c") t1;
+	typedef SPRAWL_TAG("%Y-%m-%d %I:%M:%S %p") t2;
+	typedef SPRAWL_TAG("%Y-%m-%d %I:%M:%S.%6 %p") t3;
+	typedef SPRAWL_TAG("%Y-%m-%d %I:%M:%S.%9 %p") t4;
+
+	ASSERT_EQ(
+		t1::Strftime(timestamp),
+		sprawl::String("Fri Sep 11 14:34:56 1987")
+	);
+
+	ASSERT_EQ(
+		t2::Strftime(timestamp),
+		sprawl::String("1987-09-11 02:34:56 PM")
+	);
+	
+	ASSERT_EQ(
+		t3::Strftime<sprawl::time::Resolution::Nanoseconds>(
+			sprawl::time::Convert<
+				sprawl::time::Resolution::Seconds, 
+				sprawl::time::Resolution::Nanoseconds
+			>(timestamp) + 123456),
+		sprawl::String("1987-09-11 02:34:56.000123 PM")
+	);
+	ASSERT_EQ(
+		t4::Strftime<sprawl::time::Resolution::Nanoseconds>(
+			sprawl::time::Convert<
+				sprawl::time::Resolution::Seconds, 
+				sprawl::time::Resolution::Nanoseconds
+			>(timestamp) + 123456),
+		sprawl::String("1987-09-11 02:34:56.000123456 PM")
+	);
+
+	ASSERT_EQ(
+		t3::Strftime(double(timestamp) + 0.000123456),
+		sprawl::String("1987-09-11 02:34:56.000123 PM")
+	);
+
+	ASSERT_EQ(
+		t3::Strftime(timestamp),
+		sprawl::String("1987-09-11 02:34:56.000000 PM")
+	);
+
+	ASSERT_EQ(
+		t4::Strftime(timestamp),
+		sprawl::String("1987-09-11 02:34:56.000000000 PM")
+	);
+}

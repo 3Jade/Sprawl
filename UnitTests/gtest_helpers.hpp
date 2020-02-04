@@ -1,4 +1,5 @@
 #pragma once
+
 #include "../string/String.hpp"
 #include "../common/errors.hpp"
 #include <iostream>

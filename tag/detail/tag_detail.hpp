@@ -4,7 +4,7 @@
 
 namespace sprawl
 {
-	template<ssize_t t_Len, char... t_Chars>
+	template<char... t_Chars>
 	struct Tag;
 
 	namespace detail
@@ -76,19 +76,35 @@ namespace sprawl
 			static constexpr bool value = false;
 		};
 
+		template<char... t_Chars>
+		struct TagBuilder
+		{
+			template<char t_CharToAdd>
+			using AppendChar = TagBuilder<t_Chars..., t_CharToAdd>;
+		};
+		
+		template<typename t_Type>
+		struct BuilderToTag;
+
+		template<char... t_Chars>
+		struct BuilderToTag<TagBuilder<t_Chars...>>
+		{
+			typedef ::sprawl::Tag<t_Chars...> type;
+		};
+
 		template<ssize_t t_Length, ssize_t t_Idx, typename t_CharsSoFarType, bool t_LengthIsPositive, bool t_IdxIsPositive, char... t_Chars>
 		struct TagWrapper;
 
 		template<ssize_t t_Idx, typename t_CharsSoFarType, char t_FirstChar, char... t_Chars>
 		struct TagWrapper<0, t_Idx, t_CharsSoFarType, true, true, t_FirstChar, t_Chars...>
 		{
-			typedef t_CharsSoFarType type;
+			typedef typename BuilderToTag<t_CharsSoFarType>::type type;
 		};
 
 		template<ssize_t t_Length, typename t_CharsSoFarType, char t_FirstChar, char... t_Chars>
 		struct TagWrapper<t_Length, t_Length, t_CharsSoFarType, true, true, t_FirstChar, t_Chars...>
 		{
-			typedef typename t_CharsSoFarType::template AppendChar<t_FirstChar> type;
+			typedef typename BuilderToTag<typename t_CharsSoFarType::template AppendChar<t_FirstChar>>::type type;
 		};
 
 		template<ssize_t t_Length, ssize_t t_Idx, typename t_CharsSoFarType, char t_FirstChar, char... t_Chars>
@@ -100,14 +116,14 @@ namespace sprawl
 		template<ssize_t t_Length, ssize_t t_Idx, typename t_TagType, bool t_IdxIsPositive, char... t_Chars>
 		struct TagWrapper<t_Length, t_Idx, t_TagType, false, t_IdxIsPositive, t_Chars...>
 		{
-			typedef t_TagType type;
+			typedef typename BuilderToTag<t_TagType>::type type;
 		};
 
 
 		template<ssize_t t_Length, typename t_CharsSoFarType, char t_FirstChar, char... t_Chars>
 		struct TagWrapper<t_Length, t_Length, t_CharsSoFarType, true, false, t_FirstChar, t_Chars...>
 		{
-			typedef t_CharsSoFarType type;
+			typedef typename BuilderToTag<t_CharsSoFarType>::type type;
 		};
 
 		template<ssize_t t_Length, ssize_t t_Idx, typename t_CharsSoFarType, char t_FirstChar, char... t_Chars>
@@ -539,14 +555,14 @@ namespace sprawl
 			typedef typename t_TypeSoFarType::template AppendChar<t_TagToSplit::template CharAt<t_Idx>()> interimType;
 			static constexpr ssize_t nextIdx = t_Idx + t_Interval;
 			typedef typename SliceTag<
-				t_TagToSplit, 
-				interimType, 
-				t_Start, 
-				t_End, 
-				t_Interval, 
-				nextIdx, 
+				t_TagToSplit,
+				interimType,
+				t_Start,
+				t_End,
+				t_Interval,
+				nextIdx,
 				(t_Start < t_End ? (nextIdx >= t_Start && nextIdx < t_End) : (nextIdx <= t_Start && nextIdx > t_End))
-			>::type type;
+				>::type type;
 		};
 
 		template<typename t_TagToSplit, typename t_TypeSoFarType, ssize_t t_Start, ssize_t t_End, ssize_t t_Interval, ssize_t t_Idx>
@@ -611,6 +627,12 @@ namespace sprawl
 		struct TagToInt<t_Char>
 		{
 			static constexpr int64_t value = (t_Char >= '0' && t_Char <= '9') ? (t_Char - '0') : 0;
+		};
+
+		template<>
+		struct TagToInt<>
+		{
+			static constexpr int64_t value = 0;
 		};
 
 		template<char... t_AllChars>
@@ -688,20 +710,20 @@ namespace sprawl
 		template<typename t_TagType>
 		struct TagToBool;
 
-		template<ssize_t t_Len, char... t_Chars>
-		struct TagToBool<Tag<t_Len, t_Chars...>>
+		template<char... t_Chars>
+		struct TagToBool<Tag<t_Chars...>>
 		{
 			static constexpr bool value = TagToDouble<t_Chars...>::value != 0.0;
 		};
 
 		template<>
-		struct TagToBool<Tag<4, 't', 'r', 'u', 'e'>>
+		struct TagToBool<Tag<'t', 'r', 'u', 'e'>>
 		{
 			static constexpr bool value = true;
 		};
 
 		template<>
-		struct TagToBool<Tag<5, 'f', 'a', 'l', 's', 'e'>>
+		struct TagToBool<Tag<'f', 'a', 'l', 's', 'e'>>
 		{
 			static constexpr bool value = false;
 		};
@@ -894,10 +916,12 @@ namespace sprawl
 				static constexpr size_t output2 = rotateLeft_(output1, r2);
 				static constexpr size_t value = (output2 * m) + n;
 			};
-		}
+	}
 #endif
 #if SPRAWL_COMPILER_MSVC
 #	pragma warning(pop)
 #endif
-	}
 }
+}
+
+//#include "tag_wrapper_opt.hpp"

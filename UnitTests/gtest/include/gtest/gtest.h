@@ -51,6 +51,8 @@
 #ifndef GTEST_INCLUDE_GTEST_GTEST_H_
 #define GTEST_INCLUDE_GTEST_GTEST_H_
 
+#define GTEST_HAS_TR1_TUPLE 0
+
 #include <limits>
 #include <ostream>
 #include <vector>

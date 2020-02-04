@@ -99,15 +99,9 @@
 #	endif
 #endif
 
-#if SPRAWL_COMPILER_MSVC
-#	define SPRAWL_CONSTEXPR_INCLASS_INIT(...)
-#	define SPRAWL_CONSTEXPR_OUT_OF_CLASS_INIT(...) = __VA_ARGS__
-#	define CONSTEXPR_ARRAY const
-#else
-#	define SPRAWL_CONSTEXPR_INCLASS_INIT(...) = __VA_ARGS__
-#	define SPRAWL_CONSTEXPR_OUT_OF_CLASS_INIT(...)
-#	define CONSTEXPR_ARRAY constexpr
-#endif
+#define SPRAWL_CONSTEXPR_INCLASS_INIT(...) = __VA_ARGS__
+#define SPRAWL_CONSTEXPR_OUT_OF_CLASS_INIT(...)
+#define CONSTEXPR_ARRAY constexpr
 
 #define SPRAWL_DEFINE_COMPILE_ERROR(type, text) template<bool t_Check> struct type { static_assert(t_Check, text); }
 
